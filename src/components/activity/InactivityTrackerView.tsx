@@ -87,8 +87,8 @@ export const InactivityTrackerView: React.FC = () => {
       </div>
 
       {/* Filter and Search */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="flex items-center gap-1.5">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 w-full min-w-0">
+        <div className="flex items-center gap-1.5 flex-wrap">
           <button
             onClick={() => setTierFilter('ALL')}
             className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer ${
@@ -107,7 +107,7 @@ export const InactivityTrackerView: React.FC = () => {
           </button>
         </div>
 
-        <div className="relative min-w-[200px]">
+        <div className="relative w-full sm:w-64 min-w-0">
           <Search className="w-3.5 h-3.5 text-stone-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
           <input
             type="text"

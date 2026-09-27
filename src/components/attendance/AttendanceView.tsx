@@ -112,14 +112,14 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
         </div>
 
         {/* Event Switcher & Bulk Action */}
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
           <select
             value={currentEvent.id}
             onChange={e => {
               sounds.playClick();
               setSelectedEventIdForAttendance(e.target.value);
             }}
-            className="px-3 py-1.5 rounded-lg bg-[#140c08] border border-[#3d200e] text-[#fbbf24] font-semibold text-xs focus:outline-none cursor-pointer"
+            className="flex-1 sm:flex-initial min-w-0 px-3 py-1.5 rounded-lg bg-[#140c08] border border-[#3d200e] text-[#fbbf24] font-semibold text-xs focus:outline-none cursor-pointer"
           >
             {events.map(e => (
               <option key={e.id} value={e.id}>
@@ -130,23 +130,23 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
 
           <button
             onClick={() => setShowBulkConfirm(true)}
-            className="btn-kingshot-gold px-3 py-1.5 text-xs font-bold uppercase flex items-center gap-1 cursor-pointer"
+            className="btn-kingshot-gold px-3 py-1.5 text-xs font-bold uppercase flex items-center justify-center gap-1 cursor-pointer flex-1 sm:flex-initial min-w-0"
           >
-            <CheckCircle2 className="w-3.5 h-3.5" />
-            <span>Mark All YES as Joined</span>
+            <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">Mark All YES as Joined</span>
           </button>
         </div>
       </div>
 
       {/* Tabs & Search */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="flex items-center gap-1.5 overflow-x-auto">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 w-full min-w-0">
+        <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none overscroll-contain max-w-full pb-1">
           <button
             onClick={() => {
               sounds.playClick();
               setActiveCategory('ALL');
             }}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer shrink-0 ${
               activeCategory === 'ALL' ? 'bg-[#331c0d] text-[#fbbf24]' : 'bg-[#20150f] text-stone-400 hover:text-white'
             }`}
           >
@@ -158,7 +158,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
               sounds.playClick();
               setActiveCategory('JOINED');
             }}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer shrink-0 ${
               activeCategory === 'JOINED' ? 'bg-emerald-950 text-emerald-300 border border-emerald-700' : 'bg-[#20150f] text-emerald-400 hover:text-white'
             }`}
           >
@@ -170,7 +170,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
               sounds.playClick();
               setActiveCategory('FLAKED');
             }}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer shrink-0 ${
               activeCategory === 'FLAKED' ? 'bg-red-950 text-red-300 border border-red-700' : 'bg-[#20150f] text-red-400 hover:text-white'
             }`}
           >
@@ -182,7 +182,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
               sounds.playClick();
               setActiveCategory('NO_VOTE');
             }}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer shrink-0 ${
               activeCategory === 'NO_VOTE' ? 'bg-[#331c0d] text-stone-200' : 'bg-[#20150f] text-stone-400 hover:text-white'
             }`}
           >
@@ -190,7 +190,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
           </button>
         </div>
 
-        <div className="relative min-w-[200px]">
+        <div className="relative w-full sm:w-64 min-w-0">
           <Search className="w-3.5 h-3.5 text-stone-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
           <input
             type="text"

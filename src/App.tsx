@@ -88,13 +88,13 @@ const MainAppContent: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#14110e] text-[#fef9ee] selection:bg-[#d97706] selection:text-[#fffbeb]">
+    <div className="min-h-screen flex flex-col bg-[#14110e] text-[#fef9ee] selection:bg-[#d97706] selection:text-[#fffbeb] w-full max-w-full overflow-x-hidden">
       {/* Top Header */}
       <Header onOpenCreateEvent={() => setIsCreateEventOpen(true)} />
 
       {/* Syncing live banner when fetching in background */}
       {isSyncingSheets && (
-        <div className="bg-[#451a03] border-b border-[#78350f] px-4 py-1.5 text-center text-xs text-[#fef08a] flex items-center justify-center gap-2">
+        <div className="bg-[#451a03] border-b border-[#78350f] px-3 sm:px-4 py-1.5 text-center text-xs text-[#fef08a] flex items-center justify-center gap-2">
           <RefreshCw className="w-3.5 h-3.5 animate-spin text-[#fbbf24]" />
           <span>Updating records...</span>
         </div>
@@ -104,7 +104,7 @@ const MainAppContent: React.FC = () => {
       <Navigation />
 
       {/* Page Content */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 py-6 animate-fade-in">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-2.5 sm:px-6 py-4 sm:py-6 animate-fade-in overflow-x-hidden">
         {activeTab === 'dashboard' && (
           <DashboardView
             onOpenCreateEvent={() => setIsCreateEventOpen(true)}

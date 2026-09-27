@@ -465,9 +465,9 @@ export const ContributionsView: React.FC = () => {
         </div>
 
         {/* Filter Controls */}
-        <div className="p-3 rounded-xl bg-[#20150f] border border-[#4d2b14] flex flex-wrap gap-2.5 items-center">
+        <div className="p-3 rounded-xl bg-[#20150f] border border-[#4d2b14] flex flex-wrap gap-2.5 items-center w-full min-w-0">
           {/* Search */}
-          <div className="relative flex-1 min-w-[180px]">
+          <div className="relative w-full sm:flex-1 min-w-0">
             <Search className="w-4 h-4 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
@@ -482,7 +482,7 @@ export const ContributionsView: React.FC = () => {
           <select
             value={selectedOfficer}
             onChange={e => setSelectedOfficer(e.target.value)}
-            className="px-2.5 py-1.5 rounded-lg bg-[#140c08] border border-[#3d200e] text-stone-200 text-xs focus:outline-none focus:border-[#fbbf24]"
+            className="w-full sm:w-auto min-w-0 px-2.5 py-1.5 rounded-lg bg-[#140c08] border border-[#3d200e] text-stone-200 text-xs focus:outline-none focus:border-[#fbbf24]"
           >
             <option value="ALL">All Officers</option>
             {officerStats.map(o => (
@@ -496,7 +496,7 @@ export const ContributionsView: React.FC = () => {
           <select
             value={selectedActionType}
             onChange={e => setSelectedActionType(e.target.value)}
-            className="px-2.5 py-1.5 rounded-lg bg-[#140c08] border border-[#3d200e] text-stone-200 text-xs focus:outline-none focus:border-[#fbbf24]"
+            className="w-full sm:w-auto min-w-0 px-2.5 py-1.5 rounded-lg bg-[#140c08] border border-[#3d200e] text-stone-200 text-xs focus:outline-none focus:border-[#fbbf24]"
           >
             <option value="ALL">All Action Types</option>
             <option value="ATTENDANCE">War Attendance</option>
@@ -508,7 +508,7 @@ export const ContributionsView: React.FC = () => {
         </div>
 
         {/* Desktop Table View (screens >= md) */}
-        <div className="hidden md:block rounded-xl bg-[#20150f] border border-[#4d2b14] overflow-hidden shadow-sm">
+        <div className="hidden md:block rounded-xl bg-[#20150f] border border-[#4d2b14] overflow-x-auto shadow-sm">
           <table className="w-full text-left text-xs">
             <thead className="bg-[#170e09] text-stone-300 font-semibold text-xs border-b border-[#3d200e]">
               <tr>

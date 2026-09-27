@@ -132,6 +132,9 @@ export const storageService = {
       // Auto-detect: if a Google Apps Script URL is saved, live mode should be active
       if (parsed.gasWebAppUrl && parsed.gasWebAppUrl.trim().startsWith('http')) {
         parsed.demoMode = false;
+      } else if (DEFAULT_GAS_URL && DEFAULT_GAS_URL.startsWith('http')) {
+        parsed.gasWebAppUrl = DEFAULT_GAS_URL;
+        parsed.demoMode = false;
       }
       return parsed;
     } catch {

@@ -42,7 +42,7 @@ export const AlertsBanner: React.FC = () => {
             sounds.playClick();
             a.action();
           }}
-          className="flex-1 min-w-[240px] px-3.5 py-2.5 rounded-lg bg-[#27150c] border border-[#52290d] hover:border-[#b45309] flex items-center justify-between gap-3 cursor-pointer transition-all text-xs"
+          className="w-full sm:flex-1 min-w-0 px-3.5 py-2.5 rounded-lg bg-[#27150c] border border-[#52290d] hover:border-[#b45309] flex items-center justify-between gap-3 cursor-pointer transition-all text-xs"
         >
           <div className="flex items-center gap-2 text-stone-200 font-medium truncate">
             {a.icon}

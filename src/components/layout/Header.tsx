@@ -38,27 +38,27 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCreateEvent }) => {
   ];
 
   return (
-    <header className="sticky top-0 z-40 bg-[#1c140e] border-b border-[#3d200e] shadow-md">
-      <div className="max-w-7xl mx-auto px-3 sm:px-6 h-16 flex items-center justify-between gap-3">
+    <header className="sticky top-0 z-40 bg-[#1c140e] border-b border-[#3d200e] shadow-md w-full max-w-full overflow-hidden">
+      <div className="max-w-7xl mx-auto px-2.5 sm:px-6 h-16 flex items-center justify-between gap-2 sm:gap-3 w-full min-w-0">
         {/* Left: Brand */}
         <div
           onClick={() => {
             sounds.playClick();
             setActiveTab('dashboard');
           }}
-          className="flex items-center gap-2 cursor-pointer select-none group shrink-0"
+          className="flex items-center gap-2 cursor-pointer select-none group shrink min-w-0"
         >
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-b from-[#b45309] to-[#78350f] flex items-center justify-center text-[#fffbeb] shadow group-hover:scale-105 transition-transform border border-[#f59e0b]/40">
-            <Castle className="w-5 h-5 text-[#fffbeb]" />
+          <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-b from-[#b45309] to-[#78350f] flex items-center justify-center text-[#fffbeb] shadow group-hover:scale-105 transition-transform border border-[#f59e0b]/40 shrink-0">
+            <Castle className="w-4 h-4 sm:w-5 sm:h-5 text-[#fffbeb]" />
           </div>
-          <div>
-            <div className="flex items-center gap-1.5">
-              <span className="font-fantasy font-black text-base sm:text-lg text-[#fffbeb] tracking-wide group-hover:text-[#f59e0b] transition-colors">
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <span className="font-fantasy font-black text-sm sm:text-lg text-[#fffbeb] tracking-wide group-hover:text-[#f59e0b] transition-colors truncate">
                 HOT Alliance
               </span>
               {/* Role Badge */}
               <span
-                className={`text-[9px] px-1.5 py-0.2 rounded-full font-bold uppercase tracking-wider border ${
+                className={`text-[9px] px-1.5 py-0.2 rounded-full font-bold uppercase tracking-wider border shrink-0 ${
                   isMainAdmin
                     ? 'bg-amber-950/80 text-amber-300 border-amber-600/60'
                     : 'bg-stone-800/80 text-stone-300 border-stone-600/60'
@@ -67,7 +67,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCreateEvent }) => {
                 {isMainAdmin ? 'Main Admin' : 'R4'}
               </span>
             </div>
-            <div className="text-[10px] text-stone-400 font-medium">Kingshot CRM</div>
+            <div className="text-[10px] text-stone-400 font-medium truncate">Kingshot CRM</div>
           </div>
         </div>
 
@@ -100,7 +100,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCreateEvent }) => {
         </nav>
 
         {/* Right Actions */}
-        <div className="flex items-center gap-1.5 sm:gap-2">
+        <div className="flex items-center gap-1 sm:gap-2 shrink-0">
           {/* Quick Create Event */}
           <button
             onClick={() => {
@@ -118,10 +118,10 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCreateEvent }) => {
           <button
             onClick={() => syncWithGoogleSheets()}
             disabled={isSyncingSheets}
-            className="p-2 rounded-xl bg-[#29160a] border border-[#42220d] text-amber-300 hover:text-white hover:border-[#b45309] transition-colors cursor-pointer disabled:opacity-50"
+            className="p-1.5 sm:p-2 rounded-xl bg-[#29160a] border border-[#42220d] text-amber-300 hover:text-white hover:border-[#b45309] transition-colors cursor-pointer disabled:opacity-50"
             title="Sync with Google Sheets"
           >
-            <RefreshCw className={`w-4 h-4 ${isSyncingSheets ? 'animate-spin text-amber-400' : ''}`} />
+            <RefreshCw className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${isSyncingSheets ? 'animate-spin text-amber-400' : ''}`} />
           </button>
 
           {/* Profile Quick Button */}
@@ -130,21 +130,21 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCreateEvent }) => {
               sounds.playClick();
               setActiveTab('profile');
             }}
-            className={`p-2 rounded-xl border transition-colors cursor-pointer flex items-center gap-1.5 ${
+            className={`p-1.5 sm:p-2 rounded-xl border transition-colors cursor-pointer flex items-center gap-1.5 ${
               activeTab === 'profile'
                 ? 'bg-[#331c0d] border-[#fbbf24] text-amber-300'
                 : 'bg-[#29160a] border-[#42220d] text-stone-300 hover:text-white hover:border-[#b45309]'
             }`}
             title={`My Profile (${admin?.name || admin?.username})`}
           >
-            <User className="w-4 h-4 text-amber-400" />
+            <User className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400" />
             <span className="hidden lg:inline text-xs font-bold">{admin?.name || admin?.username}</span>
           </button>
 
-          {/* Audio Toggle */}
+          {/* Audio Toggle (Hidden on narrow mobile, available in Settings) */}
           <button
             onClick={toggleSound}
-            className="p-2 rounded-xl bg-[#29160a] border border-[#42220d] text-stone-300 hover:text-[#fbbf24] transition-colors cursor-pointer"
+            className="hidden sm:flex p-2 rounded-xl bg-[#29160a] border border-[#42220d] text-stone-300 hover:text-[#fbbf24] transition-colors cursor-pointer"
             title={settings.soundEnabled ? 'Mute Audio' : 'Enable Audio'}
           >
             {settings.soundEnabled ? (
@@ -160,10 +160,10 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCreateEvent }) => {
               sounds.playClick();
               logout();
             }}
-            className="p-2 rounded-xl bg-[#29160a] border border-[#42220d] text-stone-300 hover:text-red-400 transition-colors cursor-pointer"
+            className="p-1.5 sm:p-2 rounded-xl bg-[#29160a] border border-[#42220d] text-stone-300 hover:text-red-400 transition-colors cursor-pointer"
             title={`Log out (${admin?.username})`}
           >
-            <LogOut className="w-4 h-4" />
+            <LogOut className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           </button>
         </div>
       </div>

@@ -161,9 +161,9 @@ export const MembersView: React.FC<MembersViewProps> = ({
       </div>
 
       {/* Simple Search & Filters */}
-      <div className="p-3 rounded-lg bg-[#20150f] border border-[#4d2b14] flex flex-wrap gap-2.5 items-center">
+      <div className="p-3 rounded-lg bg-[#20150f] border border-[#4d2b14] flex flex-wrap gap-2.5 items-center w-full min-w-0">
         {/* Search */}
-        <div className="relative flex-1 min-w-[200px]">
+        <div className="relative w-full sm:flex-1 min-w-0">
           <Search className="w-4 h-4 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2" />
           <input
             type="text"
@@ -186,7 +186,7 @@ export const MembersView: React.FC<MembersViewProps> = ({
         <select
           value={memberFilter.rank}
           onChange={e => setMemberFilter(prev => ({ ...prev, rank: e.target.value }))}
-          className="px-2.5 py-1.5 rounded-lg bg-[#140c08] border border-[#3d200e] text-stone-200 text-xs focus:outline-none focus:border-[#fbbf24]"
+          className="w-full sm:w-auto min-w-0 px-2.5 py-1.5 rounded-lg bg-[#140c08] border border-[#3d200e] text-stone-200 text-xs focus:outline-none focus:border-[#fbbf24]"
         >
           <option value="ALL">All Ranks</option>
           <option value="R5">R5 — Leader</option>
@@ -200,7 +200,7 @@ export const MembersView: React.FC<MembersViewProps> = ({
         <select
           value={memberFilter.status}
           onChange={e => setMemberFilter(prev => ({ ...prev, status: e.target.value }))}
-          className="px-2.5 py-1.5 rounded-lg bg-[#140c08] border border-[#3d200e] text-stone-200 text-xs focus:outline-none focus:border-[#fbbf24]"
+          className="w-full sm:w-auto min-w-0 px-2.5 py-1.5 rounded-lg bg-[#140c08] border border-[#3d200e] text-stone-200 text-xs focus:outline-none focus:border-[#fbbf24]"
         >
           <option value="ALL">Active & Inactive</option>
           <option value="Active">Active Only</option>
@@ -212,7 +212,7 @@ export const MembersView: React.FC<MembersViewProps> = ({
         <select
           value={selectedEventType}
           onChange={e => setSelectedEventType(e.target.value)}
-          className="px-2.5 py-1.5 rounded-lg bg-[#140c08] border border-[#3d200e] text-amber-300 text-xs font-semibold focus:outline-none focus:border-[#fbbf24]"
+          className="w-full sm:w-auto min-w-0 px-2.5 py-1.5 rounded-lg bg-[#140c08] border border-[#3d200e] text-amber-300 text-xs font-semibold focus:outline-none focus:border-[#fbbf24]"
         >
           <option value="ALL">All War Events Attendance</option>
           <option value="BT1">BT1 Attendance</option>
@@ -226,7 +226,7 @@ export const MembersView: React.FC<MembersViewProps> = ({
         {/* Quick Filter for Strikes */}
         <button
           onClick={() => setMemberFilter(prev => ({ ...prev, strikeMin: prev.strikeMin > 0 ? 0 : 1 }))}
-          className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold border cursor-pointer ${
+          className={`w-full sm:w-auto px-2.5 py-1.5 rounded-lg text-xs font-semibold border cursor-pointer ${
             memberFilter.strikeMin > 0
               ? 'bg-red-950 text-red-200 border-red-500'
               : 'bg-[#140c08] text-stone-300 border-[#3d200e] hover:border-[#b45309]'

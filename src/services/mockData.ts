@@ -1,7 +1,6 @@
 import { Member, AllianceEvent, AttendanceRecord, StrikeRecord, CommunicationRecord, AllianceSettings } from '../types/crm';
-
-const envUrl = (import.meta.env.VITE_GOOGLE_APPS_SCRIPT_URL || '').trim();
-export const DEFAULT_GAS_URL = envUrl;
+import { DEFAULT_GAS_URL } from '../config';
+export { DEFAULT_GAS_URL };
 
 export const initialSettings: AllianceSettings = {
   inactivityWarningDays: 3,
