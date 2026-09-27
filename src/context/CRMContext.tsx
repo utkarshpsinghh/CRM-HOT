@@ -342,7 +342,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
   }, [members, events, attendance, inactiveInsights]);
 
-  // Contribution and Officer Tracking Helper
+  // Contribution and Officer Tracking Helper (Instant local + background cloud sync)
   const logContribution = useCallback(
     async (
       action: ContributionActionType,
@@ -351,23 +351,33 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       count: number = 1
     ) => {
       if (!admin) return;
-      try {
-        const entry = await apiService.recordContribution(
-          {
-            adminId: admin.id,
-            adminUsername: admin.username,
-            adminName: admin.name || admin.username,
-            adminRole: admin.role,
-            action,
-            description: desc,
-            targetName,
-            count,
-          },
-          settings
-        );
-        setContributions(prev => [entry, ...prev]);
-      } catch (err) {
-        console.error('Failed to log contribution:', err);
+      const now = new Date().toISOString();
+      const entry: OfficerContribution = {
+        id: `cnt-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+        adminId: admin.id,
+        adminUsername: admin.username,
+        adminName: admin.name || admin.username,
+        adminRole: admin.role,
+        action,
+        description: desc,
+        targetName,
+        count,
+        timestamp: now,
+      };
+
+      // Instant local persistence & UI update
+      const current = storageService.getContributions();
+      storageService.setContributions([entry, ...current]);
+      setContributions(prev => [entry, ...prev]);
+
+      // Non-blocking background sync to Google Sheets
+      if (apiService.isLiveSheets(settings)) {
+        fetch(settings.gasWebAppUrl, {
+          method: 'POST',
+          mode: 'cors',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: 'recordContribution', contribution: entry }),
+        }).catch(err => console.warn('Background contribution sync:', err));
       }
     },
     [admin, settings]
@@ -417,32 +427,57 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
-  // Operations
+  // Instant Optimistic Operations with Non-blocking Cloud Sync
   const createMember = async (data: Omit<Member, 'id' | 'createdAt' | 'updatedAt' | 'strikes'>) => {
     try {
-      const created = await apiService.createMember(data, settings);
-      setMembers(prev => [created, ...prev]);
-      // Also provision attendance in existing active events
+      const id = `mem-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+      const now = new Date().toISOString();
+      const fullMember: Member = {
+        ...data,
+        id,
+        strikes: 0,
+        status: 'Active',
+        createdAt: now,
+        updatedAt: now,
+      };
+
+      // 1. INSTANT LOCAL & STATE UPDATE (0ms)
+      const current = storageService.getMembers();
+      storageService.setMembers([fullMember, ...current]);
+      setMembers(prev => [fullMember, ...prev]);
+
+      // Provision attendance in existing active events instantly
       const allEvents = storageService.getEvents();
       const currentAttendance = storageService.getAttendance();
       const newAttendanceRows = allEvents.map(evt => ({
-        id: `att-${evt.id}-${created.id}`,
+        id: `att-${evt.id}-${fullMember.id}`,
         eventId: evt.id,
-        memberId: created.id,
+        memberId: fullMember.id,
         voteStatus: 'NO RESPONSE' as const,
         attendanceStatus: 'NOT_APPLICABLE' as const,
-        updatedAt: new Date().toISOString(),
+        updatedAt: now,
       }));
       storageService.setAttendance([...newAttendanceRows, ...currentAttendance]);
       setAttendance(storageService.getAttendance());
 
-      await logContribution('MEMBER_ADDED', `Enrolled member ${created.name} (${created.currentRank})`, created.name, 1);
       sounds.playSuccess();
       addToast({
         type: 'success',
         title: 'New Member Inducted',
-        message: `${created.name} (${created.currentRank}) has joined the HOT Alliance roster!`,
+        message: `${fullMember.name} (${fullMember.currentRank}) has joined the HOT Alliance roster!`,
       });
+
+      // 2. NON-BLOCKING BACKGROUND SYNC TO GOOGLE SHEETS
+      if (apiService.isLiveSheets(settings)) {
+        fetch(settings.gasWebAppUrl, {
+          method: 'POST',
+          mode: 'cors',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: 'createMember', member: fullMember }),
+        }).catch(err => console.warn('Background member sync error:', err));
+      }
+
+      logContribution('MEMBER_ADDED', `Enrolled member ${fullMember.name} (${fullMember.currentRank})`, fullMember.name, 1);
       return true;
     } catch {
       sounds.playAlert();
@@ -457,15 +492,31 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const updateMember = async (member: Member) => {
     try {
-      await apiService.updateMember(member, settings);
-      setMembers(prev => prev.map(m => (m.id === member.id ? member : m)));
-      await logContribution('MEMBER_UPDATED', `Updated profile for ${member.name}`, member.name, 1);
+      const updated = { ...member, updatedAt: new Date().toISOString() };
+      // 1. INSTANT LOCAL & STATE UPDATE (0ms)
+      const current = storageService.getMembers();
+      const list = current.map(m => (m.id === member.id ? updated : m));
+      storageService.setMembers(list);
+      setMembers(list);
+
       sounds.playSuccess();
       addToast({
         type: 'success',
         title: 'Member Details Updated',
         message: `${member.name} details have been recorded.`,
       });
+
+      // 2. NON-BLOCKING BACKGROUND SYNC
+      if (apiService.isLiveSheets(settings)) {
+        fetch(settings.gasWebAppUrl, {
+          method: 'POST',
+          mode: 'cors',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: 'updateMember', member: updated }),
+        }).catch(err => console.warn('Background member update error:', err));
+      }
+
+      logContribution('MEMBER_UPDATED', `Updated profile for ${member.name}`, member.name, 1);
       return true;
     } catch {
       sounds.playAlert();
@@ -481,17 +532,30 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const archiveMember = async (memberId: string) => {
     try {
       const target = members.find(m => m.id === memberId);
-      await apiService.archiveMember(memberId, settings);
-      setMembers(prev =>
-        prev.map(m => (m.id === memberId ? { ...m, status: 'Archived' as const } : m))
-      );
-      await logContribution('MEMBER_ARCHIVED', `Archived member ${target?.name || memberId}`, target?.name, 1);
+      // 1. INSTANT LOCAL & STATE UPDATE (0ms)
+      const current = storageService.getMembers();
+      const updated = current.map(m => (m.id === memberId ? { ...m, status: 'Archived' as const } : m));
+      storageService.setMembers(updated);
+      setMembers(updated);
+
       sounds.playClick();
       addToast({
         type: 'warning',
         title: 'Member Archived',
-        message: 'Member soft-deleted. Historical war records preserved.',
+        message: 'Member moved to alliance archive.',
       });
+
+      // 2. NON-BLOCKING BACKGROUND SYNC
+      if (apiService.isLiveSheets(settings)) {
+        fetch(settings.gasWebAppUrl, {
+          method: 'POST',
+          mode: 'cors',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: 'archiveMember', memberId }),
+        }).catch(err => console.warn('Background archive error:', err));
+      }
+
+      logContribution('MEMBER_ARCHIVED', `Archived member ${target?.name || memberId}`, target?.name, 1);
       return true;
     } catch {
       sounds.playAlert();
@@ -501,16 +565,51 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const createEvent = async (data: Omit<AllianceEvent, 'id' | 'createdAt'>) => {
     try {
-      const created = await apiService.createEvent(data, members, settings);
-      setEvents(prev => [created, ...prev]);
-      setAttendance(storageService.getAttendance());
-      await logContribution('EVENT_CREATED', `Scheduled battle event: ${created.eventName} (${created.eventType})`, created.eventName, 1);
+      const id = `evt-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+      const now = new Date().toISOString();
+      const fullEvent: AllianceEvent = {
+        ...data,
+        id,
+        createdAt: now,
+      };
+
+      // 1. INSTANT LOCAL & STATE UPDATE (0ms)
+      const current = storageService.getEvents();
+      storageService.setEvents([fullEvent, ...current]);
+      setEvents(prev => [fullEvent, ...prev]);
+
+      // Provision attendance for active members
+      const activeMembers = storageService.getMembers().filter(m => m.status !== 'Archived');
+      const currentAtt = storageService.getAttendance();
+      const newAttRecords: AttendanceRecord[] = activeMembers.map(m => ({
+        id: `att-${fullEvent.id}-${m.id}`,
+        eventId: fullEvent.id,
+        memberId: m.id,
+        voteStatus: 'NO RESPONSE' as const,
+        attendanceStatus: 'NOT_APPLICABLE' as const,
+        updatedAt: now,
+      }));
+      storageService.setAttendance([...newAttRecords, ...currentAtt]);
+      setAttendance([...newAttRecords, ...currentAtt]);
+
       sounds.playSuccess();
       addToast({
         type: 'success',
         title: 'War Event Summoned',
-        message: `${created.eventName} created! Attendance initialized for all active members.`,
+        message: `${fullEvent.eventName} created! Attendance initialized for all active members.`,
       });
+
+      // 2. NON-BLOCKING BACKGROUND SYNC
+      if (apiService.isLiveSheets(settings)) {
+        fetch(settings.gasWebAppUrl, {
+          method: 'POST',
+          mode: 'cors',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: 'createEvent', event: fullEvent, members: activeMembers }),
+        }).catch(err => console.warn('Background event sync error:', err));
+      }
+
+      logContribution('EVENT_CREATED', `Scheduled battle event: ${fullEvent.eventName} (${fullEvent.eventType})`, fullEvent.eventName, 1);
       return true;
     } catch {
       sounds.playAlert();
@@ -525,20 +624,58 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const updateVote = async (eventId: string, memberId: string, vote: VoteStatus) => {
     sounds.playClick();
-    await apiService.updateVote(eventId, memberId, vote, settings);
-    setAttendance(storageService.getAttendance());
+    const now = new Date().toISOString();
+    // 1. INSTANT LOCAL UPDATE
+    const current = storageService.getAttendance();
+    const updated = current.map(a =>
+      a.eventId === eventId && a.memberId === memberId
+        ? { ...a, voteStatus: vote, updatedAt: now }
+        : a
+    );
+    storageService.setAttendance(updated);
+    setAttendance(updated);
+
+    // 2. NON-BLOCKING BACKGROUND SYNC
+    if (apiService.isLiveSheets(settings)) {
+      fetch(settings.gasWebAppUrl, {
+        method: 'POST',
+        mode: 'cors',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: 'updateVote', eventId, memberId, voteStatus: vote }),
+      }).catch(err => console.warn('Background vote sync:', err));
+    }
+
     const targetEvt = events.find(e => e.id === eventId);
     const targetMem = members.find(m => m.id === memberId);
-    await logContribution('ATTENDANCE_MARKED', `Updated vote to ${vote} for ${targetMem?.name || 'member'} in ${targetEvt?.eventName || 'event'}`, targetEvt?.eventName, 1);
+    logContribution('ATTENDANCE_MARKED', `Updated vote to ${vote} for ${targetMem?.name || 'member'} in ${targetEvt?.eventName || 'event'}`, targetEvt?.eventName, 1);
   };
 
   const updateAttendance = async (eventId: string, memberId: string, att: AttendanceStatus) => {
     sounds.playClick();
-    await apiService.updateAttendance(eventId, memberId, att, settings);
-    setAttendance(storageService.getAttendance());
+    const now = new Date().toISOString();
+    // 1. INSTANT LOCAL UPDATE
+    const current = storageService.getAttendance();
+    const updated = current.map(a =>
+      a.eventId === eventId && a.memberId === memberId
+        ? { ...a, attendanceStatus: att, updatedAt: now }
+        : a
+    );
+    storageService.setAttendance(updated);
+    setAttendance(updated);
+
+    // 2. NON-BLOCKING BACKGROUND SYNC
+    if (apiService.isLiveSheets(settings)) {
+      fetch(settings.gasWebAppUrl, {
+        method: 'POST',
+        mode: 'cors',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: 'updateAttendance', eventId, memberId, attendanceStatus: att }),
+      }).catch(err => console.warn('Background attendance sync:', err));
+    }
+
     const targetEvt = events.find(e => e.id === eventId);
     const targetMem = members.find(m => m.id === memberId);
-    await logContribution('ATTENDANCE_MARKED', `Marked attendance (${att}) for ${targetMem?.name || 'member'} in ${targetEvt?.eventName || 'event'}`, targetEvt?.eventName, 1);
+    logContribution('ATTENDANCE_MARKED', `Marked attendance (${att}) for ${targetMem?.name || 'member'} in ${targetEvt?.eventName || 'event'}`, targetEvt?.eventName, 1);
   };
 
   const bulkUpdateAttendance = async (
@@ -546,10 +683,36 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     updates: Array<{ memberId: string; voteStatus?: VoteStatus; attendanceStatus?: AttendanceStatus }>
   ) => {
     sounds.playSuccess();
-    await apiService.bulkUpdateAttendance(eventId, updates, settings);
-    setAttendance(storageService.getAttendance());
+    const now = new Date().toISOString();
+    const current = storageService.getAttendance();
+    const updateMap = new Map(updates.map(u => [u.memberId, u]));
+    const updated = current.map(a => {
+      if (a.eventId === eventId && updateMap.has(a.memberId)) {
+        const u = updateMap.get(a.memberId)!;
+        return {
+          ...a,
+          ...(u.voteStatus ? { voteStatus: u.voteStatus } : {}),
+          ...(u.attendanceStatus ? { attendanceStatus: u.attendanceStatus } : {}),
+          updatedAt: now,
+        };
+      }
+      return a;
+    });
+
+    storageService.setAttendance(updated);
+    setAttendance(updated);
+
+    if (apiService.isLiveSheets(settings)) {
+      fetch(settings.gasWebAppUrl, {
+        method: 'POST',
+        mode: 'cors',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: 'bulkUpdateAttendance', eventId, updates }),
+      }).catch(err => console.warn('Background bulk attendance sync:', err));
+    }
+
     const targetEvt = events.find(e => e.id === eventId);
-    await logContribution('ATTENDANCE_BULK', `Bulk recorded attendance checks for ${updates.length} members`, targetEvt?.eventName, updates.length);
+    logContribution('ATTENDANCE_BULK', `Bulk recorded attendance checks for ${updates.length} members`, targetEvt?.eventName, updates.length);
     addToast({
       type: 'success',
       title: 'Bulk Roster Updated',
@@ -560,17 +723,46 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const addStrike = async (memberId: string, reason: string) => {
     try {
       sounds.playStrike();
-      const adminName = admin?.username || 'HOT Officer';
-      const record = await apiService.addStrike(memberId, reason, adminName, settings);
+      const adminName = admin?.name || admin?.username || 'HOT Officer';
+      const now = new Date().toISOString();
+      const record: StrikeRecord = {
+        id: `str-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+        memberId,
+        date: now,
+        reason,
+        addedBy: adminName,
+      };
+
+      // 1. INSTANT LOCAL UPDATE
+      const currentStrikes = storageService.getStrikes();
+      storageService.setStrikes([record, ...currentStrikes]);
       setStrikes(prev => [record, ...prev]);
-      setMembers(storageService.getMembers());
-      const targetMem = members.find(m => m.id === memberId);
-      await logContribution('STRIKE_ADDED', `Issued strike to ${targetMem?.name || 'member'}: "${reason}"`, targetMem?.name, 1);
+
+      const currentMembers = storageService.getMembers();
+      const updatedMembers = currentMembers.map(m =>
+        m.id === memberId ? { ...m, strikes: m.strikes + 1 } : m
+      );
+      storageService.setMembers(updatedMembers);
+      setMembers(updatedMembers);
+
+      const targetMem = currentMembers.find(m => m.id === memberId);
       addToast({
         type: 'warning',
         title: '⚠️ Strike Issued',
         message: `Strike logged: "${reason}"`,
       });
+
+      // 2. NON-BLOCKING BACKGROUND SYNC
+      if (apiService.isLiveSheets(settings)) {
+        fetch(settings.gasWebAppUrl, {
+          method: 'POST',
+          mode: 'cors',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: 'addStrike', strike: record }),
+        }).catch(err => console.warn('Background strike sync:', err));
+      }
+
+      logContribution('STRIKE_ADDED', `Issued strike to ${targetMem?.name || 'member'}: "${reason}"`, targetMem?.name, 1);
       return true;
     } catch {
       return false;
@@ -580,16 +772,37 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const removeStrike = async (strikeId: string, memberId: string) => {
     try {
       sounds.playClick();
-      await apiService.removeStrike(strikeId, memberId, settings);
-      setStrikes(prev => prev.filter(s => s.id !== strikeId));
-      setMembers(storageService.getMembers());
-      const targetMem = members.find(m => m.id === memberId);
-      await logContribution('STRIKE_REMOVED', `Pardoned strike for ${targetMem?.name || 'member'}`, targetMem?.name, 1);
+      // 1. INSTANT LOCAL UPDATE
+      const currentStrikes = storageService.getStrikes();
+      const updatedStrikes = currentStrikes.filter(s => s.id !== strikeId);
+      storageService.setStrikes(updatedStrikes);
+      setStrikes(updatedStrikes);
+
+      const currentMembers = storageService.getMembers();
+      const updatedMembers = currentMembers.map(m =>
+        m.id === memberId ? { ...m, strikes: Math.max(0, m.strikes - 1) } : m
+      );
+      storageService.setMembers(updatedMembers);
+      setMembers(updatedMembers);
+
+      const targetMem = currentMembers.find(m => m.id === memberId);
       addToast({
         type: 'info',
         title: 'Strike Pardoned',
         message: 'Member strike counter decremented.',
       });
+
+      // 2. NON-BLOCKING BACKGROUND SYNC
+      if (apiService.isLiveSheets(settings)) {
+        fetch(settings.gasWebAppUrl, {
+          method: 'POST',
+          mode: 'cors',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: 'removeStrike', strikeId, memberId }),
+        }).catch(err => console.warn('Background strike removal sync:', err));
+      }
+
+      logContribution('STRIKE_REMOVED', `Pardoned strike for ${targetMem?.name || 'member'}`, targetMem?.name, 1);
       return true;
     } catch {
       return false;
@@ -599,17 +812,47 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const addCommunication = async (memberId: string, status: Member['communication'], note: string) => {
     try {
       sounds.playSuccess();
-      const adminName = admin?.username || 'HOT Officer';
-      const record = await apiService.addCommunication(memberId, status, note, adminName, settings);
+      const adminName = admin?.name || admin?.username || 'HOT Officer';
+      const now = new Date().toISOString();
+      const record: CommunicationRecord = {
+        id: `com-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+        memberId,
+        date: now,
+        status,
+        note,
+        addedBy: adminName,
+      };
+
+      // 1. INSTANT LOCAL UPDATE
+      const currentComms = storageService.getCommunications();
+      storageService.setCommunications([record, ...currentComms]);
       setCommunications(prev => [record, ...prev]);
-      setMembers(storageService.getMembers());
-      const targetMem = members.find(m => m.id === memberId);
-      await logContribution('COMMUNICATION_LOGGED', `Recorded ${status} communication note for ${targetMem?.name || 'member'}`, targetMem?.name, 1);
+
+      const currentMembers = storageService.getMembers();
+      const updatedMembers = currentMembers.map(m =>
+        m.id === memberId ? { ...m, communication: status, communicationNote: note } : m
+      );
+      storageService.setMembers(updatedMembers);
+      setMembers(updatedMembers);
+
+      const targetMem = currentMembers.find(m => m.id === memberId);
       addToast({
         type: 'success',
         title: 'Communication Dispatched',
         message: `Status updated to ${status}.`,
       });
+
+      // 2. NON-BLOCKING BACKGROUND SYNC
+      if (apiService.isLiveSheets(settings)) {
+        fetch(settings.gasWebAppUrl, {
+          method: 'POST',
+          mode: 'cors',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: 'addCommunication', record }),
+        }).catch(err => console.warn('Background comm sync:', err));
+      }
+
+      logContribution('COMMUNICATION_LOGGED', `Recorded ${status} communication note for ${targetMem?.name || 'member'}`, targetMem?.name, 1);
       return true;
     } catch {
       return false;

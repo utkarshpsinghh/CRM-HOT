@@ -296,7 +296,13 @@ function handleLogin(username, password) {
     const rawRole = String(data[i][3] || 'Officer').trim();
 
     if (rowUser === normUser) {
-      if (rowHash === inputHash) {
+      // Allow matching either the SHA-256 hash OR a plain-text password typed directly into the sheet!
+      const isMatch = (rowHash === inputHash || rowHash === pass);
+      if (isMatch) {
+        // If password was entered in plain text directly in the sheet, auto-upgrade to SHA-256 hash for security
+        if (rowHash === pass) {
+          sheet.getRange(i + 1, 3).setValue(inputHash);
+        }
         const isLeader = (rawRole.toLowerCase() === 'leader' || rawRole.toLowerCase() === 'mainadmin' || rawRole.toLowerCase() === 'r5');
         return {
           status: 'success',
