@@ -1,6 +1,7 @@
 import { Member, AllianceEvent, AttendanceRecord, StrikeRecord, CommunicationRecord, AllianceSettings } from '../types/crm';
 
-export const DEFAULT_GAS_URL = 'https://script.google.com/macros/s/AKfycbyLldScNulx7gY_m_JtMJqbn68pOBR6nPktm_pB5yOiXHuKhICNPh4Ju-jfrFVFfScy/exec';
+const envUrl = (import.meta.env.VITE_GOOGLE_APPS_SCRIPT_URL || '').trim();
+export const DEFAULT_GAS_URL = envUrl;
 
 export const initialSettings: AllianceSettings = {
   inactivityWarningDays: 3,
@@ -8,7 +9,7 @@ export const initialSettings: AllianceSettings = {
   inactivityCriticalDays: 14,
   gasWebAppUrl: DEFAULT_GAS_URL,
   soundEnabled: true,
-  demoMode: false,
+  demoMode: !DEFAULT_GAS_URL,
 };
 
 // Generate realistic 92 Kingshot HOT Alliance members

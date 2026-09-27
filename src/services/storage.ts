@@ -37,12 +37,14 @@ export const storageService = {
       localStorage.setItem(STORAGE_KEYS.INITIALIZED, 'true');
     }
 
-    // Always ensure gasWebAppUrl is populated with 1391's live Google Apps Script endpoint if empty
-    const current = this.getSettings();
-    if (!current.gasWebAppUrl || current.gasWebAppUrl.trim() === '') {
-      current.gasWebAppUrl = DEFAULT_GAS_URL;
-      current.demoMode = false;
-      this.setSettings(current);
+    // Check if an environment variable provides a Google Apps Script endpoint
+    if (DEFAULT_GAS_URL) {
+      const current = this.getSettings();
+      if (!current.gasWebAppUrl) {
+        current.gasWebAppUrl = DEFAULT_GAS_URL;
+        current.demoMode = false;
+        this.setSettings(current);
+      }
     }
   },
 
