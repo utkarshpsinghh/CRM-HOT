@@ -648,7 +648,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       // Save permanently to storage with demoMode false
       const newSettings: AllianceSettings = {
         ...settings,
-        gasWebAppUrl: cleanUrl,
+        gasWebAppUrl: testRes.normalizedUrl || cleanUrl,
         demoMode: false,
       };
       storageService.setSettings(newSettings);

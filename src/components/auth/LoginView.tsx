@@ -4,6 +4,7 @@ import { useCRM } from '../../context/CRMContext';
 import { User, Lock, AlertCircle, ArrowRight, Eye, EyeOff, Clock } from 'lucide-react';
 import { sounds } from '../../utils/sound';
 import { getLoginAttemptState, resetLoginAttempts } from '../../utils/security';
+import { apiService } from '../../services/api';
 
 export const LoginView: React.FC = () => {
   const { login } = useAuth();
@@ -78,8 +79,17 @@ export const LoginView: React.FC = () => {
             <h1 className="font-fantasy font-black text-2xl sm:text-3xl text-[#fef08a] uppercase tracking-wide mt-0.5">
               HOT Alliance CRM
             </h1>
-            <p className="text-xs text-stone-300 mt-1">
-              Officer Portal
+            <p className="text-xs text-stone-300 mt-1 flex items-center justify-center gap-1.5">
+              <span>Officer Portal</span>
+              <span className="text-stone-500">&bull;</span>
+              {apiService.isLiveSheets(settings) ? (
+                <span className="text-emerald-400 font-medium flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  Live Database
+                </span>
+              ) : (
+                <span className="text-amber-400/80 font-medium">Offline Mode</span>
+              )}
             </p>
           </div>
 
@@ -128,7 +138,7 @@ export const LoginView: React.FC = () => {
                 onChange={e => setUsername(e.target.value)}
                 required
                 autoComplete="off"
-                placeholder="Username (e.g. admin)"
+                placeholder="Username"
                 className="w-full px-3.5 py-2.5 rounded-xl bg-[#120c08] border border-[#3e2716] text-[#fffbeb] text-sm focus:outline-none focus:border-[#ca8a04] placeholder-stone-600 transition-colors disabled:opacity-50"
               />
             </div>
@@ -155,7 +165,7 @@ export const LoginView: React.FC = () => {
                 onChange={e => setPassword(e.target.value)}
                 required
                 autoComplete="new-password"
-                placeholder="Password (e.g. admin or 1391)"
+                placeholder="Password"
                 className="w-full px-3.5 py-2.5 rounded-xl bg-[#120c08] border border-[#3e2716] text-[#fffbeb] text-sm focus:outline-none focus:border-[#ca8a04] placeholder-stone-600 transition-colors disabled:opacity-50"
               />
             </div>
@@ -172,16 +182,6 @@ export const LoginView: React.FC = () => {
               </button>
             </div>
           </form>
-
-          {/* Credentials Helper */}
-          <div className="mt-5 pt-3.5 border-t border-[#3e2716]/60 text-center space-y-1">
-            <p className="text-[12px] text-amber-200/90 font-medium">
-              Leader Access: <span className="font-mono text-amber-300 font-bold">admin</span> &bull; Password: <span className="font-mono text-amber-300 font-bold">admin</span> or <span className="font-mono text-amber-300 font-bold">1391</span>
-            </p>
-            <p className="text-[11px] text-stone-400">
-              R4 Officer: <span className="font-mono text-amber-300 font-bold">officer</span> &bull; Password: <span className="font-mono text-amber-300 font-bold">hot123</span>
-            </p>
-          </div>
         </div>
       </div>
     </div>

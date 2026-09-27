@@ -84,11 +84,10 @@ function setupDatabase() {
   ]]);
   formatHeaderRow(admSheet, 4);
 
-  // Create default admin: username "admin", password "kingshot_hot"
-  const defaultHash = hashPassword('kingshot_hot');
+  // Create default admin: username "seoyoon", password "masterlogin", role "Leader"
+  const defaultHash = hashPassword('masterlogin');
   if (admSheet.getLastRow() === 1) {
-    admSheet.appendRow(['adm-001', 'admin', defaultHash, 'Leader']);
-    admSheet.appendRow(['adm-002', 'hot_leader', defaultHash, 'Officer']);
+    admSheet.appendRow(['adm-001', 'seoyoon', defaultHash, 'Leader']);
   }
 
   // 7. Settings Sheet
@@ -156,9 +155,9 @@ function doGet(e) {
     } else {
       result = { status: 'error', message: 'Unknown action: ' + action };
     }
-    return jsonResponse(result);
+    return jsonResponse(result, e);
   } catch (err) {
-    return jsonResponse({ status: 'error', message: err.toString() });
+    return jsonResponse({ status: 'error', message: err.toString() }, e);
   }
 }
 
@@ -250,7 +249,13 @@ function doPost(e) {
   }
 }
 
-function jsonResponse(data) {
+function jsonResponse(data, e) {
+  const callback = e && e.parameter && e.parameter.callback;
+  if (callback) {
+    return ContentService
+      .createTextOutput(callback + '(' + JSON.stringify(data) + ')')
+      .setMimeType(ContentService.MimeType.JAVASCRIPT);
+  }
   return ContentService.createTextOutput(JSON.stringify(data))
     .setMimeType(ContentService.MimeType.JSON);
 }
@@ -272,43 +277,11 @@ function hashPassword(pass) {
 }
 
 function handleLogin(username, password) {
-  if (!username) {
-    return { status: 'error', message: 'Username is required.' };
+  if (!username || !password) {
+    return { status: 'error', message: 'Username and password are required.' };
   }
   const normUser = String(username).trim().toLowerCase();
-  const pass = String(password || '').trim();
-
-  // Fast-track fallback for Alliance Leader / High Command
-  if (['admin', 'leader', 'sally', 'moonlight', 'hot'].indexOf(normUser) !== -1) {
-    if (pass === 'admin' || pass === '1391' || pass === 'kingshot_hot' || pass === 'hot' || pass.length > 0) {
-      return {
-        status: 'success',
-        user: {
-          id: 'adm-001',
-          username: normUser,
-          name: normUser === 'sally' ? 'Sally' : normUser === 'moonlight' ? 'MoonLight' : 'Alliance Leader',
-          role: 'MainAdmin',
-          token: Utilities.getUuid()
-        }
-      };
-    }
-  }
-
-  // Fast-track fallback for R4 Officer
-  if (['officer', 'r4', 'subadmin'].indexOf(normUser) !== -1) {
-    if (pass === 'hot123' || pass === 'officer' || pass === '1391' || pass === 'admin' || pass.length > 0) {
-      return {
-        status: 'success',
-        user: {
-          id: 'adm-002',
-          username: normUser,
-          name: 'War Officer (R4)',
-          role: 'SubAdmin',
-          token: Utilities.getUuid()
-        }
-      };
-    }
-  }
+  const pass = String(password).trim();
 
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName(SHEET_NAMES.ADMINS);
@@ -320,16 +293,18 @@ function handleLogin(username, password) {
   for (let i = 1; i < data.length; i++) {
     const rowUser = String(data[i][1]).trim().toLowerCase();
     const rowHash = String(data[i][2]).trim();
-    const role = data[i][3] || 'Officer';
+    const rawRole = String(data[i][3] || 'Officer').trim();
 
     if (rowUser === normUser) {
-      if (rowHash === inputHash || pass === 'kingshot_hot' || pass === 'admin' || pass === '1391') {
+      if (rowHash === inputHash) {
+        const isLeader = (rawRole.toLowerCase() === 'leader' || rawRole.toLowerCase() === 'mainadmin' || rawRole.toLowerCase() === 'r5');
         return {
           status: 'success',
           user: {
-            id: data[i][0],
-            username: data[i][1],
-            role: role === 'Leader' || role === 'MainAdmin' ? 'MainAdmin' : 'SubAdmin',
+            id: String(data[i][0] || 'adm-' + i),
+            username: String(data[i][1]).trim(),
+            name: String(data[i][1]).trim(),
+            role: isLeader ? 'MainAdmin' : 'SubAdmin',
             token: Utilities.getUuid()
           }
         };
@@ -339,7 +314,7 @@ function handleLogin(username, password) {
     }
   }
 
-  return { status: 'error', message: 'Admin officer not found in alliance records.' };
+  return { status: 'error', message: 'User not found in alliance records.' };
 }
 
 // --------------------------------------------------------------------------

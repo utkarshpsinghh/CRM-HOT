@@ -15,6 +15,15 @@ import {
 import { storageService } from './storage';
 import { getLoginAttemptState, recordFailedAttempt, resetLoginAttempts, addSecurityLog } from '../utils/security';
 
+// Helper to ensure Google Apps Script Web App URL ends with /exec
+export function normalizeGasUrl(url: string): string {
+  let clean = (url || '').trim();
+  if (clean.includes('/macros/s/') && !clean.includes('/exec')) {
+    clean = clean.replace(/\/?$/, '/exec');
+  }
+  return clean;
+}
+
 export const apiService = {
   // Check if live Google Sheets backend should be used
   isLiveSheets(settings: AllianceSettings): boolean {
@@ -25,8 +34,8 @@ export const apiService = {
   },
 
   // Test connection to Google Apps Script Web App
-  async testConnection(url: string): Promise<{ success: boolean; message: string }> {
-    const clean = (url || '').trim();
+  async testConnection(url: string): Promise<{ success: boolean; message: string; normalizedUrl?: string }> {
+    const clean = normalizeGasUrl(url);
     if (!clean || !clean.startsWith('http')) {
       return { success: false, message: 'Invalid URL format. Must start with https://script.google.com' };
     }
@@ -41,12 +50,30 @@ export const apiService = {
       const response = await fetch(pingUrl, {
         method: 'GET',
         mode: 'cors',
+        redirect: 'follow',
       });
-      const data = await response.json();
-      if (data && data.status === 'success') {
-        return { success: true, message: 'Connected to HOT Alliance Google Sheets successfully!' };
+      const rawText = await response.text();
+      let data: any = null;
+      try {
+        data = JSON.parse(rawText);
+      } catch {
+        if (rawText.includes('<!DOCTYPE') || rawText.includes('<html')) {
+          return {
+            success: false,
+            message: 'Server returned HTML instead of JSON. Ensure your Apps Script Web App URL ends with /exec and deployment access is set to "Anyone".',
+          };
+        }
+        return { success: false, message: 'Could not parse response from server as JSON.' };
       }
-      return { success: false, message: data.message || 'Server returned non-success response.' };
+
+      if (data && (data.status === 'success' || data.ok === true)) {
+        return {
+          success: true,
+          message: 'Connected to HOT Alliance Google Sheets successfully!',
+          normalizedUrl: clean,
+        };
+      }
+      return { success: false, message: data?.message || 'Server returned non-success response.' };
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       return { success: false, message: `Could not reach Apps Script endpoint: ${msg}. Make sure deployment access is set to "Anyone".` };
@@ -57,8 +84,12 @@ export const apiService = {
   // AUTH
   // --------------------------------------------------------------------------
   async login(username: string, pass: string, settings: AllianceSettings): Promise<{ success: boolean; user?: AdminUser; error?: string }> {
-    const normalizedUser = (username || '').trim().toLowerCase();
+    const cleanUser = (username || '').trim();
     const cleanPass = (pass || '').trim();
+
+    if (!cleanUser || !cleanPass) {
+      return { success: false, error: 'Username and password are required.' };
+    }
 
     // Check brute-force lockout status
     const attemptState = getLoginAttemptState();
@@ -72,97 +103,89 @@ export const apiService = {
       };
     }
 
-    // 1. If live GAS endpoint is enabled, attempt live Google Sheets auth first
+    // ------------------------------------------------------------------------
+    // CASE 1: Live Google Sheet Connected
+    // When sheet is connected, ONLY authenticate against Google Sheets!
+    // Both username and password must match correctly in the sheet.
+    // ------------------------------------------------------------------------
     if (this.isLiveSheets(settings)) {
       try {
-        const response = await fetch(settings.gasWebAppUrl, {
+        const gasUrl = normalizeGasUrl(settings.gasWebAppUrl);
+        const response = await fetch(gasUrl, {
           method: 'POST',
           mode: 'cors',
-          body: JSON.stringify({ action: 'login', username: normalizedUser, password: cleanPass }),
+          headers: {
+            'Content-Type': 'text/plain;charset=utf-8',
+          },
+          body: JSON.stringify({ action: 'login', username: cleanUser, password: cleanPass }),
         });
-        const data = await response.json();
-        if (data && (data.status === 'success' || data.success === true) && data.user) {
-          resetLoginAttempts(normalizedUser);
-          const role = (data.user.role === 'MainAdmin' || data.user.role === 'Leader' || normalizedUser === 'admin')
-            ? 'MainAdmin'
-            : 'SubAdmin';
+
+        const rawText = await response.text();
+        let data: any = null;
+        try {
+          data = JSON.parse(rawText);
+        } catch {
+          recordFailedAttempt(cleanUser);
           return {
-            success: true,
-            user: {
-              ...data.user,
-              role,
-            }
+            success: false,
+            error: 'Invalid response from Google Sheets server. Verify Apps Script Web App deployment.',
           };
         }
+
+        if (data && (data.status === 'success' || data.success === true) && data.user) {
+          resetLoginAttempts(cleanUser);
+          const rawRole = String(data.user.role || '').trim().toLowerCase();
+          const isLeaderRole = (rawRole === 'leader' || rawRole === 'mainadmin' || rawRole === 'r5');
+          const role: 'MainAdmin' | 'SubAdmin' = isLeaderRole ? 'MainAdmin' : 'SubAdmin';
+
+          const user: AdminUser = {
+            id: String(data.user.id || 'adm-' + Date.now()),
+            username: String(data.user.username || cleanUser),
+            name: String(data.user.name || cleanUser),
+            role,
+            token: String(data.user.token || 'live-token-' + Date.now()),
+          };
+
+          return { success: true, user };
+        }
+
+        recordFailedAttempt(cleanUser);
+        return {
+          success: false,
+          error: data?.message || 'Invalid username or password in alliance database.',
+        };
       } catch (err: unknown) {
-        // Fall through gracefully if sheet script is not yet updated or temporarily offline
-        console.warn('Live Google Sheets auth fallback to local credentials:', err);
+        recordFailedAttempt(cleanUser);
+        const msg = err instanceof Error ? err.message : String(err);
+        return {
+          success: false,
+          error: `Could not reach Google Sheets server: ${msg}. Check network or sheet deployment.`,
+        };
       }
     }
 
-    // 2. High Command / Main Admin / Alliance Leader fallback
-    // Matches admin, leader, sally, moonlight, hot
-    if (['admin', 'leader', 'sally', 'moonlight', 'hot'].includes(normalizedUser)) {
-      resetLoginAttempts(normalizedUser);
+    // ------------------------------------------------------------------------
+    // CASE 2: Google Sheet NOT Connected (Local Mode)
+    // STRICT RULE: Only user "seoyoon" with password "masterlogin" can pass!
+    // Other than these credentials, DO NOT pass any user!
+    // ------------------------------------------------------------------------
+    if (cleanUser.toLowerCase() === 'seoyoon' && cleanPass === 'masterlogin') {
+      resetLoginAttempts('seoyoon');
       const user: AdminUser = {
-        id: 'adm-main-1',
-        username: normalizedUser,
+        id: 'adm-seoyoon',
+        username: 'seoyoon',
         role: 'MainAdmin',
-        name: normalizedUser === 'sally' ? 'Sally' : normalizedUser === 'moonlight' ? 'MoonLight' : 'Alliance Leader',
-        token: 'hot-main-token-' + Date.now(),
+        name: 'Seoyoon',
+        token: 'hot-master-token-' + Date.now(),
       };
       return { success: true, user };
     }
 
-    // 3. Officer / R4 fallback
-    // Matches officer, r4, subadmin
-    if (['officer', 'r4', 'subadmin'].includes(normalizedUser)) {
-      resetLoginAttempts(normalizedUser);
-      const user: AdminUser = {
-        id: 'adm-sub-1',
-        username: normalizedUser,
-        role: 'SubAdmin',
-        name: 'War Officer (R4)',
-        token: 'hot-sub-token-' + Date.now(),
-      };
-      return { success: true, user };
-    }
-
-    // 4. Stored custom admin accounts
-    const adminAccounts = storageService.getAdminAccounts();
-    const matchedAccount = adminAccounts.find(
-      a => a.username.toLowerCase() === normalizedUser && (
-        a.password === cleanPass ||
-        cleanPass === 'admin' ||
-        cleanPass === '1391' ||
-        cleanPass === 'kingshot_hot' ||
-        cleanPass === 'hot123'
-      )
-    );
-
-    if (matchedAccount) {
-      resetLoginAttempts(normalizedUser);
-      const user: AdminUser = {
-        id: matchedAccount.id,
-        username: matchedAccount.username,
-        role: matchedAccount.role,
-        name: matchedAccount.name || matchedAccount.username,
-        token: 'hot-token-' + Date.now(),
-      };
-      return { success: true, user };
-    }
-
-    const state = recordFailedAttempt(normalizedUser);
-    if (state.isLocked) {
-      return {
-        success: false,
-        error: `Account locked due to multiple failed attempts. Please wait 1 minute.`,
-      };
-    }
-
+    // Reject all other credentials
+    recordFailedAttempt(cleanUser);
     return {
       success: false,
-      error: `Invalid credentials. Please enter username "admin" and password "admin" (or "1391").`,
+      error: 'Access Denied. Invalid credentials.',
     };
   },
 

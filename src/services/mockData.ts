@@ -341,20 +341,12 @@ export const initialCommunications: CommunicationRecord[] = [
 
 export const initialAdmins = [
   {
-    id: 'adm-main-1',
-    username: 'admin',
-    password: 'kingshot_hot',
+    id: 'adm-seoyoon',
+    username: 'seoyoon',
+    password: 'masterlogin',
     role: 'MainAdmin' as const,
-    name: 'Alliance Leader',
+    name: 'Seoyoon',
     createdAt: '2026-09-01T00:00:00.000Z',
-  },
-  {
-    id: 'adm-sub-1',
-    username: 'officer',
-    password: 'hot123',
-    role: 'SubAdmin' as const,
-    name: 'War Officer',
-    createdAt: '2026-09-15T00:00:00.000Z',
   },
 ];
 
