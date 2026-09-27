@@ -19,6 +19,14 @@ export interface MemberParticipationStats {
   perType: Record<string, { total: number; joined: number; percentage: number }>;
 }
 
+export interface EventTypeAverageStats {
+  eventType: string;
+  totalEvents: number;
+  averageAttendancePercentage: number;
+  totalJoined: number;
+  totalSlots: number;
+}
+
 export function calculateMemberParticipation(
   memberId: string,
   events: AllianceEvent[],
@@ -81,4 +89,39 @@ export function calculateMemberParticipation(
     perEvent,
     perType,
   };
+}
+
+export function calculateAllEventAverages(
+  events: AllianceEvent[],
+  attendance: AttendanceRecord[]
+): Record<string, EventTypeAverageStats> {
+  const activeEvents = events.filter(e => e.status === 'Completed' || e.status === 'Live');
+  const typeMap: Record<string, { totalEvents: number; totalJoined: number; totalSlots: number }> = {};
+
+  activeEvents.forEach(evt => {
+    const type = evt.eventType;
+    if (!typeMap[type]) {
+      typeMap[type] = { totalEvents: 0, totalJoined: 0, totalSlots: 0 };
+    }
+    const records = attendance.filter(a => a.eventId === evt.id);
+    const joined = records.filter(a => a.attendanceStatus === 'JOINED').length;
+    typeMap[type].totalEvents += 1;
+    typeMap[type].totalJoined += joined;
+    typeMap[type].totalSlots += records.length;
+  });
+
+  const result: Record<string, EventTypeAverageStats> = {};
+  Object.keys(typeMap).forEach(type => {
+    const item = typeMap[type];
+    const avg = item.totalSlots > 0 ? (item.totalJoined / item.totalSlots) * 100 : 0;
+    result[type] = {
+      eventType: type,
+      totalEvents: item.totalEvents,
+      averageAttendancePercentage: avg,
+      totalJoined: item.totalJoined,
+      totalSlots: item.totalSlots,
+    };
+  });
+
+  return result;
 }

@@ -43,6 +43,7 @@ export const MembersView: React.FC<MembersViewProps> = ({
 
   const [sortBy, setSortBy] = useState<'rank' | 'name' | 'strikes' | 'participation'>('rank');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [selectedEventType, setSelectedEventType] = useState<string>('ALL');
   const [memberToArchive, setMemberToArchive] = useState<Member | null>(null);
 
   // Pre-calculate participation stats for each member
@@ -103,13 +104,19 @@ export const MembersView: React.FC<MembersViewProps> = ({
       } else if (sortBy === 'strikes') {
         comp = b.strikes - a.strikes;
       } else if (sortBy === 'participation') {
-        const partA = memberParticipationMap.get(a.id)?.percentage || 0;
-        const partB = memberParticipationMap.get(b.id)?.percentage || 0;
+        const statsA = memberParticipationMap.get(a.id);
+        const statsB = memberParticipationMap.get(b.id);
+        const partA = selectedEventType === 'ALL'
+          ? (statsA?.percentage || 0)
+          : (statsA?.perType[selectedEventType]?.percentage || 0);
+        const partB = selectedEventType === 'ALL'
+          ? (statsB?.percentage || 0)
+          : (statsB?.perType[selectedEventType]?.percentage || 0);
         comp = partB - partA;
       }
       return sortOrder === 'asc' ? -comp : comp;
     });
-  }, [filteredMembers, sortBy, sortOrder, memberParticipationMap]);
+  }, [filteredMembers, sortBy, sortOrder, memberParticipationMap, selectedEventType]);
 
   const handleToggleSort = (field: typeof sortBy) => {
     sounds.playClick();
@@ -201,6 +208,21 @@ export const MembersView: React.FC<MembersViewProps> = ({
           <option value="Archived">Archived</option>
         </select>
 
+        {/* Specific Event Selector */}
+        <select
+          value={selectedEventType}
+          onChange={e => setSelectedEventType(e.target.value)}
+          className="px-2.5 py-1.5 rounded-lg bg-[#140c08] border border-[#3d200e] text-amber-300 text-xs font-semibold focus:outline-none focus:border-[#fbbf24]"
+        >
+          <option value="ALL">All War Events Attendance</option>
+          <option value="BT1">BT1 Attendance</option>
+          <option value="BT2">BT2 Attendance</option>
+          <option value="Swordland L1">Swordland L1 Attendance</option>
+          <option value="Swordland L2">Swordland L2 Attendance</option>
+          <option value="Tri Alliance L1">Tri Alliance L1 Attendance</option>
+          <option value="Tri Alliance L2">Tri Alliance L2 Attendance</option>
+        </select>
+
         {/* Quick Filter for Strikes */}
         <button
           onClick={() => setMemberFilter(prev => ({ ...prev, strikeMin: prev.strikeMin > 0 ? 0 : 1 }))}
@@ -232,8 +254,10 @@ export const MembersView: React.FC<MembersViewProps> = ({
               : 'Active';
 
             const partStats = memberParticipationMap.get(member.id);
-            const partPct = partStats ? partStats.percentage : 0;
-            const joinedRatio = partStats ? `${partStats.joinedCount}/${partStats.totalEvents}` : '0/0';
+            const typeStat = selectedEventType !== 'ALL' ? partStats?.perType[selectedEventType] : null;
+            const activePct = typeStat ? typeStat.percentage : (partStats ? partStats.percentage : 0);
+            const activeRatio = typeStat ? `${typeStat.joined}/${typeStat.total}` : (partStats ? `${partStats.joinedCount}/${partStats.totalEvents}` : '0/0');
+            const activeTitle = selectedEventType === 'ALL' ? 'War Attendance' : `${selectedEventType} Attendance`;
 
             return (
               <div
@@ -258,39 +282,71 @@ export const MembersView: React.FC<MembersViewProps> = ({
                 </div>
 
                 {/* Middle row: Attendance bar & Strikes */}
-                <div className="p-2.5 rounded-xl bg-[#140c08] border border-[#3d200e] flex items-center justify-between gap-2">
-                  <div>
-                    <div className="text-[10px] uppercase font-bold text-stone-400">War Attendance</div>
-                    <div className="flex items-center gap-1.5 mt-0.5">
-                      <span
-                        className={`font-mono font-bold text-xs ${
-                          partPct >= 75
-                            ? 'text-emerald-400'
-                            : partPct >= 50
-                            ? 'text-amber-400'
-                            : 'text-red-400'
-                        }`}
-                      >
-                        {partPct.toFixed(0)}%
-                      </span>
-                      <span className="text-[10px] text-stone-500 font-mono">
-                        ({joinedRatio} events)
-                      </span>
+                <div className="p-2.5 rounded-xl bg-[#140c08] border border-[#3d200e] space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <div>
+                      <div className="text-[10px] uppercase font-bold text-amber-300/80">{activeTitle}</div>
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        <span
+                          className={`font-mono font-bold text-xs ${
+                            activePct >= 75
+                              ? 'text-emerald-400'
+                              : activePct >= 50
+                              ? 'text-amber-400'
+                              : 'text-red-400'
+                          }`}
+                        >
+                          {activePct.toFixed(0)}%
+                        </span>
+                        <span className="text-[10px] text-stone-400 font-mono">
+                          ({activeRatio} wars)
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="text-right">
+                      <div className="text-[10px] uppercase font-bold text-stone-400">Strikes</div>
+                      <div className="mt-0.5">
+                        <StrikeBadge
+                          count={member.strikes}
+                          size="sm"
+                          onClick={() => {
+                            sounds.playClick();
+                            setSelectedMemberForProfile(member);
+                          }}
+                        />
+                      </div>
                     </div>
                   </div>
 
-                  <div className="text-right">
-                    <div className="text-[10px] uppercase font-bold text-stone-400">Strikes</div>
-                    <div className="mt-0.5">
-                      <StrikeBadge
-                        count={member.strikes}
-                        size="sm"
-                        onClick={() => {
-                          sounds.playClick();
-                          setSelectedMemberForProfile(member);
-                        }}
-                      />
-                    </div>
+                  {/* 6 Core Events All-Time Attendance % Mini-Grid */}
+                  <div className="grid grid-cols-3 gap-1 pt-1.5 border-t border-[#24130a] text-[10px]">
+                    {(['BT1', 'BT2', 'Swordland L1', 'Swordland L2', 'Tri Alliance L1', 'Tri Alliance L2'] as const).map(eType => {
+                      const s = partStats?.perType[eType];
+                      const pct = s ? s.percentage : 0;
+                      const isSelected = selectedEventType === eType;
+                      const shortName = eType.replace('Swordland ', 'SW').replace('Tri Alliance ', 'TRI');
+                      return (
+                        <div
+                          key={eType}
+                          onClick={() => setSelectedEventType(prev => prev === eType ? 'ALL' : eType)}
+                          className={`px-1.5 py-0.5 rounded flex items-center justify-between font-mono cursor-pointer transition-colors ${
+                            isSelected
+                              ? 'bg-amber-950/80 border border-amber-500/70 text-amber-200'
+                              : 'bg-[#180e0a] border border-[#2b160b] text-stone-300 hover:border-stone-600'
+                          }`}
+                        >
+                          <span className="text-[9px] font-sans text-stone-400">{shortName}:</span>
+                          <span className={`text-[10px] ${
+                            s && s.total > 0
+                              ? pct >= 75 ? 'text-emerald-400 font-bold' : pct >= 50 ? 'text-amber-400 font-bold' : 'text-red-400 font-bold'
+                              : 'text-stone-600'
+                          }`}>
+                            {s && s.total > 0 ? `${pct.toFixed(0)}%` : '—'}
+                          </span>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -376,7 +432,7 @@ export const MembersView: React.FC<MembersViewProps> = ({
                 className="py-3 px-4 cursor-pointer hover:text-amber-300"
               >
                 <div className="flex items-center gap-1.5 text-amber-300">
-                  <span>Attendance %</span>
+                  <span>{selectedEventType === 'ALL' ? 'War Attendance %' : `${selectedEventType} %`}</span>
                   <ArrowUpDown className="w-3.5 h-3.5" />
                 </div>
               </th>
@@ -412,8 +468,9 @@ export const MembersView: React.FC<MembersViewProps> = ({
                   : 'Active';
 
                 const partStats = memberParticipationMap.get(member.id);
-                const partPct = partStats ? partStats.percentage : 0;
-                const joinedRatio = partStats ? `${partStats.joinedCount}/${partStats.totalEvents}` : '0/0';
+                const typeStat = selectedEventType !== 'ALL' ? partStats?.perType[selectedEventType] : null;
+                const activePct = typeStat ? typeStat.percentage : (partStats ? partStats.percentage : 0);
+                const activeRatio = typeStat ? `${typeStat.joined}/${typeStat.total}` : (partStats ? `${partStats.joinedCount}/${partStats.totalEvents}` : '0/0');
 
                 return (
                   <tr
@@ -440,21 +497,54 @@ export const MembersView: React.FC<MembersViewProps> = ({
 
                     {/* Attendance % */}
                     <td className="py-3 px-4">
-                      <div className="flex items-center gap-2">
-                        <span
-                          className={`font-mono font-bold text-xs ${
-                            partPct >= 75
-                              ? 'text-emerald-400'
-                              : partPct >= 50
-                              ? 'text-amber-400'
-                              : 'text-red-400'
-                          }`}
-                        >
-                          {partPct.toFixed(0)}%
-                        </span>
-                        <span className="text-[11px] text-stone-400 font-mono">
-                          ({joinedRatio})
-                        </span>
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={`font-mono font-bold text-xs ${
+                              activePct >= 75
+                                ? 'text-emerald-400'
+                                : activePct >= 50
+                                ? 'text-amber-400'
+                                : 'text-red-400'
+                            }`}
+                          >
+                            {activePct.toFixed(0)}%
+                          </span>
+                          <span className="text-[11px] text-stone-400 font-mono">
+                            ({activeRatio})
+                          </span>
+                        </div>
+
+                        {/* Mini per-event breakdown pills */}
+                        <div className="flex items-center gap-1">
+                          {(['BT1', 'BT2', 'Swordland L1', 'Swordland L2', 'Tri Alliance L1', 'Tri Alliance L2'] as const).map(eType => {
+                            const s = partStats?.perType[eType];
+                            const pct = s ? s.percentage : 0;
+                            const isSelected = selectedEventType === eType;
+                            const shortLabel = eType.replace('Swordland ', 'SW').replace('Tri Alliance ', 'TRI');
+                            return (
+                              <button
+                                key={eType}
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  sounds.playClick();
+                                  setSelectedEventType(prev => prev === eType ? 'ALL' : eType);
+                                }}
+                                title={`${eType}: ${s ? `${s.joined}/${s.total} (${pct.toFixed(0)}%)` : '0/0'}`}
+                                className={`text-[9px] px-1 py-0.5 rounded font-mono border cursor-pointer transition-colors ${
+                                  isSelected
+                                    ? 'bg-amber-950 border-amber-500 text-amber-300 font-bold'
+                                    : pct > 0
+                                    ? 'bg-[#140c08] border-[#3d200e] text-stone-300 hover:border-amber-600'
+                                    : 'bg-[#140c08] border-[#25140a] text-stone-600 hover:border-stone-500'
+                                }`}
+                              >
+                                {shortLabel}:{s && s.total > 0 ? `${pct.toFixed(0)}%` : '—'}
+                              </button>
+                            );
+                          })}
+                        </div>
                       </div>
                     </td>
 

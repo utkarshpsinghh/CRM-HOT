@@ -158,23 +158,78 @@ export const MemberProfileModal: React.FC<MemberProfileModalProps> = ({
 
         {/* Tab 1: Events */}
         {activeTab === 'events' && (
-          <div className="rounded-lg bg-[#140c08] border border-[#3d200e] max-h-60 overflow-y-auto divide-y divide-[#261307]">
-            {partStats.perEvent.map(pe => (
-              <div
-                key={pe.eventId}
-                className="p-3 flex items-center justify-between text-xs"
-              >
-                <div>
-                  <span className="font-bold text-stone-200">{pe.eventType}</span>
-                  <div className="text-[11px] text-stone-400">{pe.eventName}</div>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <VoteBadge status={pe.voteStatus as any} size="sm" />
-                  <AttendanceBadge status={pe.attendanceStatus as any} size="sm" />
-                </div>
+          <div className="space-y-3">
+            {/* All-Time Specific Event Type Attendance Percentages (Requirement 1) */}
+            <div className="p-3.5 rounded-xl bg-[#120c08] border border-[#3d200e] space-y-2.5">
+              <div className="text-xs font-fantasy font-bold text-[#fef08a] uppercase tracking-wider">
+                All-Time Attendance by Specific Event
               </div>
-            ))}
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {['BT1', 'BT2', 'Swordland L1', 'Swordland L2', 'Tri Alliance L1', 'Tri Alliance L2'].map(eventType => {
+                  const typeData = partStats.perType[eventType];
+                  const total = typeData ? typeData.total : 0;
+                  const joined = typeData ? typeData.joined : 0;
+                  const pct = total > 0 ? (joined / total) * 100 : 0;
+
+                  return (
+                    <div
+                      key={eventType}
+                      className="p-2.5 rounded-lg bg-[#1a110a] border border-[#2c1d15] space-y-1"
+                    >
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-bold text-stone-200 truncate">{eventType}</span>
+                        <span
+                          className={`font-mono font-bold text-xs ${
+                            pct >= 75
+                              ? 'text-emerald-400'
+                              : pct >= 50
+                              ? 'text-amber-400'
+                              : total > 0
+                              ? 'text-red-400'
+                              : 'text-stone-500'
+                          }`}
+                        >
+                          {total > 0 ? `${pct.toFixed(0)}%` : '—'}
+                        </span>
+                      </div>
+
+                      <div className="w-full bg-[#0c0806] rounded-full h-1.5 overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all ${
+                            pct >= 75 ? 'bg-emerald-500' : pct >= 50 ? 'bg-amber-500' : 'bg-red-500'
+                          }`}
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+
+                      <div className="text-[10px] text-stone-500 font-mono text-right">
+                        {joined}/{total} joined
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Individual Battle Attendance Ledger */}
+            <div className="rounded-xl bg-[#140c08] border border-[#3d200e] max-h-56 overflow-y-auto divide-y divide-[#261307]">
+              {partStats.perEvent.map(pe => (
+                <div
+                  key={pe.eventId}
+                  className="p-3 flex items-center justify-between text-xs"
+                >
+                  <div>
+                    <span className="font-bold text-stone-200">{pe.eventType}</span>
+                    <div className="text-[11px] text-stone-400">{pe.eventName}</div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <VoteBadge status={pe.voteStatus as any} size="sm" />
+                    <AttendanceBadge status={pe.attendanceStatus as any} size="sm" />
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
