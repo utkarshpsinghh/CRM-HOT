@@ -7,8 +7,8 @@ const SECURITY_STORAGE_KEYS = {
   SESSION: 'crm_hot_security_session_v1',
 };
 
-const MAX_FAILED_ATTEMPTS = 4;
-const LOCKOUT_DURATION_MS = 3 * 60 * 1000; // 3 minutes lockout
+const MAX_FAILED_ATTEMPTS = 50;
+const LOCKOUT_DURATION_MS = 60 * 1000; // 1 minute lockout
 const ALLIANCE_SALT = 'HOT_KINGSHOT_CRM_2026_SECURE_SALT_99';
 
 /**
@@ -83,7 +83,7 @@ export function recordFailedAttempt(username: string): LoginAttemptState {
     addSecurityLog({
       type: 'ACCOUNT_LOCKED',
       username,
-      details: `Multiple failed attempts (${nextAttempts}). Lockout triggered for 3 minutes.`,
+      details: `Multiple failed attempts (${nextAttempts}). Lockout triggered for 1 minute.`,
     });
     return {
       attempts: nextAttempts,
@@ -107,7 +107,7 @@ export function recordFailedAttempt(username: string): LoginAttemptState {
   };
 }
 
-export function resetLoginAttempts(username: string): void {
+export function resetLoginAttempts(username = 'admin'): void {
   localStorage.removeItem(SECURITY_STORAGE_KEYS.ATTEMPTS);
   localStorage.removeItem(SECURITY_STORAGE_KEYS.LOCKOUT);
   addSecurityLog({

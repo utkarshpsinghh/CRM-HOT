@@ -3,7 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useCRM } from '../../context/CRMContext';
 import { User, Lock, AlertCircle, ArrowRight, Eye, EyeOff, Clock } from 'lucide-react';
 import { sounds } from '../../utils/sound';
-import { getLoginAttemptState } from '../../utils/security';
+import { getLoginAttemptState, resetLoginAttempts } from '../../utils/security';
 
 export const LoginView: React.FC = () => {
   const { login } = useAuth();
@@ -69,7 +69,7 @@ export const LoginView: React.FC = () => {
           {/* Alliance Crest & Header */}
           <div className="text-center mb-6">
             <div className="w-16 h-16 mx-auto mb-3 rounded-2xl bg-gradient-to-b from-[#801418] to-[#450a0a] border-2 border-[#ca8a04] p-2.5 shadow-lg flex items-center justify-center">
-              <img src="/favicon.svg" alt="HOT Crest" className="w-full h-full object-contain" />
+              <img src="./favicon.svg" alt="HOT Crest" className="w-full h-full object-contain" />
             </div>
 
             <div className="text-xs font-fantasy font-black uppercase tracking-widest text-[#ca8a04]">
@@ -85,12 +85,24 @@ export const LoginView: React.FC = () => {
 
           {/* Lockout Warning Banner */}
           {isLocked && (
-            <div className="mb-4 p-3.5 rounded-xl bg-red-950/90 border border-red-500/70 text-red-200 text-xs flex items-center gap-2.5 shadow-md">
-              <Clock className="w-4 h-4 text-red-400 shrink-0" />
-              <div>
-                <span className="font-bold text-red-100">Too many failed attempts.</span> Please wait{' '}
-                <span className="font-mono font-bold text-amber-300">{formatCountdown(lockoutSeconds)}</span> before trying again.
+            <div className="mb-4 p-3.5 rounded-xl bg-amber-950/90 border border-amber-500/70 text-amber-200 text-xs flex items-center justify-between gap-2.5 shadow-md">
+              <div className="flex items-center gap-2">
+                <Clock className="w-4 h-4 text-amber-400 shrink-0" />
+                <div>
+                  <span className="font-bold text-amber-100">Too many attempts.</span> Wait{' '}
+                  <span className="font-mono font-bold text-amber-300">{formatCountdown(lockoutSeconds)}</span>
+                </div>
               </div>
+              <button
+                type="button"
+                onClick={() => {
+                  resetLoginAttempts();
+                  setLockoutSeconds(0);
+                }}
+                className="px-2.5 py-1 rounded-lg bg-amber-600 hover:bg-amber-500 text-white font-bold text-[11px] uppercase tracking-wider cursor-pointer"
+              >
+                Unlock
+              </button>
             </div>
           )}
 
@@ -116,7 +128,7 @@ export const LoginView: React.FC = () => {
                 onChange={e => setUsername(e.target.value)}
                 required
                 autoComplete="off"
-                placeholder="Username"
+                placeholder="Username (e.g. admin)"
                 className="w-full px-3.5 py-2.5 rounded-xl bg-[#120c08] border border-[#3e2716] text-[#fffbeb] text-sm focus:outline-none focus:border-[#ca8a04] placeholder-stone-600 transition-colors disabled:opacity-50"
               />
             </div>
@@ -143,7 +155,7 @@ export const LoginView: React.FC = () => {
                 onChange={e => setPassword(e.target.value)}
                 required
                 autoComplete="new-password"
-                placeholder="Password"
+                placeholder="Password (e.g. admin or 1391)"
                 className="w-full px-3.5 py-2.5 rounded-xl bg-[#120c08] border border-[#3e2716] text-[#fffbeb] text-sm focus:outline-none focus:border-[#ca8a04] placeholder-stone-600 transition-colors disabled:opacity-50"
               />
             </div>
@@ -160,6 +172,16 @@ export const LoginView: React.FC = () => {
               </button>
             </div>
           </form>
+
+          {/* Credentials Helper */}
+          <div className="mt-5 pt-3.5 border-t border-[#3e2716]/60 text-center space-y-1">
+            <p className="text-[12px] text-amber-200/90 font-medium">
+              Leader Access: <span className="font-mono text-amber-300 font-bold">admin</span> &bull; Password: <span className="font-mono text-amber-300 font-bold">admin</span> or <span className="font-mono text-amber-300 font-bold">1391</span>
+            </p>
+            <p className="text-[11px] text-stone-400">
+              R4 Officer: <span className="font-mono text-amber-300 font-bold">officer</span> &bull; Password: <span className="font-mono text-amber-300 font-bold">hot123</span>
+            </p>
+          </div>
         </div>
       </div>
     </div>

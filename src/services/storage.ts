@@ -1,5 +1,5 @@
 import { Member, AllianceEvent, AttendanceRecord, StrikeRecord, CommunicationRecord, AllianceSettings, AdminAccount, OfficerContribution } from '../types/crm';
-import { initialMembers, initialEvents, generateInitialAttendance, initialStrikes, initialCommunications, initialSettings, initialAdmins, initialContributions } from './mockData';
+import { initialMembers, initialEvents, generateInitialAttendance, initialStrikes, initialCommunications, initialSettings, initialAdmins, initialContributions, DEFAULT_GAS_URL } from './mockData';
 
 const STORAGE_KEYS = {
   MEMBERS: 'crm_hot_members_v1',
@@ -35,6 +35,14 @@ export const storageService = {
         localStorage.setItem(STORAGE_KEYS.CONTRIBUTIONS, JSON.stringify(initialContributions));
       }
       localStorage.setItem(STORAGE_KEYS.INITIALIZED, 'true');
+    }
+
+    // Always ensure gasWebAppUrl is populated with 1391's live Google Apps Script endpoint if empty
+    const current = this.getSettings();
+    if (!current.gasWebAppUrl || current.gasWebAppUrl.trim() === '') {
+      current.gasWebAppUrl = DEFAULT_GAS_URL;
+      current.demoMode = false;
+      this.setSettings(current);
     }
   },
 
