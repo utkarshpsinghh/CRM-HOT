@@ -2,9 +2,9 @@ export type AllianceRank = 'R1' | 'R2' | 'R3' | 'R4' | 'R5';
 
 export type CommunicationStatus = 'Good' | 'Warning' | 'Poor' | 'Unknown';
 
-export type MemberActivityStatus = 'Active' | 'Inactive' | 'Needs Attention';
+export type MemberActivityStatus = 'Active' | 'Inactive' | 'Needs Attention' | 'Visitor' | 'Archived';
 
-export type MemberStatus = 'Active' | 'Inactive' | 'Archived';
+export type MemberStatus = 'Active' | 'Inactive' | 'Archived' | 'Visitor';
 
 export type EventType =
   | 'BT1'
@@ -103,6 +103,7 @@ export interface InactiveMemberInsight {
 export interface DashboardStats {
   totalMembers: number;
   activeMembers: number;
+  visitorMembers: number;
   inactiveMembers: number;
   needsAttentionMembers: number;
   membersWithStrikes: number;

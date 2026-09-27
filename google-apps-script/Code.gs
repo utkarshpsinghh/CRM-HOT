@@ -354,7 +354,7 @@ function handleCreateMember(member) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName(SHEET_NAMES.MEMBERS);
   const now = new Date().toISOString();
-  const id = 'mem-' + Utilities.getUuid().substring(0, 8);
+  const id = member.id || ('mem-' + Utilities.getUuid().substring(0, 8));
 
   sheet.appendRow([
     id,
@@ -363,7 +363,7 @@ function handleCreateMember(member) {
     member.formerRank || 'None',
     0,
     member.communication || 'Good',
-    'Active',
+    member.status || 'Active',
     now,
     now
   ]);
@@ -523,7 +523,11 @@ function handleUpdateVote(eventId, memberId, voteStatus) {
       return { status: 'success' };
     }
   }
-  return { status: 'error', message: 'Attendance record not found for member in this event.' };
+
+  // If not found, upsert by appending new attendance record
+  const attId = 'att-' + eventId + '-' + memberId;
+  sheet.appendRow([attId, eventId, memberId, voteStatus, 'NOT_APPLICABLE', now]);
+  return { status: 'success', upserted: true };
 }
 
 function handleUpdateAttendance(eventId, memberId, attendanceStatus) {
@@ -540,7 +544,11 @@ function handleUpdateAttendance(eventId, memberId, attendanceStatus) {
       return { status: 'success' };
     }
   }
-  return { status: 'error', message: 'Attendance record not found for member in this event.' };
+
+  // If not found, upsert by appending new attendance record
+  const attId = 'att-' + eventId + '-' + memberId;
+  sheet.appendRow([attId, eventId, memberId, 'NO RESPONSE', attendanceStatus, now]);
+  return { status: 'success', upserted: true };
 }
 
 function handleBulkUpdateAttendance(eventId, updates) {
@@ -550,6 +558,7 @@ function handleBulkUpdateAttendance(eventId, updates) {
   const now = new Date().toISOString();
 
   const updateMap = {};
+  const matchedMembers = {};
   updates.forEach(u => {
     updateMap[u.memberId] = u;
   });
@@ -558,6 +567,7 @@ function handleBulkUpdateAttendance(eventId, updates) {
     if (String(data[i][1]) === String(eventId)) {
       const mId = String(data[i][2]);
       if (updateMap[mId]) {
+        matchedMembers[mId] = true;
         const row = i + 1;
         if (updateMap[mId].voteStatus !== undefined) {
           sheet.getRange(row, 4).setValue(updateMap[mId].voteStatus);
@@ -569,6 +579,26 @@ function handleBulkUpdateAttendance(eventId, updates) {
       }
     }
   }
+
+  // Upsert any records that weren't already in the sheet
+  const newRows = [];
+  updates.forEach(u => {
+    if (!matchedMembers[u.memberId]) {
+      newRows.push([
+        'att-' + eventId + '-' + u.memberId,
+        eventId,
+        u.memberId,
+        u.voteStatus || 'NO RESPONSE',
+        u.attendanceStatus || 'NOT_APPLICABLE',
+        now
+      ]);
+    }
+  });
+
+  if (newRows.length > 0) {
+    sheet.getRange(sheet.getLastRow() + 1, 1, newRows.length, 6).setValues(newRows);
+  }
+
   return { status: 'success' };
 }
 

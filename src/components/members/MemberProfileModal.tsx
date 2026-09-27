@@ -77,7 +77,7 @@ export const MemberProfileModal: React.FC<MemberProfileModalProps> = ({
             <div className="flex items-center gap-2.5">
               <span className="font-bold text-xl text-[#fffbeb]">{member.name}</span>
               <RankBadge rank={member.currentRank} size="sm" />
-              <ActivityBadge status={member.status === 'Active' ? 'Active' : 'Inactive'} size="sm" />
+              <ActivityBadge status={member.status} size="sm" />
             </div>
 
             <div className="flex items-center gap-2">

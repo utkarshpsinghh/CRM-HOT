@@ -163,6 +163,7 @@ export const MemberFormModal: React.FC<MemberFormModalProps> = ({
               className="w-full px-3 py-2 rounded-xl bg-[#120c08] border border-[#3e2716] text-stone-200 focus:outline-none focus:border-[#ca8a04]"
             >
               <option value="Active">Active</option>
+              <option value="Visitor">Visitor</option>
               <option value="Inactive">Inactive</option>
               <option value="Archived">Archived (Left Alliance)</option>
             </select>

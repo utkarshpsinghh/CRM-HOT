@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Member, AllianceRank } from '../../types/crm';
+import { Member, AllianceRank, MemberActivityStatus } from '../../types/crm';
 import { useCRM } from '../../context/CRMContext';
 import { RankBadge } from '../common/RankBadge';
 import { ActivityBadge } from '../common/StatusBadge';
@@ -202,8 +202,9 @@ export const MembersView: React.FC<MembersViewProps> = ({
           onChange={e => setMemberFilter(prev => ({ ...prev, status: e.target.value }))}
           className="w-full sm:w-auto min-w-0 px-2.5 py-1.5 rounded-lg bg-[#140c08] border border-[#3d200e] text-stone-200 text-xs focus:outline-none focus:border-[#fbbf24]"
         >
-          <option value="ALL">Active & Inactive</option>
+          <option value="ALL">All Active / Visitor / Inactive</option>
           <option value="Active">Active Only</option>
+          <option value="Visitor">Visitor Only</option>
           <option value="Inactive">Inactive Only</option>
           <option value="Archived">Archived</option>
         </select>
@@ -245,8 +246,10 @@ export const MembersView: React.FC<MembersViewProps> = ({
         ) : (
           sortedMembers.map(member => {
             const isInactive = inactiveInsights.some(i => i.member.id === member.id);
-            const activityStatus = member.status === 'Archived'
-              ? 'Inactive'
+            const activityStatus: MemberActivityStatus = member.status === 'Archived'
+              ? 'Archived'
+              : member.status === 'Visitor'
+              ? 'Visitor'
               : isInactive
               ? 'Needs Attention'
               : member.status === 'Inactive'
@@ -459,8 +462,10 @@ export const MembersView: React.FC<MembersViewProps> = ({
             ) : (
               sortedMembers.map(member => {
                 const isInactive = inactiveInsights.some(i => i.member.id === member.id);
-                const activityStatus = member.status === 'Archived'
-                  ? 'Inactive'
+                const activityStatus: MemberActivityStatus = member.status === 'Archived'
+                  ? 'Archived'
+                  : member.status === 'Visitor'
+                  ? 'Visitor'
                   : isInactive
                   ? 'Needs Attention'
                   : member.status === 'Inactive'

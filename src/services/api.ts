@@ -367,6 +367,7 @@ export const apiService = {
         await fetch(settings.gasWebAppUrl, {
           method: 'POST',
           mode: 'cors',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
           body: JSON.stringify({ action: 'updateVote', eventId, memberId, voteStatus }),
         });
       } catch {
@@ -404,6 +405,7 @@ export const apiService = {
         await fetch(settings.gasWebAppUrl, {
           method: 'POST',
           mode: 'cors',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
           body: JSON.stringify({ action: 'updateAttendance', eventId, memberId, attendanceStatus }),
         });
       } catch {
@@ -445,6 +447,7 @@ export const apiService = {
         await fetch(settings.gasWebAppUrl, {
           method: 'POST',
           mode: 'cors',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
           body: JSON.stringify({ action: 'bulkUpdateAttendance', eventId, updates }),
         });
       } catch {
@@ -454,10 +457,12 @@ export const apiService = {
 
     const all = storageService.getAttendance();
     const map = new Map(updates.map(u => [u.memberId, u]));
+    const matchedMembers = new Set<string>();
     const now = new Date().toISOString();
 
     const updated = all.map(r => {
       if (r.eventId === eventId && map.has(r.memberId)) {
+        matchedMembers.add(r.memberId);
         const u = map.get(r.memberId)!;
         return {
           ...r,
@@ -467,6 +472,19 @@ export const apiService = {
         };
       }
       return r;
+    });
+
+    updates.forEach(u => {
+      if (!matchedMembers.has(u.memberId)) {
+        updated.push({
+          id: `att-${eventId}-${u.memberId}`,
+          eventId,
+          memberId: u.memberId,
+          voteStatus: u.voteStatus || 'NO RESPONSE',
+          attendanceStatus: u.attendanceStatus || 'NOT_APPLICABLE',
+          updatedAt: now,
+        });
+      }
     });
     storageService.setAttendance(updated);
   },

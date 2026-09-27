@@ -284,6 +284,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const stats: DashboardStats = useMemo(() => {
     const total = members.length;
     const active = members.filter(m => m.status === 'Active').length;
+    const visitor = members.filter(m => m.status === 'Visitor').length;
     const inactive = members.filter(m => m.status === 'Inactive').length;
     const strikesTotal = members.filter(m => m.strikes > 0).length;
     const needsAttention = inactiveInsights.length;
@@ -333,6 +334,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return {
       totalMembers: total,
       activeMembers: active,
+      visitorMembers: visitor,
       inactiveMembers: inactive,
       needsAttentionMembers: needsAttention,
       membersWithStrikes: strikesTotal,
@@ -625,13 +627,28 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const updateVote = async (eventId: string, memberId: string, vote: VoteStatus) => {
     sounds.playClick();
     const now = new Date().toISOString();
-    // 1. INSTANT LOCAL UPDATE
+    // 1. INSTANT LOCAL UPDATE (Upsert)
     const current = storageService.getAttendance();
-    const updated = current.map(a =>
-      a.eventId === eventId && a.memberId === memberId
-        ? { ...a, voteStatus: vote, updatedAt: now }
-        : a
-    );
+    let matched = false;
+    const updated = current.map(a => {
+      if (a.eventId === eventId && a.memberId === memberId) {
+        matched = true;
+        return { ...a, voteStatus: vote, updatedAt: now };
+      }
+      return a;
+    });
+
+    if (!matched) {
+      updated.unshift({
+        id: `att-${eventId}-${memberId}`,
+        eventId,
+        memberId,
+        voteStatus: vote,
+        attendanceStatus: 'NOT_APPLICABLE',
+        updatedAt: now,
+      });
+    }
+
     storageService.setAttendance(updated);
     setAttendance(updated);
 
@@ -653,13 +670,28 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const updateAttendance = async (eventId: string, memberId: string, att: AttendanceStatus) => {
     sounds.playClick();
     const now = new Date().toISOString();
-    // 1. INSTANT LOCAL UPDATE
+    // 1. INSTANT LOCAL UPDATE (Upsert)
     const current = storageService.getAttendance();
-    const updated = current.map(a =>
-      a.eventId === eventId && a.memberId === memberId
-        ? { ...a, attendanceStatus: att, updatedAt: now }
-        : a
-    );
+    let matched = false;
+    const updated = current.map(a => {
+      if (a.eventId === eventId && a.memberId === memberId) {
+        matched = true;
+        return { ...a, attendanceStatus: att, updatedAt: now };
+      }
+      return a;
+    });
+
+    if (!matched) {
+      updated.unshift({
+        id: `att-${eventId}-${memberId}`,
+        eventId,
+        memberId,
+        voteStatus: 'NO RESPONSE',
+        attendanceStatus: att,
+        updatedAt: now,
+      });
+    }
+
     storageService.setAttendance(updated);
     setAttendance(updated);
 
@@ -686,8 +718,11 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const now = new Date().toISOString();
     const current = storageService.getAttendance();
     const updateMap = new Map(updates.map(u => [u.memberId, u]));
+    const matchedMembers = new Set<string>();
+
     const updated = current.map(a => {
       if (a.eventId === eventId && updateMap.has(a.memberId)) {
+        matchedMembers.add(a.memberId);
         const u = updateMap.get(a.memberId)!;
         return {
           ...a,
@@ -697,6 +732,20 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         };
       }
       return a;
+    });
+
+    // Add missing records
+    updates.forEach(u => {
+      if (!matchedMembers.has(u.memberId)) {
+        updated.unshift({
+          id: `att-${eventId}-${u.memberId}`,
+          eventId,
+          memberId: u.memberId,
+          voteStatus: u.voteStatus || 'NO RESPONSE',
+          attendanceStatus: u.attendanceStatus || 'NOT_APPLICABLE',
+          updatedAt: now,
+        });
+      }
     });
 
     storageService.setAttendance(updated);

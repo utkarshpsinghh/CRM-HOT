@@ -31,8 +31,14 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
     setSelectedMemberForProfile,
   } = useCRM();
 
-  const currentEventId = selectedEventIdForAttendance || events[events.length - 1]?.id || '';
-  const currentEvent = events.find(e => e.id === currentEventId) || events[0];
+  const currentEvent = useMemo(() => {
+    if (!events.length) return null;
+    if (selectedEventIdForAttendance) {
+      const found = events.find(e => e.id === selectedEventIdForAttendance);
+      if (found) return found;
+    }
+    return events[0];
+  }, [events, selectedEventIdForAttendance]);
 
   const [activeCategory, setActiveCategory] = useState<'ALL' | 'JOINED' | 'FLAKED' | 'NO_VOTE'>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
@@ -42,10 +48,30 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
     return new Map(members.map(m => [m.id, m]));
   }, [members]);
 
+  // All non-archived members of the alliance (Active, Visitor, Inactive)
+  const eligibleMembers = useMemo(() => {
+    return members.filter(m => m.status !== 'Archived');
+  }, [members]);
+
+  // Ensure every eligible member has a valid attendance row for this event
   const eventAttendanceRecords = useMemo(() => {
     if (!currentEvent) return [];
-    return attendance.filter(a => a.eventId === currentEvent.id);
-  }, [attendance, currentEvent]);
+    const existingMap = new Map(
+      attendance.filter(a => a.eventId === currentEvent.id).map(a => [a.memberId, a])
+    );
+    return eligibleMembers.map(member => {
+      const existing = existingMap.get(member.id);
+      if (existing) return existing;
+      return {
+        id: `att-${currentEvent.id}-${member.id}`,
+        eventId: currentEvent.id,
+        memberId: member.id,
+        voteStatus: 'NO RESPONSE' as const,
+        attendanceStatus: 'NOT_APPLICABLE' as const,
+        updatedAt: currentEvent.createdAt || new Date().toISOString(),
+      };
+    });
+  }, [attendance, currentEvent, eligibleMembers]);
 
   // Clean stats
   const stats = useMemo(() => {
@@ -235,6 +261,11 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
                       {member.name}
                     </span>
                     <RankBadge rank={member.currentRank} size="sm" />
+                    {member.status === 'Visitor' && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-cyan-950 text-cyan-300 border border-cyan-500/60 font-bold shrink-0">
+                        Visitor
+                      </span>
+                    )}
                   </div>
 
                   {isFlaked && (
@@ -288,7 +319,13 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
                 <div className="flex items-center gap-2 pt-1">
                   <button
                     type="button"
-                    onClick={() => updateAttendance(currentEvent.id, member.id, 'JOINED')}
+                    onClick={() =>
+                      updateAttendance(
+                        currentEvent.id,
+                        member.id,
+                        record.attendanceStatus === 'JOINED' ? 'NOT_APPLICABLE' : 'JOINED'
+                      )
+                    }
                     className={`flex-1 py-2 rounded-xl text-xs font-fantasy font-black uppercase flex items-center justify-center gap-1.5 transition-all cursor-pointer select-none active:scale-95 ${
                       record.attendanceStatus === 'JOINED'
                         ? 'bg-emerald-600 text-white shadow-md border-2 border-emerald-400'
@@ -301,7 +338,13 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
 
                   <button
                     type="button"
-                    onClick={() => updateAttendance(currentEvent.id, member.id, 'DIDNT_JOIN')}
+                    onClick={() =>
+                      updateAttendance(
+                        currentEvent.id,
+                        member.id,
+                        record.attendanceStatus === 'DIDNT_JOIN' ? 'NOT_APPLICABLE' : 'DIDNT_JOIN'
+                      )
+                    }
                     className={`flex-1 py-2 rounded-xl text-xs font-fantasy font-black uppercase flex items-center justify-center gap-1.5 transition-all cursor-pointer select-none active:scale-95 ${
                       record.attendanceStatus === 'DIDNT_JOIN'
                         ? 'bg-red-700 text-white shadow-md border-2 border-red-400'
@@ -370,15 +413,22 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
                   >
                     {/* Name */}
                     <td className="py-3 px-4">
-                      <span
-                        onClick={() => {
-                          sounds.playClick();
-                          setSelectedMemberForProfile(member);
-                        }}
-                        className="font-bold text-stone-100 hover:text-[#fbbf24] cursor-pointer"
-                      >
-                        {member.name}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span
+                          onClick={() => {
+                            sounds.playClick();
+                            setSelectedMemberForProfile(member);
+                          }}
+                          className="font-bold text-stone-100 hover:text-[#fbbf24] cursor-pointer"
+                        >
+                          {member.name}
+                        </span>
+                        {member.status === 'Visitor' && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-cyan-950 text-cyan-300 border border-cyan-500/60 font-bold shrink-0">
+                            Visitor
+                          </span>
+                        )}
+                      </div>
                       {isFlaked && (
                         <span className="block text-[11px] text-red-400 font-medium">
                           Voted YES but missed
@@ -435,7 +485,13 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
                       <div className="flex items-center gap-1.5">
                         <button
                           type="button"
-                          onClick={() => updateAttendance(currentEvent.id, member.id, 'JOINED')}
+                          onClick={() =>
+                            updateAttendance(
+                              currentEvent.id,
+                              member.id,
+                              record.attendanceStatus === 'JOINED' ? 'NOT_APPLICABLE' : 'JOINED'
+                            )
+                          }
                           className={`px-2.5 py-1 rounded text-xs font-bold cursor-pointer flex items-center gap-1 ${
                             record.attendanceStatus === 'JOINED'
                               ? 'bg-emerald-600 text-white shadow-sm'
@@ -448,7 +504,13 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
 
                         <button
                           type="button"
-                          onClick={() => updateAttendance(currentEvent.id, member.id, 'DIDNT_JOIN')}
+                          onClick={() =>
+                            updateAttendance(
+                              currentEvent.id,
+                              member.id,
+                              record.attendanceStatus === 'DIDNT_JOIN' ? 'NOT_APPLICABLE' : 'DIDNT_JOIN'
+                            )
+                          }
                           className={`px-2.5 py-1 rounded text-xs font-bold cursor-pointer flex items-center gap-1 ${
                             record.attendanceStatus === 'DIDNT_JOIN'
                               ? 'bg-red-700 text-white shadow-sm'

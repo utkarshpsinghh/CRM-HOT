@@ -72,6 +72,16 @@ export const ActivityBadge: React.FC<ActivityBadgeProps> = ({ status, size = 'md
       style: 'bg-red-950/70 text-red-300 border-red-500/70 shadow-[0_0_8px_rgba(239,68,68,0.2)]',
       dot: 'bg-red-500',
     },
+    Visitor: {
+      label: 'Visitor',
+      style: 'bg-cyan-950/70 text-cyan-300 border-cyan-500/70 shadow-[0_0_8px_rgba(6,182,212,0.25)]',
+      dot: 'bg-cyan-400',
+    },
+    Archived: {
+      label: 'Archived',
+      style: 'bg-stone-900/80 text-stone-400 border-stone-700',
+      dot: 'bg-stone-500',
+    },
   }[status] || {
     label: status,
     style: 'bg-stone-900 text-stone-300 border-stone-600',
