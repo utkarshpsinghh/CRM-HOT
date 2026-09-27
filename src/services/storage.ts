@@ -37,10 +37,10 @@ export const storageService = {
       localStorage.setItem(STORAGE_KEYS.INITIALIZED, 'true');
     }
 
-    // Check if an environment variable provides a Google Apps Script endpoint
+    // Check if an environment variable or default configuration provides a Google Apps Script endpoint
     if (DEFAULT_GAS_URL) {
       const current = this.getSettings();
-      if (!current.gasWebAppUrl) {
+      if (!current.gasWebAppUrl || !current.gasWebAppUrl.startsWith('http')) {
         current.gasWebAppUrl = DEFAULT_GAS_URL;
         current.demoMode = false;
         this.setSettings(current);
