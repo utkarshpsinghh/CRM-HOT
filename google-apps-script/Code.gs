@@ -150,6 +150,20 @@ function doGet(e) {
       result = { status: 'success', data: fetchAdmins() };
     } else if (action === 'getContributions') {
       result = { status: 'success', data: fetchContributions() };
+    } else if (action === 'getAllData') {
+      result = {
+        status: 'success',
+        data: {
+          members: fetchMembers(),
+          events: fetchEvents(),
+          attendance: fetchAttendance(),
+          strikes: fetchStrikes(),
+          communications: fetchCommunications(),
+          admins: fetchAdmins(),
+          contributions: fetchContributions(),
+          settings: fetchSettings()
+        }
+      };
     } else if (action === 'getDashboard') {
       result = { status: 'success', data: getDashboardData() };
     } else {
@@ -312,6 +326,15 @@ function handleLogin(username, password) {
             name: String(data[i][4] || data[i][1]).trim(),
             role: isLeader ? 'MainAdmin' : 'SubAdmin',
             token: Utilities.getUuid()
+          },
+          data: {
+            members: fetchMembers(),
+            events: fetchEvents(),
+            attendance: fetchAttendance(),
+            strikes: fetchStrikes(),
+            communications: fetchCommunications(),
+            admins: fetchAdmins(),
+            contributions: fetchContributions(),
           }
         };
       } else {

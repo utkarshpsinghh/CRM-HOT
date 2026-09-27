@@ -81,9 +81,27 @@ export const apiService = {
   },
 
   // --------------------------------------------------------------------------
+  // UNIFIED FAST DATA FETCH (1 single network round-trip instead of 7)
+  // --------------------------------------------------------------------------
+  async getAllData(settings: AllianceSettings): Promise<any | null> {
+    if (!this.isLiveSheets(settings)) return null;
+    try {
+      const url = `${normalizeGasUrl(settings.gasWebAppUrl)}?action=getAllData`;
+      const res = await fetch(url, { mode: 'cors' });
+      const json = await res.json();
+      if (json && (json.status === 'success' || json.ok === true) && json.data) {
+        return json.data;
+      }
+    } catch (err) {
+      console.warn('getAllData fetch error, will fallback:', err);
+    }
+    return null;
+  },
+
+  // --------------------------------------------------------------------------
   // AUTH
   // --------------------------------------------------------------------------
-  async login(username: string, pass: string, settings: AllianceSettings): Promise<{ success: boolean; user?: AdminUser; error?: string }> {
+  async login(username: string, pass: string, settings: AllianceSettings): Promise<{ success: boolean; user?: AdminUser; error?: string; initialData?: any }> {
     const cleanUser = (username || '').trim();
     const cleanPass = (pass || '').trim();
 
@@ -146,7 +164,7 @@ export const apiService = {
             token: String(data.user.token || 'live-token-' + Date.now()),
           };
 
-          return { success: true, user };
+          return { success: true, user, initialData: data.data };
         }
 
         recordFailedAttempt(cleanUser);

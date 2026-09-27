@@ -30,11 +30,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const login = async (username: string, pass: string, settings: AllianceSettings) => {
-    setIsLoading(true);
+    // Keep inline button spinner in LoginView without unmounting to full-page loader
     const result = await apiService.login(username, pass, settings);
-    setIsLoading(false);
 
     if (result.success && result.user) {
+      if (result.initialData) {
+        // Pre-cache sheet data into storage for instant 0ms mount
+        if (Array.isArray(result.initialData.members)) storageService.setMembers(result.initialData.members);
+        if (Array.isArray(result.initialData.events)) storageService.setEvents(result.initialData.events);
+        if (Array.isArray(result.initialData.attendance)) storageService.setAttendance(result.initialData.attendance);
+        if (Array.isArray(result.initialData.strikes)) storageService.setStrikes(result.initialData.strikes);
+        if (Array.isArray(result.initialData.communications)) storageService.setCommunications(result.initialData.communications);
+        if (Array.isArray(result.initialData.admins)) storageService.setAdminAccounts(result.initialData.admins);
+        if (Array.isArray(result.initialData.contributions)) storageService.setContributions(result.initialData.contributions);
+      }
       setAdmin(result.user);
       storageService.setAuth(result.user);
       sounds.playSuccess();

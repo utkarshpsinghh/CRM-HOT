@@ -97,17 +97,17 @@ const CRMContext = createContext<CRMContextType | undefined>(undefined);
 
 export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { admin, updateCurrentAdmin } = useAuth();
-  const [members, setMembers] = useState<Member[]>([]);
-  const [events, setEvents] = useState<AllianceEvent[]>([]);
-  const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
-  const [strikes, setStrikes] = useState<StrikeRecord[]>([]);
-  const [communications, setCommunications] = useState<CommunicationRecord[]>([]);
-  const [admins, setAdmins] = useState<AdminAccount[]>([]);
-  const [contributions, setContributions] = useState<OfficerContribution[]>([]);
-  const [settings, setSettings] = useState<AllianceSettings>(storageService.getSettings());
+  const [members, setMembers] = useState<Member[]>(() => storageService.getMembers());
+  const [events, setEvents] = useState<AllianceEvent[]>(() => storageService.getEvents());
+  const [attendance, setAttendance] = useState<AttendanceRecord[]>(() => storageService.getAttendance());
+  const [strikes, setStrikes] = useState<StrikeRecord[]>(() => storageService.getStrikes());
+  const [communications, setCommunications] = useState<CommunicationRecord[]>(() => storageService.getCommunications());
+  const [admins, setAdmins] = useState<AdminAccount[]>(() => storageService.getAdminAccounts());
+  const [contributions, setContributions] = useState<OfficerContribution[]>(() => storageService.getContributions());
+  const [settings, setSettings] = useState<AllianceSettings>(() => storageService.getSettings());
   const [syncStatus, setSyncStatus] = useState<'connected' | 'demo' | 'syncing' | 'error'>('demo');
   const [syncMessage, setSyncMessage] = useState<string>('Local Demo Mode');
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isLoading, setIsLoading] = useState<boolean>(() => storageService.getMembers().length === 0);
   const [isSyncingSheets, setIsSyncingSheets] = useState<boolean>(false);
   const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
   const [toasts, setToasts] = useState<ToastNotice[]>([]);
@@ -151,25 +151,44 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Load all data with safety against showing uninitialized/junk data
   const refreshData = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const currentSettings = storageService.getSettings();
-      setSettings(currentSettings);
+    const currentSettings = storageService.getSettings();
+    setSettings(currentSettings);
 
+    // Only show blocking loading state if there are zero cached records
+    if (storageService.getMembers().length === 0) {
+      setIsLoading(true);
+    }
+
+    try {
       if (apiService.isLiveSheets(currentSettings)) {
         setIsSyncingSheets(true);
         setSyncStatus('syncing');
         setSyncMessage('Updating from Google Sheets...');
         try {
-          const [mList, eList, aList, sList, cList, admList, cntList] = await Promise.all([
-            apiService.getMembers(currentSettings),
-            apiService.getEvents(currentSettings),
-            apiService.getAttendance(undefined, currentSettings),
-            apiService.getStrikes(currentSettings),
-            apiService.getCommunications(currentSettings),
-            apiService.getAdmins(currentSettings),
-            apiService.getContributions(currentSettings),
-          ]);
+          // Fast-path: single request to get all sheets data at once
+          const allData = await apiService.getAllData(currentSettings);
+
+          let mList, eList, aList, sList, cList, admList, cntList;
+          if (allData && typeof allData === 'object') {
+            mList = allData.members;
+            eList = allData.events;
+            aList = allData.attendance;
+            sList = allData.strikes;
+            cList = allData.communications;
+            admList = allData.admins;
+            cntList = allData.contributions;
+          } else {
+            // Fallback to separate endpoints if backend hasn't been re-deployed yet
+            [mList, eList, aList, sList, cList, admList, cntList] = await Promise.all([
+              apiService.getMembers(currentSettings),
+              apiService.getEvents(currentSettings),
+              apiService.getAttendance(undefined, currentSettings),
+              apiService.getStrikes(currentSettings),
+              apiService.getCommunications(currentSettings),
+              apiService.getAdmins(currentSettings),
+              apiService.getContributions(currentSettings),
+            ]);
+          }
 
           // Valid responses from Google Sheets are accepted (including clean empty roster)
           if (Array.isArray(mList)) {
@@ -208,7 +227,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           console.warn('Google Sheets sync warning:', err);
           setSyncStatus('error');
           setSyncMessage('Google Sheets offline. Using cached roster.');
-          // Use cached storage data (which only contains sheet data, not 92 fake members)
+          // Use cached storage data
           setMembers(storageService.getMembers());
           setEvents(storageService.getEvents());
           setAttendance(storageService.getAttendance());
