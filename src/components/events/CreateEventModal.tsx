@@ -24,7 +24,7 @@ export const CreateEventModal: React.FC<CreateEventModalProps> = ({ isOpen, onCl
 
   const [eventType, setEventType] = useState<EventType>('BT1');
   const [customType, setCustomType] = useState('');
-  const [eventName, setEventName] = useState('Battle Throne Phase 1');
+  const [eventName, setEventName] = useState('Bear Trap 1');
   const [date, setDate] = useState(() => {
     const d = new Date();
     d.setHours(19, 0, 0, 0);
@@ -37,8 +37,8 @@ export const CreateEventModal: React.FC<CreateEventModalProps> = ({ isOpen, onCl
   // Auto-generate title suggestion when event type changes
   const handleTypeChange = (type: string) => {
     setEventType(type);
-    if (type === 'BT1') setEventName('Battle Throne Phase 1');
-    else if (type === 'BT2') setEventName('Battle Throne Phase 2');
+    if (type === 'BT1') setEventName('Bear Trap 1');
+    else if (type === 'BT2') setEventName('Bear Trap 2');
     else if (type === 'Swordland L1') setEventName('Swordland Level 1');
     else if (type === 'Swordland L2') setEventName('Swordland Level 2');
     else if (type === 'Tri Alliance L1') setEventName('Tri Alliance Level 1');
@@ -92,7 +92,7 @@ export const CreateEventModal: React.FC<CreateEventModalProps> = ({ isOpen, onCl
                     : 'bg-[#120c08] border-[#3e2716] text-stone-300 hover:border-[#ca8a04]'
                 }`}
               >
-                {t}
+                {t === 'BT1' ? 'BT1 (Bear Trap 1)' : t === 'BT2' ? 'BT2 (Bear Trap 2)' : t}
               </button>
             ))}
           </div>

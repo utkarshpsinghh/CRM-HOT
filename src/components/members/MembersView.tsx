@@ -216,8 +216,8 @@ export const MembersView: React.FC<MembersViewProps> = ({
           className="w-full sm:w-auto min-w-0 px-2.5 py-1.5 rounded-lg bg-[#140c08] border border-[#3d200e] text-amber-300 text-xs font-semibold focus:outline-none focus:border-[#fbbf24]"
         >
           <option value="ALL">All War Events Attendance</option>
-          <option value="BT1">BT1 Attendance</option>
-          <option value="BT2">BT2 Attendance</option>
+          <option value="BT1">BT1 (Bear Trap 1) Attendance</option>
+          <option value="BT2">BT2 (Bear Trap 2) Attendance</option>
           <option value="Swordland L1">Swordland L1 Attendance</option>
           <option value="Swordland L2">Swordland L2 Attendance</option>
           <option value="Tri Alliance L1">Tri Alliance L1 Attendance</option>

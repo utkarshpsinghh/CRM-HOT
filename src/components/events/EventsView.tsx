@@ -104,7 +104,7 @@ export const EventsView: React.FC<EventsViewProps> = ({ onOpenCreateEvent }) => 
                 }`}
               >
                 <div className="text-[11px] font-bold text-stone-300 truncate">
-                  {t}
+                  {t === 'BT1' ? 'BT1 (Bear Trap 1)' : t === 'BT2' ? 'BT2 (Bear Trap 2)' : t}
                 </div>
                 <div
                   className={`text-lg sm:text-xl font-fantasy font-black mt-0.5 ${
@@ -147,7 +147,7 @@ export const EventsView: React.FC<EventsViewProps> = ({ onOpenCreateEvent }) => 
                 : 'bg-[#120c08] text-stone-300 hover:text-[#fef08a] border border-[#3e2716]'
             }`}
           >
-            {t}
+            {t === 'BT1' ? 'BT1 (Bear Trap 1)' : t === 'BT2' ? 'BT2 (Bear Trap 2)' : t}
           </button>
         ))}
       </div>

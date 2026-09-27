@@ -167,11 +167,11 @@ export const initialEvents: AllianceEvent[] = [
   {
     id: 'evt-004',
     eventType: 'BT1',
-    eventName: 'Battle Throne Phase 1',
+    eventName: 'Bear Trap 1',
     date: '2026-09-25T17:00',
     createdAt: '2026-09-24T12:00:00.000Z',
     status: 'Completed',
-    notes: 'Mandatory throne qualification clash.',
+    notes: 'Mandatory alliance bear trap rally.',
   },
   {
     id: 'evt-005',
@@ -185,11 +185,11 @@ export const initialEvents: AllianceEvent[] = [
   {
     id: 'evt-006',
     eventType: 'BT2',
-    eventName: 'Battle Throne Phase 2 War',
+    eventName: 'Bear Trap 2',
     date: '2026-09-27T19:00',
     createdAt: '2026-09-26T14:00:00.000Z',
     status: 'Completed',
-    notes: 'Decisive throne war round. Crucial attendance!',
+    notes: 'Alliance bear trap rally round 2. Crucial attendance!',
   },
 ];
 
