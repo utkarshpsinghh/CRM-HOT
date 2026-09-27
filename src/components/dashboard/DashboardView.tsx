@@ -13,7 +13,8 @@ import {
   Swords,
   UserPlus,
   BarChart3,
-  Sparkles,
+  RefreshCw,
+  Database,
   ArrowRight,
 } from 'lucide-react';
 import { sounds } from '../../utils/sound';
@@ -27,102 +28,91 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onOpenCreateEvent,
   onOpenAddMember,
 }) => {
-  const { stats, events, setActiveTab, setMemberFilter } = useCRM();
+  const {
+    stats,
+    events,
+    setActiveTab,
+    setMemberFilter,
+    syncWithGoogleSheets,
+    isSyncingSheets,
+    syncStatus,
+    lastSyncTime,
+  } = useCRM();
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       {/* ========================================================================= */}
-      {/* KINGSHOT WOODEN SIGNBOARD HERO (Matches Reference UI Screenshot Exactly) */}
+      {/* CLEAN & SIMPLE ALLIANCE HERO BANNER */}
       {/* ========================================================================= */}
-      <div className="relative pt-3 pb-4">
-        {/* Cute Cartoon Decorative Flowers (matches 🌸 in screenshot) */}
-        <div className="hidden sm:block absolute -left-2 bottom-6 text-2xl select-none animate-bounce" style={{ animationDuration: '3s' }}>
-          🌸
-        </div>
-        <div className="hidden sm:block absolute -right-2 bottom-6 text-2xl select-none animate-bounce" style={{ animationDuration: '3.5s' }}>
-          🌸
-        </div>
-
-        {/* The Centerpiece Wooden Signboard */}
-        <div className="max-w-3xl mx-auto kingshot-signboard p-6 sm:p-10 text-center relative overflow-hidden">
-          {/* Top Left Brass Bolt + Leaf Sprout 🌱 (matches screenshot) */}
-          <div className="corner-bolt top-3 left-3" />
-          <div className="absolute top-2 left-6 text-lg select-none">
-            🌱
-          </div>
-
-          {/* Top Right Brass Bolt + Leaf Sprout 🌱 (matches screenshot) */}
-          <div className="corner-bolt top-3 right-3" />
-          <div className="absolute top-2 right-6 text-lg select-none">
-            🌱
-          </div>
-
-          {/* Bottom Brass Bolts */}
-          <div className="corner-bolt bottom-3 left-3" />
-          <div className="corner-bolt bottom-3 right-3" />
-
-          {/* Inner Content */}
-          <div className="relative z-10 space-y-2 sm:space-y-3">
-            {/* Top tiny label */}
-            <div className="text-[11px] sm:text-xs font-black uppercase tracking-widest text-[#fbbf24] font-sans">
-              KINGSHOT ALLIANCE HOT
+      <div className="rounded-xl bg-gradient-to-r from-[#29170e] via-[#22130b] to-[#1a0e08] border-2 border-[#572e13] p-5 sm:p-7 shadow-lg">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-[#fbbf24] px-2 py-0.5 rounded bg-[#42200a] border border-[#78350f]">
+                Kingshot Kingdom Alliance
+              </span>
+              <span className="text-xs text-stone-400 font-mono">
+                {syncStatus === 'connected' ? '🟢 Google Sheets Connected' : '🛡️ Local Database Mode'}
+              </span>
             </div>
 
-            {/* Huge 3D Woodcut Title (Matches "FIND YOUR FOREVER HOME") */}
-            <h1 className="woodcut-title text-3xl sm:text-5xl lg:text-6xl font-black uppercase leading-none tracking-wider">
-              ALLIANCE<br />COMMAND CENTER
+            <h1 className="text-2xl sm:text-4xl font-extrabold text-[#fffbeb] tracking-tight">
+              HOT Alliance Command Center
             </h1>
 
-            {/* Sub-heading (Matches "in K1391") */}
-            <div className="font-kingshot text-lg sm:text-2xl text-[#fde68a] tracking-wide">
-              in HOT Alliance
-            </div>
+            <p className="text-xs sm:text-sm text-stone-300 font-medium">
+              &quot;Strength Through Unity&quot; • Member roster, event turnout telemetry, and strike tracking.
+            </p>
           </div>
-        </div>
 
-        {/* Subtitle text below signboard (Matches screenshot's text) */}
-        <div className="text-center mt-5 mb-5 max-w-xl mx-auto px-4">
-          <p className="text-sm sm:text-base font-bold text-[#ffffff] drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] leading-relaxed">
-            A friendly kingdom for active players, strong alliances and unforgettable battles.
-          </p>
-        </div>
+          {/* Action Buttons: Clear, Obvious, and High-Contrast */}
+          <div className="flex items-center gap-3 flex-wrap">
+            {/* Sync with Google Sheets button with loading indicator */}
+            <button
+              onClick={() => syncWithGoogleSheets()}
+              disabled={isSyncingSheets}
+              className="px-3.5 py-2.5 rounded-lg bg-[#2e180d] border border-[#783e1b] text-[#fef08a] hover:bg-[#3d2011] text-xs font-bold uppercase flex items-center gap-2 transition-all cursor-pointer disabled:opacity-50"
+              title="Sync latest rows from Google Sheets"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 text-[#fbbf24] ${isSyncingSheets ? 'animate-spin' : ''}`} />
+              <span>{isSyncingSheets ? 'Syncing...' : 'Sync Google Sheets'}</span>
+            </button>
 
-        {/* Two Kingshot Action Buttons (Matches "EXPLORE ALLIANCES" and "TRANSFER INFORMATION") */}
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-3.5 max-w-md mx-auto px-4">
-          {/* Golden Button */}
-          <button
-            onClick={() => {
-              sounds.playClick();
-              onOpenCreateEvent();
-            }}
-            className="btn-kingshot-gold w-full sm:w-auto px-6 py-3 text-sm sm:text-base font-black uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer"
-          >
-            <span>SUMMON WAR EVENT</span>
-            <ArrowRight className="w-4 h-4 stroke-[3]" />
-          </button>
+            {/* Summon Event Button */}
+            <button
+              onClick={() => {
+                sounds.playClick();
+                onOpenCreateEvent();
+              }}
+              className="btn-kingshot-gold px-4 py-2.5 text-xs sm:text-sm font-bold uppercase tracking-wider flex items-center gap-1.5 cursor-pointer shadow-md"
+            >
+              <Swords className="w-4 h-4" />
+              <span>Summon Event</span>
+            </button>
 
-          {/* Cream / Parchment Button */}
-          <button
-            onClick={() => {
-              sounds.playClick();
-              onOpenAddMember();
-            }}
-            className="btn-kingshot-cream w-full sm:w-auto px-6 py-3 text-sm sm:text-base font-black uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer"
-          >
-            <span>INDUCT MEMBER</span>
-            <ArrowRight className="w-4 h-4 stroke-[3]" />
-          </button>
+            {/* Induct Member Button */}
+            <button
+              onClick={() => {
+                sounds.playClick();
+                onOpenAddMember();
+              }}
+              className="btn-kingshot-cream px-4 py-2.5 text-xs sm:text-sm font-bold uppercase tracking-wider flex items-center gap-1.5 cursor-pointer shadow-md"
+            >
+              <UserPlus className="w-4 h-4 text-[#381a07]" />
+              <span>Induct Member</span>
+            </button>
+          </div>
         </div>
       </div>
 
       {/* ========================================================================= */}
-      {/* ALLIANCE SUMMARY METRIC CARDS (In Kingshot Wooden Panels) */}
+      {/* 5 CLEAN TELEMETRY METRIC CARDS */}
       {/* ========================================================================= */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
         <StatCard
           title="Total Members"
           value={stats.totalMembers}
-          subtitle="Full roster strength"
+          subtitle="Full alliance roster"
           icon={<Users className="w-5 h-5" />}
           variant="gold"
           onClick={() => {
@@ -132,7 +122,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         />
 
         <StatCard
-          title="Active Members"
+          title="Active Combatants"
           value={stats.activeMembers}
           subtitle="Combat ready"
           icon={<ShieldCheck className="w-5 h-5" />}
@@ -157,7 +147,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         <StatCard
           title="With Strikes"
           value={stats.membersWithStrikes}
-          subtitle="Rule infractions"
+          subtitle="Disciplinary records"
           icon={<Flame className="w-5 h-5" />}
           variant="amber"
           badge={stats.membersWithStrikes > 0 ? 'Review' : undefined}
@@ -170,7 +160,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         <StatCard
           title="Needs Attention"
           value={stats.needsAttentionMembers}
-          subtitle="Silent / Watchlist"
+          subtitle="Silent / Unrecorded"
           icon={<Clock className="w-5 h-5" />}
           variant="slate"
           badge={stats.needsAttentionMembers > 0 ? 'Alert' : undefined}
@@ -180,7 +170,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         />
       </div>
 
-      {/* Actionable War Room Alerts */}
+      {/* Actionable War Alerts */}
       <AlertsBanner />
 
       {/* Event Overview: 6 Event Cards */}
@@ -188,8 +178,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Swords className="w-5 h-5 text-[#fbbf24]" />
-            <h2 className="font-kingshot text-xl sm:text-2xl text-[#fffbeb] tracking-wide drop-shadow-md">
-              ⚔️ War Events Telemetry
+            <h2 className="text-xl sm:text-2xl font-bold text-[#fffbeb] tracking-wide">
+              War Events Telemetry
             </h2>
           </div>
 
@@ -198,10 +188,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               sounds.playClick();
               setActiveTab('events');
             }}
-            className="text-xs font-bold uppercase text-[#fef08a] hover:underline flex items-center gap-1 cursor-pointer font-sans"
+            className="text-xs font-bold uppercase text-[#fbbf24] hover:underline flex items-center gap-1 cursor-pointer font-sans"
           >
             <span>Manage All Events</span>
-            <span>→</span>
+            <ArrowRight className="w-3.5 h-3.5" />
           </button>
         </div>
 
@@ -212,49 +202,49 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
       </div>
 
-      {/* Recent Events List & Attendance Speed Dial */}
+      {/* Recent Events List & Alliance Performance */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
           <RecentEventsList />
         </div>
 
         <div className="space-y-4">
-          <div className="kingshot-panel p-5 shadow-lg">
+          <div className="rounded-xl bg-[#221711] border-2 border-[#522d14] p-5 shadow-lg">
             <div className="flex items-center gap-2 mb-3">
               <BarChart3 className="w-5 h-5 text-[#fbbf24]" />
-              <h3 className="font-kingshot text-lg text-[#fffbeb]">
+              <h3 className="font-bold text-base text-[#fffbeb]">
                 Alliance Performance
               </h3>
             </div>
 
             <div className="space-y-3 text-xs">
-              <div className="p-3.5 rounded-lg bg-[#241106] border border-[#5c2a0d]">
+              <div className="p-3.5 rounded-lg bg-[#170e09] border border-[#42220d]">
                 <div className="text-stone-300 font-bold">Average Event Attendance</div>
-                <div className="font-kingshot text-2xl text-emerald-400 mt-1">
+                <div className="text-2xl font-black text-emerald-400 mt-1 font-mono">
                   {stats.averageAttendanceRate.toFixed(1)}%
                 </div>
                 <p className="text-[11px] text-stone-400 mt-0.5">Across completed throne and swordland wars</p>
               </div>
 
-              <div className="p-3.5 rounded-lg bg-[#241106] border border-[#5c2a0d]">
+              <div className="p-3.5 rounded-lg bg-[#170e09] border border-[#42220d]">
                 <div className="text-stone-300 font-bold">Average Vote Turnout</div>
-                <div className="font-kingshot text-2xl text-blue-300 mt-1">
+                <div className="text-2xl font-black text-blue-300 mt-1 font-mono">
                   {stats.averageVoteRate.toFixed(1)}%
                 </div>
                 <p className="text-[11px] text-stone-400 mt-0.5">Members responding to pre-war summons</p>
               </div>
             </div>
 
-            <div className="mt-4 pt-3 border-t border-[#4d2309]">
+            <div className="mt-4 pt-3 border-t border-[#3d1f0c]">
               <button
                 onClick={() => {
                   sounds.playClick();
                   setActiveTab('attendance');
                 }}
-                className="btn-kingshot-gold w-full py-2.5 text-xs font-black uppercase tracking-wider flex items-center justify-center gap-1.5 cursor-pointer"
+                className="btn-kingshot-gold w-full py-2.5 text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 cursor-pointer"
               >
                 <span>OPEN ATTENDANCE ANALYZER</span>
-                <ArrowRight className="w-3.5 h-3.5 stroke-[3]" />
+                <ArrowRight className="w-3.5 h-3.5 stroke-[2.5]" />
               </button>
             </div>
           </div>

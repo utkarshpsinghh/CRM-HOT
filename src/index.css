@@ -2,167 +2,132 @@
 
 @layer base {
   :root {
-    --wood-dark: #2a1306;
-    --wood-main: #693414;
-    --wood-light: #8b481d;
-    --gold-bright: #fbbf24;
-    --gold-text: #fef08a;
-    --cream-bg: #fffbeb;
-    --grass-green: #22c55e;
-    --sky-blue: #38bdf8;
+    --bg-dark: #14110e;
+    --card-bg: #221711;
+    --card-border: #4d2b14;
+    --gold: #f59e0b;
+    --gold-light: #fef08a;
   }
 
   body {
-    font-family: 'Outfit', sans-serif;
-    /* Kingshot Kingdom Sky to Green Hills Landscape Background */
-    background-color: #17381a;
-    background-image:
-      radial-gradient(ellipse 120% 70% at 50% 0%, #38bdf8 0%, #7dd3fc 35%, #bae6fd 55%, transparent 75%),
-      radial-gradient(ellipse 140% 60% at 50% 100%, #15803d 0%, #166534 40%, #14532d 100%);
+    font-family: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background-color: #14110e;
+    background-image: 
+      radial-gradient(ellipse 80% 40% at 50% 0%, rgba(217, 119, 6, 0.12) 0%, transparent 70%),
+      linear-gradient(to bottom, #171310, #14110e 100%);
     min-height: 100vh;
     color: #fef9ee;
     background-attachment: fixed;
   }
 
-  h1, h2, h3, .font-kingshot {
-    font-family: 'Lilita One', 'Rye', cursive;
+  h1, h2, h3 {
+    font-family: 'Outfit', sans-serif;
+    letter-spacing: -0.01em;
   }
 }
 
-/* Custom Wood Scrollbar */
+/* Custom Scrollbar */
 ::-webkit-scrollbar {
-  width: 9px;
-  height: 9px;
+  width: 8px;
+  height: 8px;
 }
 ::-webkit-scrollbar-track {
-  background: #2b1407;
+  background: #171310;
 }
 ::-webkit-scrollbar-thumb {
-  background: #78350f;
-  border-radius: 6px;
-  border: 1px solid #d97706;
+  background: #522d14;
+  border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #b45309;
+  background: #783e1b;
 }
 
-/* Kingshot Wooden Signboard (matches the center hero board in reference UI) */
-.kingshot-signboard {
-  background: linear-gradient(180deg, #7c3f1a 0%, #632f11 50%, #4a210a 100%);
-  border: 4px solid #2d1406;
-  border-radius: 1.25rem;
-  box-shadow: 
-    0 8px 0 #1b0a02,
-    0 18px 30px rgba(0, 0, 0, 0.6),
-    inset 0 2px 4px rgba(254, 240, 138, 0.25),
-    inset 0 -2px 6px rgba(0, 0, 0, 0.4);
-  position: relative;
+/* Clean Kingshot Game Card */
+.kingshot-card {
+  background-color: #221711;
+  background-image: linear-gradient(180deg, #271a13 0%, #1e130e 100%);
+  border: 1px solid #522d14;
+  border-radius: 0.75rem;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
 }
 
-/* Wooden Panel for inner cards */
-.kingshot-panel {
-  background: linear-gradient(180deg, #3d1e0c 0%, #2e1507 100%);
-  border: 2px solid #57290d;
-  border-radius: 0.875rem;
-  box-shadow: 
-    0 4px 12px rgba(0, 0, 0, 0.5),
-    inset 0 1px 0 rgba(254, 240, 138, 0.15);
+.kingshot-card-header {
+  border-bottom: 1px solid #42220d;
+  background-color: rgba(18, 10, 6, 0.4);
+  padding: 0.875rem 1.25rem;
 }
 
-.kingshot-panel-parchment {
-  background: linear-gradient(180deg, #fffbeb 0%, #fef3c7 100%);
-  border: 2px solid #78350f;
-  color: #381a07;
-  border-radius: 0.875rem;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
-}
-
-/* 3D Western/Fantasy Woodcut Typography (Matches "FIND YOUR FOREVER HOME") */
-.woodcut-title {
-  font-family: 'Lilita One', 'Rye', cursive;
-  color: #fff1b8;
-  text-shadow: 
-    0 2px 0 #c28829,
-    0 4px 0 #78350f,
-    0 6px 0 #3a1705,
-    0 8px 12px rgba(0, 0, 0, 0.7);
-  letter-spacing: 0.05em;
-}
-
-/* Brass Rivet / Bolt Stud with cute green leaf */
-.corner-bolt {
-  position: absolute;
-  width: 14px;
-  height: 14px;
-  border-radius: 9999px;
-  background: radial-gradient(circle at 35% 35%, #fef08a 0%, #eab308 50%, #854d0e 100%);
-  border: 1.5px solid #451a03;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
-  z-index: 10;
-}
-
-/* Kingshot Buttons matching screenshot */
+/* Clean Kingshot Buttons */
 .btn-kingshot-gold {
-  background: linear-gradient(180deg, #fde047 0%, #f59e0b 55%, #d97706 100%);
-  border: 2px solid #78350f;
-  color: #3b1704;
-  font-family: 'Lilita One', sans-serif;
-  box-shadow: 0 4px 0 #78350f, 0 6px 12px rgba(0, 0, 0, 0.4);
-  transition: all 0.1s ease-in-out;
+  background: linear-gradient(180deg, #fbbf24 0%, #d97706 100%);
+  border: 1px solid #b45309;
+  color: #261103;
+  font-weight: 700;
   border-radius: 0.5rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.25);
+  transition: all 0.15s ease-in-out;
 }
 .btn-kingshot-gold:hover {
-  background: linear-gradient(180deg, #fef08a 0%, #fbbf24 55%, #b45309 100%);
+  background: linear-gradient(180deg, #fde047 0%, #f59e0b 100%);
+  box-shadow: 0 3px 8px rgba(245, 158, 11, 0.3);
 }
 .btn-kingshot-gold:active {
-  transform: translateY(3px);
-  box-shadow: 0 1px 0 #78350f;
+  transform: translateY(1px);
 }
 
 .btn-kingshot-cream {
-  background: linear-gradient(180deg, #ffffff 0%, #fffbeb 50%, #fef3c7 100%);
-  border: 2px solid #57290d;
+  background: #fffbeb;
+  border: 1px solid #78350f;
   color: #3b1704;
-  font-family: 'Lilita One', sans-serif;
-  box-shadow: 0 4px 0 #57290d, 0 6px 12px rgba(0, 0, 0, 0.4);
-  transition: all 0.1s ease-in-out;
+  font-weight: 700;
   border-radius: 0.5rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  transition: all 0.15s ease-in-out;
 }
 .btn-kingshot-cream:hover {
-  background: linear-gradient(180deg, #ffffff 0%, #ffffff 50%, #fffbeb 100%);
+  background: #ffffff;
+  border-color: #b45309;
 }
 .btn-kingshot-cream:active {
-  transform: translateY(3px);
-  box-shadow: 0 1px 0 #57290d;
+  transform: translateY(1px);
 }
 
 .btn-kingshot-orange {
-  background: linear-gradient(180deg, #fb923c 0%, #ea580c 55%, #c2410c 100%);
-  border: 2px solid #fef08a;
+  background: linear-gradient(180deg, #ea580c 0%, #c2410c 100%);
+  border: 1px solid #f97316;
   color: #ffffff;
-  font-family: 'Lilita One', sans-serif;
-  box-shadow: 0 4px 0 #7c2d12, 0 6px 12px rgba(0, 0, 0, 0.4);
-  transition: all 0.1s ease-in-out;
+  font-weight: 700;
   border-radius: 0.5rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.25);
+  transition: all 0.15s ease-in-out;
 }
 .btn-kingshot-orange:hover {
-  background: linear-gradient(180deg, #fdba74 0%, #f97316 55%, #9a3412 100%);
+  background: linear-gradient(180deg, #f97316 0%, #ea580c 100%);
 }
 .btn-kingshot-orange:active {
-  transform: translateY(3px);
-  box-shadow: 0 1px 0 #7c2d12;
+  transform: translateY(1px);
 }
 
 .btn-kingshot-brown {
-  background: linear-gradient(180deg, #572a10 0%, #431d08 100%);
-  border: 2px solid #854d0e;
+  background: #2b180d;
+  border: 1px solid #572e13;
   color: #fef3c7;
-  font-family: 'Lilita One', sans-serif;
-  box-shadow: 0 3px 0 #200c03, 0 4px 8px rgba(0, 0, 0, 0.3);
-  transition: all 0.1s ease-in-out;
+  font-weight: 600;
   border-radius: 0.5rem;
+  transition: all 0.15s ease-in-out;
 }
-.btn-kingshot-brown:active {
-  transform: translateY(2px);
-  box-shadow: 0 1px 0 #200c03;
+.btn-kingshot-brown:hover {
+  background: #382012;
+  border-color: #854d0e;
+  color: #ffffff;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.2s ease-out forwards;
 }

@@ -35,6 +35,8 @@ interface CRMContextType {
   syncStatus: 'connected' | 'demo' | 'syncing' | 'error';
   syncMessage: string;
   isLoading: boolean;
+  isSyncingSheets: boolean;
+  lastSyncTime: string | null;
   toasts: ToastNotice[];
   activeTab: string;
   setActiveTab: (tab: string) => void;
@@ -58,6 +60,7 @@ interface CRMContextType {
   }>>;
   // Operations
   refreshData: () => Promise<void>;
+  syncWithGoogleSheets: () => Promise<boolean>;
   createMember: (data: Omit<Member, 'id' | 'createdAt' | 'updatedAt' | 'strikes'>) => Promise<boolean>;
   updateMember: (member: Member) => Promise<boolean>;
   archiveMember: (memberId: string) => Promise<boolean>;
@@ -90,6 +93,8 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [syncStatus, setSyncStatus] = useState<'connected' | 'demo' | 'syncing' | 'error'>('demo');
   const [syncMessage, setSyncMessage] = useState<string>('Local Demo Mode');
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isSyncingSheets, setIsSyncingSheets] = useState<boolean>(false);
+  const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
   const [toasts, setToasts] = useState<ToastNotice[]>([]);
 
   // Navigation and cross-page state
@@ -122,7 +127,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     sounds.setEnabled(settings.soundEnabled);
   }, [settings.soundEnabled]);
 
-  // Load all data
+  // Load all data with safety against showing uninitialized/junk data
   const refreshData = useCallback(async () => {
     setIsLoading(true);
     try {
@@ -130,8 +135,9 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setSettings(currentSettings);
 
       if (apiService.isLiveSheets(currentSettings)) {
+        setIsSyncingSheets(true);
         setSyncStatus('syncing');
-        setSyncMessage('Syncing with Google Sheets...');
+        setSyncMessage('Fetching Google Sheets records...');
         try {
           const [mList, eList, aList, sList, cList] = await Promise.all([
             apiService.getMembers(currentSettings),
@@ -140,25 +146,35 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             storageService.getStrikes(),
             storageService.getCommunications(),
           ]);
-          setMembers(mList);
-          setEvents(eList);
-          setAttendance(aList);
-          setStrikes(sList);
-          setCommunications(cList);
-          setSyncStatus('connected');
-          setSyncMessage('Google Sheets Live Connected');
-        } catch (err) {
+
+          // Only set if valid data received
+          if (Array.isArray(mList) && mList.length > 0) {
+            setMembers(mList);
+            setEvents(eList);
+            setAttendance(aList);
+            setStrikes(sList);
+            setCommunications(cList);
+            setSyncStatus('connected');
+            setSyncMessage('Google Sheets Live Connected');
+            setLastSyncTime(new Date().toLocaleTimeString());
+          } else {
+            throw new Error('Empty response from Google Sheets');
+          }
+        } catch {
           setSyncStatus('error');
-          setSyncMessage('Google Sheets unreachable. Falling back to local data.');
+          setSyncMessage('Google Sheets offline. Using cached roster.');
+          // Use safe local fallback
           setMembers(storageService.getMembers());
           setEvents(storageService.getEvents());
           setAttendance(storageService.getAttendance());
           setStrikes(storageService.getStrikes());
           setCommunications(storageService.getCommunications());
+        } finally {
+          setIsSyncingSheets(false);
         }
       } else {
         setSyncStatus('demo');
-        setSyncMessage('Demo / Local Storage Mode');
+        setSyncMessage('Demo Mode (Local Data)');
         setMembers(storageService.getMembers());
         setEvents(storageService.getEvents());
         setAttendance(storageService.getAttendance());
@@ -169,6 +185,43 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setIsLoading(false);
     }
   }, []);
+
+  const syncWithGoogleSheets = useCallback(async (): Promise<boolean> => {
+    const currentSettings = storageService.getSettings();
+    if (!apiService.isLiveSheets(currentSettings)) {
+      addToast({
+        type: 'info',
+        title: 'Demo Database Mode',
+        message: 'Google Sheets URL not configured. Go to Settings to link your spreadsheet.',
+      });
+      return false;
+    }
+
+    sounds.playClick();
+    setIsLoading(true);
+    setIsSyncingSheets(true);
+    try {
+      await refreshData();
+      sounds.playSuccess();
+      addToast({
+        type: 'success',
+        title: 'Google Sheets Synchronized',
+        message: `Updated records from Google Sheets at ${new Date().toLocaleTimeString()}.`,
+      });
+      return true;
+    } catch {
+      sounds.playAlert();
+      addToast({
+        type: 'error',
+        title: 'Sync Failed',
+        message: 'Could not fetch latest rows from Google Sheets. Checked local cache.',
+      });
+      return false;
+    } finally {
+      setIsLoading(false);
+      setIsSyncingSheets(false);
+    }
+  }, [addToast, refreshData]);
 
   useEffect(() => {
     storageService.init();
@@ -324,7 +377,6 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       const created = await apiService.createEvent(data, members, settings);
       setEvents(prev => [created, ...prev]);
-      // refresh local attendance state
       setAttendance(storageService.getAttendance());
       sounds.playSuccess();
       addToast({
@@ -493,6 +545,8 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         syncStatus,
         syncMessage,
         isLoading,
+        isSyncingSheets,
+        lastSyncTime,
         toasts,
         activeTab,
         setActiveTab,
@@ -503,6 +557,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         memberFilter,
         setMemberFilter,
         refreshData,
+        syncWithGoogleSheets,
         createMember,
         updateMember,
         archiveMember,
