@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useCRM } from '../../context/CRMContext';
 import { GameButton } from '../common/GameButton';
 import { ProgressBar } from '../common/ProgressBar';
-import { Swords, PlusCircle, Calendar, Users, ChevronRight, Filter } from 'lucide-react';
+import { Swords, PlusCircle, Calendar, ChevronRight, Filter } from 'lucide-react';
 import { sounds } from '../../utils/sound';
 
 interface EventsViewProps {
@@ -33,32 +33,32 @@ export const EventsView: React.FC<EventsViewProps> = ({ onOpenCreateEvent }) => 
           <div className="flex items-center gap-2">
             <Swords className="w-6 h-6 text-[#ca8a04]" />
             <h1 className="font-fantasy font-black text-xl sm:text-2xl text-[#fef08a] tracking-wide">
-              Alliance War Events
+              Alliance Events
             </h1>
-            <span className="text-xs px-2 py-0.5 rounded-full bg-[#713f12]/50 border border-[#ca8a04] text-[#fef3c7] font-bold font-mono">
-              {events.length} Events
+            <span className="text-xs px-2.5 py-0.5 rounded-full bg-[#3e2716] border border-[#ca8a04]/40 text-[#fef3c7] font-bold font-mono">
+              {events.length}
             </span>
           </div>
           <p className="text-xs text-stone-400 mt-0.5">
-            Battle Throne, Swordland, and Tri Alliance scheduled rallies and battle logs.
+            Battle Throne, Swordland, and Tri Alliance event schedules and attendance.
           </p>
         </div>
 
-        <GameButton
-          variant="crimson"
-          size="md"
+        <button
+          type="button"
           onClick={onOpenCreateEvent}
-          icon={<PlusCircle className="w-4 h-4" />}
+          className="btn-kingshot-gold px-4 py-2 text-xs font-fantasy font-black uppercase flex items-center justify-center gap-2 cursor-pointer shadow-md self-start sm:self-auto"
         >
-          Summon War Event
-        </GameButton>
+          <PlusCircle className="w-4 h-4" />
+          <span>New Event</span>
+        </button>
       </div>
 
       {/* Filter Tabs */}
-      <div className="p-3 rounded-xl bg-[#141824] border border-[#524126] flex items-center gap-2 overflow-x-auto">
+      <div className="p-3 rounded-2xl bg-[#1a1410] border-2 border-[#3e2716] flex items-center gap-2 overflow-x-auto">
         <Filter className="w-4 h-4 text-stone-400 shrink-0 ml-1" />
         <span className="text-xs font-fantasy font-bold uppercase text-[#ca8a04] shrink-0">
-          Filter Type:
+          Filter:
         </span>
         {['ALL', 'BT1', 'BT2', 'Swordland L1', 'Swordland L2', 'Tri Alliance L1', 'Tri Alliance L2'].map(
           t => (
@@ -68,10 +68,10 @@ export const EventsView: React.FC<EventsViewProps> = ({ onOpenCreateEvent }) => 
                 sounds.playClick();
                 setTypeFilter(t);
               }}
-              className={`px-3 py-1.5 rounded-lg text-xs font-fantasy font-bold tracking-wider uppercase whitespace-nowrap transition-all cursor-pointer ${
+              className={`px-3 py-1.5 rounded-xl text-xs font-fantasy font-bold tracking-wider uppercase whitespace-nowrap transition-all cursor-pointer ${
                 typeFilter === t
                   ? 'bg-[#ca8a04] text-[#1e1503] shadow-md font-black'
-                  : 'bg-[#0c0e16] text-stone-300 hover:text-[#fef08a] border border-[#3f311c]'
+                  : 'bg-[#120c08] text-stone-300 hover:text-[#fef08a] border border-[#3e2716]'
               }`}
             >
               {t}
@@ -105,7 +105,7 @@ export const EventsView: React.FC<EventsViewProps> = ({ onOpenCreateEvent }) => 
           return (
             <div
               key={evt.id}
-              className="rounded-xl bg-gradient-to-b from-[#1b1f2e] to-[#111420] border-[1.5px] border-[#524126] hover:border-[#ca8a04] p-4 sm:p-5 transition-all shadow-lg flex flex-col justify-between"
+              className="rounded-2xl bg-[#1a1410] border-2 border-[#3e2716] hover:border-[#ca8a04] p-4 sm:p-5 transition-all shadow-md flex flex-col justify-between"
             >
               <div>
                 {/* Header */}
@@ -120,12 +120,12 @@ export const EventsView: React.FC<EventsViewProps> = ({ onOpenCreateEvent }) => 
                   </div>
 
                   <span
-                    className={`text-[10px] font-fantasy font-bold uppercase px-2 py-0.5 rounded border shrink-0 ${
+                    className={`text-[10px] font-fantasy font-bold uppercase px-2 py-0.5 rounded-full border shrink-0 ${
                       evt.status === 'Completed'
-                        ? 'bg-emerald-950/60 text-emerald-300 border-emerald-700'
+                        ? 'bg-emerald-950/70 text-emerald-300 border-emerald-700'
                         : evt.status === 'Live'
-                        ? 'bg-red-950 text-red-200 border-red-500 animate-pulse'
-                        : 'bg-blue-950/60 text-blue-300 border-blue-700'
+                        ? 'bg-red-950/70 text-red-200 border-red-500 animate-pulse'
+                        : 'bg-blue-950/70 text-blue-300 border-blue-700'
                     }`}
                   >
                     {evt.status}
@@ -138,13 +138,13 @@ export const EventsView: React.FC<EventsViewProps> = ({ onOpenCreateEvent }) => 
                 </div>
 
                 {evt.notes && (
-                  <p className="text-xs text-stone-400 italic bg-[#0c0e16] p-2.5 rounded-lg border border-[#3f311c] mb-4 line-clamp-2">
+                  <p className="text-xs text-stone-400 italic bg-[#120c08] p-2.5 rounded-xl border border-[#3e2716] mb-3 line-clamp-2">
                     &ldquo;{evt.notes}&rdquo;
                   </p>
                 )}
 
-                {/* Telemetry Progress Bars */}
-                <div className="space-y-2.5 mb-4 bg-[#0a0c14] p-3 rounded-lg border border-[#3f311c]">
+                {/* Turnout & Vote Progress Bars */}
+                <div className="space-y-2 mb-4 bg-[#120c08] p-3 rounded-xl border border-[#3e2716]">
                   <ProgressBar
                     percentage={attPct}
                     label="Turnout"
@@ -154,7 +154,7 @@ export const EventsView: React.FC<EventsViewProps> = ({ onOpenCreateEvent }) => 
                   />
                   <ProgressBar
                     percentage={votePct}
-                    label="Votes Cast"
+                    label="Voted"
                     subLabel={`${voted}/${total}`}
                     color="blue"
                     size="sm"
@@ -163,11 +163,11 @@ export const EventsView: React.FC<EventsViewProps> = ({ onOpenCreateEvent }) => 
               </div>
 
               {/* Action Button */}
-              <div className="pt-2 border-t border-[#3f311c] flex items-center justify-between">
+              <div className="pt-3 border-t border-[#3e2716] flex items-center justify-between">
                 <div className="text-[11px] text-stone-400">
                   {didNotJoin > 0 && (
                     <span className="text-amber-400 font-bold">
-                      ⚠️ {didNotJoin} flaked
+                      ⚠️ {didNotJoin} missed after YES
                     </span>
                   )}
                 </div>
@@ -178,7 +178,7 @@ export const EventsView: React.FC<EventsViewProps> = ({ onOpenCreateEvent }) => 
                   onClick={() => handleOpenAttendance(evt.id)}
                   icon={<ChevronRight className="w-4 h-4" />}
                 >
-                  Manage Roster
+                  Attendance
                 </GameButton>
               </div>
             </div>

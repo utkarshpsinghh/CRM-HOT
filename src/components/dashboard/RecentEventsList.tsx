@@ -16,25 +16,20 @@ export const RecentEventsList: React.FC = () => {
   };
 
   return (
-    <div className="rounded-xl bg-gradient-to-b from-[#2e1507] to-[#1c0c04] border-2 border-[#572b0f] shadow-lg overflow-hidden">
-      <div className="px-5 py-3.5 bg-[#1f0d03] border-b-2 border-[#52290d] flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Swords className="w-5 h-5 text-[#fbbf24]" />
-          <h3 className="font-kingshot text-base sm:text-lg text-[#fffbeb]">
-            ⚔️ Recent War Events Log
-          </h3>
-        </div>
-        <span className="text-xs text-stone-400 font-sans">
-          Click event to inspect roster
-        </span>
+    <div className="rounded-xl bg-[#20150f] border border-[#4d2b14] shadow-sm overflow-hidden">
+      <div className="px-4 py-3 bg-[#19100a] border-b border-[#3d200e] flex items-center justify-between">
+        <h3 className="font-bold text-sm text-[#fffbeb]">
+          Recent Events
+        </h3>
+        <span className="text-xs text-stone-400">Click to view roster</span>
       </div>
 
-      <div className="divide-y divide-[#3d1d0a]">
+      <div className="divide-y divide-[#2e170b]">
         {sorted.map(evt => {
           const records = attendance.filter(a => a.eventId === evt.id);
           const total = records.length;
           const joined = records.filter(r => r.attendanceStatus === 'JOINED').length;
-          const pct = total > 0 ? ((joined / total) * 100).toFixed(1) : '0';
+          const pct = total > 0 ? ((joined / total) * 100).toFixed(0) : '0';
 
           const formattedDate = new Date(evt.date).toLocaleDateString('en-US', {
             month: 'short',
@@ -45,40 +40,28 @@ export const RecentEventsList: React.FC = () => {
             <div
               key={evt.id}
               onClick={() => handleSelectEvent(evt.id)}
-              className="p-3.5 sm:p-4 hover:bg-[#381a09]/90 transition-colors flex items-center justify-between gap-3 cursor-pointer group"
+              className="px-4 py-3 hover:bg-[#271a13] transition-colors flex items-center justify-between gap-3 cursor-pointer group"
             >
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="w-10 h-10 rounded-lg bg-[#57290d] border border-[#fbbf24]/50 flex items-center justify-center text-[#fef08a] font-kingshot text-xs shrink-0 group-hover:scale-105 transition-transform shadow-sm">
-                  {evt.eventType.split(' ')[0]}
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-sm text-[#fffbeb] group-hover:text-[#fbbf24] transition-colors truncate">
+                    {evt.eventType}
+                  </span>
+                  <span className="text-xs text-stone-400 font-mono">• {formattedDate}</span>
                 </div>
-
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-sm text-[#fffbeb] group-hover:text-[#fbbf24] transition-colors truncate">
-                      {evt.eventType}
-                    </span>
-                    <span className="text-[11px] text-stone-400 font-sans">
-                      • {formattedDate}
-                    </span>
-                  </div>
-                  <div className="text-xs text-stone-300 truncate">
-                    {evt.eventName}
-                  </div>
-                </div>
+                <div className="text-xs text-stone-300 truncate">{evt.eventName}</div>
               </div>
 
-              <div className="flex items-center gap-3 sm:gap-4 shrink-0">
+              <div className="flex items-center gap-3 shrink-0">
                 <div className="text-right">
-                  <div className="flex items-center gap-1.5 justify-end font-bold text-xs sm:text-sm text-emerald-300">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                    <span>{joined} / {total} Joined</span>
+                  <div className="font-semibold text-xs text-emerald-300">
+                    {joined}/{total} Joined
                   </div>
-                  <div className="text-[11px] text-[#fbbf24] font-mono font-bold">
+                  <div className="text-[11px] text-amber-400 font-mono font-bold">
                     {pct}% Turnout
                   </div>
                 </div>
-
-                <ChevronRight className="w-4 h-4 text-stone-500 group-hover:text-[#fef08a] group-hover:translate-x-0.5 transition-all" />
+                <ChevronRight className="w-4 h-4 text-stone-500 group-hover:text-white" />
               </div>
             </div>
           );

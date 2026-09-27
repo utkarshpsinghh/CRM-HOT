@@ -3,7 +3,7 @@ import { Member } from '../../types/crm';
 import { useCRM } from '../../context/CRMContext';
 import { Modal } from '../common/Modal';
 import { GameButton } from '../common/GameButton';
-import { Flame, AlertTriangle, ShieldAlert } from 'lucide-react';
+import { Flame, ShieldAlert } from 'lucide-react';
 
 interface AddStrikeModalProps {
   isOpen: boolean;
@@ -22,7 +22,6 @@ export const AddStrikeModal: React.FC<AddStrikeModalProps> = ({
   const [reason, setReason] = useState(defaultReason);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Sync reason if defaultReason changes
   React.useEffect(() => {
     if (defaultReason) setReason(defaultReason);
   }, [defaultReason]);
@@ -31,10 +30,10 @@ export const AddStrikeModal: React.FC<AddStrikeModalProps> = ({
 
   const quickPresets = [
     'Missed event after voting YES',
-    'Absent from war without advance notice',
-    'No response to officer call-signs in alliance chat',
-    'Attacked allied tile or broken NAP agreement',
-    'Zero contribution during alliance showdown',
+    'Absent without advance notice',
+    'No response to officer messages',
+    'Attacked NAP / allied territory',
+    'Zero battle participation',
   ];
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -52,20 +51,20 @@ export const AddStrikeModal: React.FC<AddStrikeModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="⚠️ Issue Alliance Strike"
-      subtitle={`Enforcing war discipline for ${member.name}`}
+      title="Add Strike"
+      subtitle={`Record a penalty strike for ${member.name}`}
       icon={<Flame className="w-5 h-5 text-red-500" />}
       maxWidth="md"
     >
       <form onSubmit={handleSubmit} className="space-y-4">
         {/* Member Preview Banner */}
-        <div className="p-3 rounded-lg bg-red-950/40 border border-red-800/60 flex items-center justify-between">
+        <div className="p-3 rounded-xl bg-[#2a130f] border border-red-800/40 flex items-center justify-between">
           <div>
-            <div className="text-xs text-red-300 font-fantasy uppercase font-bold">Target Officer / Member</div>
+            <div className="text-xs text-stone-400">Player</div>
             <div className="text-sm font-bold text-white mt-0.5">{member.name}</div>
           </div>
           <div className="text-right">
-            <div className="text-xs text-stone-400">Current Penalty</div>
+            <div className="text-xs text-stone-400">Current Strikes</div>
             <div className="text-sm font-bold text-amber-400 font-mono">
               {member.strikes} Strike{member.strikes === 1 ? '' : 's'}
             </div>
@@ -75,7 +74,7 @@ export const AddStrikeModal: React.FC<AddStrikeModalProps> = ({
         {/* Quick Presets */}
         <div>
           <label className="block text-xs font-fantasy font-bold text-[#fef08a] uppercase mb-1.5">
-            Quick Strike Presets
+            Quick Reason Presets
           </label>
           <div className="flex flex-wrap gap-1.5">
             {quickPresets.map(preset => (
@@ -83,7 +82,7 @@ export const AddStrikeModal: React.FC<AddStrikeModalProps> = ({
                 type="button"
                 key={preset}
                 onClick={() => setReason(preset)}
-                className="text-[11px] px-2.5 py-1 rounded bg-[#181c28] border border-[#524126] text-stone-300 hover:text-[#fef08a] hover:border-[#ca8a04] transition-colors cursor-pointer text-left"
+                className="text-xs px-2.5 py-1 rounded-lg bg-[#120c08] border border-[#3e2716] text-stone-300 hover:text-[#fef08a] hover:border-[#ca8a04] transition-colors cursor-pointer text-left"
               >
                 {preset}
               </button>
@@ -93,41 +92,40 @@ export const AddStrikeModal: React.FC<AddStrikeModalProps> = ({
 
         {/* Reason Input */}
         <div>
-          <label className="block text-xs font-fantasy font-bold text-[#fef08a] uppercase mb-1.5">
-            Strike Infraction Description *
+          <label className="block text-xs font-fantasy font-bold text-[#fef08a] uppercase mb-1">
+            Reason / Description *
           </label>
           <textarea
             value={reason}
             onChange={e => setReason(e.target.value)}
             required
             rows={3}
-            placeholder="Specify reason for penalization..."
-            className="w-full px-3 py-2 rounded-lg bg-[#0c0e16] border border-[#524126] text-stone-200 text-xs sm:text-sm focus:outline-none focus:border-[#ca8a04]"
+            placeholder="Describe the reason for issuing this strike..."
+            className="w-full px-3 py-2 rounded-xl bg-[#120c08] border border-[#3e2716] text-stone-200 text-xs sm:text-sm focus:outline-none focus:border-[#ca8a04]"
           />
         </div>
 
         {/* Notice */}
-        <div className="p-2.5 rounded bg-amber-950/30 border border-amber-700/40 text-[11px] text-amber-300 flex items-start gap-2">
+        <div className="p-2.5 rounded-xl bg-amber-950/30 border border-amber-700/40 text-xs text-amber-300 flex items-start gap-2">
           <ShieldAlert className="w-4 h-4 shrink-0 mt-0.5 text-amber-400" />
           <span>
-            Strikes are permanently recorded in the member&apos;s alliance dossier. Member strike count will increment to {member.strikes + 1}.
+            Strikes are recorded in the member history. Current strikes will increase to {member.strikes + 1}.
           </span>
         </div>
 
         {/* Actions */}
-        <div className="flex items-center justify-end gap-3 pt-2">
+        <div className="flex items-center justify-end gap-3 pt-2 border-t border-[#3e2716]">
           <GameButton variant="slate" size="md" onClick={onClose} type="button">
-            Dismiss
+            Cancel
           </GameButton>
-          <GameButton
-            variant="crimson"
-            size="md"
+          <button
             type="submit"
             disabled={isSubmitting || !reason.trim()}
-            icon={<Flame className="w-4 h-4" />}
+            className="btn-kingshot-gold px-4 py-2 text-xs font-fantasy font-black uppercase flex items-center justify-center gap-1.5 cursor-pointer shadow-md bg-gradient-to-r from-red-600 to-amber-600"
           >
-            {isSubmitting ? 'Recording...' : 'Impose Strike'}
-          </GameButton>
+            <Flame className="w-4 h-4" />
+            <span>{isSubmitting ? 'Recording...' : 'Add Strike'}</span>
+          </button>
         </div>
       </form>
     </Modal>

@@ -3,7 +3,7 @@ import { Shield, Sparkles } from 'lucide-react';
 
 export const Footer: React.FC = () => {
   return (
-    <footer className="mt-auto border-t border-[#3b301c] bg-[#090b11] py-6 px-4 text-center text-xs text-stone-500">
+    <footer className="mt-auto border-t border-[#2c1d15] bg-[#100b08] py-5 px-4 text-center text-xs text-stone-500">
       <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <Shield className="w-4 h-4 text-[#eab308]" />

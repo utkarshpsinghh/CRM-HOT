@@ -77,16 +77,16 @@ export const MemberFormModal: React.FC<MemberFormModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={memberToEdit ? `⚔️ Edit ${memberToEdit.name}` : '🛡️ Induct New Member'}
-      subtitle={memberToEdit ? 'Modify alliance rank and status' : 'Enlist new recruit into HOT Alliance roster'}
+      title={memberToEdit ? `Edit ${memberToEdit.name}` : 'Add Alliance Member'}
+      subtitle={memberToEdit ? 'Update rank, notes, and activity status' : 'Add player to the HOT Alliance roster'}
       icon={memberToEdit ? <UserCog className="w-5 h-5 text-[#ca8a04]" /> : <UserPlus className="w-5 h-5 text-[#ca8a04]" />}
       maxWidth="md"
     >
       <form onSubmit={handleSubmit} className="space-y-4 text-xs sm:text-sm">
-        {/* Member In-Game Name */}
+        {/* Name */}
         <div>
           <label className="block text-xs font-fantasy font-bold text-[#fef08a] uppercase mb-1">
-            In-Game Name (IGN) *
+            Player Name (IGN) *
           </label>
           <input
             type="text"
@@ -94,78 +94,77 @@ export const MemberFormModal: React.FC<MemberFormModalProps> = ({
             value={name}
             onChange={e => setName(e.target.value)}
             placeholder="e.g. Warlord_HOT"
-            className="w-full px-3 py-2 rounded-lg bg-[#0c0e16] border border-[#524126] text-stone-200 focus:outline-none focus:border-[#ca8a04]"
+            className="w-full px-3 py-2 rounded-xl bg-[#120c08] border border-[#3e2716] text-stone-200 focus:outline-none focus:border-[#ca8a04]"
           />
         </div>
 
-        {/* Rank Grid */}
-        <div className="grid grid-cols-2 gap-3">
+        {/* Current & Former Rank */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className="block text-xs font-fantasy font-bold text-[#fef08a] uppercase mb-1">
-              Current Rank
+              Current Rank *
             </label>
             <select
               value={currentRank}
               onChange={e => setCurrentRank(e.target.value as AllianceRank)}
-              className="w-full px-3 py-2 rounded-lg bg-[#0c0e16] border border-[#524126] text-stone-200 focus:outline-none focus:border-[#ca8a04]"
+              className="w-full px-3 py-2 rounded-xl bg-[#120c08] border border-[#3e2716] text-stone-200 focus:outline-none focus:border-[#ca8a04]"
             >
-              <option value="R5">R5 — Supreme Leader</option>
-              <option value="R4">R4 — War Officer</option>
-              <option value="R3">R3 — Veteran Elite</option>
-              <option value="R2">R2 — Proven Warrior</option>
-              <option value="R1">R1 — Recruit / Footman</option>
+              <option value="R5">R5 - Alliance Leader</option>
+              <option value="R4">R4 - Officer</option>
+              <option value="R3">R3 - Elite Member</option>
+              <option value="R2">R2 - Senior Member</option>
+              <option value="R1">R1 - Member</option>
             </select>
           </div>
 
           <div>
-            <label className="block text-xs font-fantasy font-bold text-[#fef08a] uppercase mb-1">
+            <label className="block text-xs font-fantasy font-bold text-stone-300 uppercase mb-1 font-fantasy">
               Former Rank
             </label>
             <select
               value={formerRank}
               onChange={e => setFormerRank(e.target.value as AllianceRank | 'None')}
-              className="w-full px-3 py-2 rounded-lg bg-[#0c0e16] border border-[#524126] text-stone-200 focus:outline-none focus:border-[#ca8a04]"
+              className="w-full px-3 py-2 rounded-xl bg-[#120c08] border border-[#3e2716] text-stone-200 focus:outline-none focus:border-[#ca8a04]"
             >
-              <option value="None">None (Fresh Recruit)</option>
-              <option value="R5">R5</option>
-              <option value="R4">R4</option>
-              <option value="R3">R3</option>
-              <option value="R2">R2</option>
-              <option value="R1">R1</option>
+              <option value="None">None</option>
+              <option value="R5">Former R5</option>
+              <option value="R4">Former R4</option>
+              <option value="R3">Former R3</option>
+              <option value="R2">Former R2</option>
+              <option value="R1">Former R1</option>
             </select>
           </div>
         </div>
 
-        {/* Communication & Alliance Status */}
-        <div className="grid grid-cols-2 gap-3">
+        {/* Communication & Activity Status */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className="block text-xs font-fantasy font-bold text-[#fef08a] uppercase mb-1">
-              Communication
+              Communication Status *
             </label>
             <select
               value={communication}
               onChange={e => setCommunication(e.target.value as CommunicationStatus)}
-              className="w-full px-3 py-2 rounded-lg bg-[#0c0e16] border border-[#524126] text-stone-200 focus:outline-none focus:border-[#ca8a04]"
+              className="w-full px-3 py-2 rounded-xl bg-[#120c08] border border-[#3e2716] text-stone-200 focus:outline-none focus:border-[#ca8a04]"
             >
-              <option value="Good">🟢 Good (Responsive)</option>
-              <option value="Warning">🟡 Warning (Slow / Inconsistent)</option>
-              <option value="Poor">🔴 Poor (Unresponsive)</option>
-              <option value="Unknown">⚪ Unknown</option>
+              <option value="Good">Good (Responsive)</option>
+              <option value="Warning">Warning (Slow Response)</option>
+              <option value="Unreachable">Unreachable (No Response)</option>
             </select>
           </div>
 
           <div>
             <label className="block text-xs font-fantasy font-bold text-[#fef08a] uppercase mb-1">
-              Roster Status
+              Activity Status *
             </label>
             <select
               value={status}
               onChange={e => setStatus(e.target.value as MemberStatus)}
-              className="w-full px-3 py-2 rounded-lg bg-[#0c0e16] border border-[#524126] text-stone-200 focus:outline-none focus:border-[#ca8a04]"
+              className="w-full px-3 py-2 rounded-xl bg-[#120c08] border border-[#3e2716] text-stone-200 focus:outline-none focus:border-[#ca8a04]"
             >
-              <option value="Active">Active Combatant</option>
-              <option value="Inactive">Inactive / On Leave</option>
-              <option value="Archived">Archived (Soft Deleted)</option>
+              <option value="Active">Active</option>
+              <option value="Inactive">Inactive</option>
+              <option value="Archived">Archived (Left Alliance)</option>
             </select>
           </div>
         </div>
@@ -173,30 +172,30 @@ export const MemberFormModal: React.FC<MemberFormModalProps> = ({
         {/* Communication Note */}
         <div>
           <label className="block text-xs font-fantasy font-bold text-[#fef08a] uppercase mb-1">
-            Communication / Officer Notes
+            Communication Note (Optional)
           </label>
-          <textarea
+          <input
+            type="text"
             value={communicationNote}
             onChange={e => setCommunicationNote(e.target.value)}
-            rows={2}
-            placeholder="e.g. Active in voice chat during throne wars, prefers rallies at 19:00 UTC"
-            className="w-full px-3 py-2 rounded-lg bg-[#0c0e16] border border-[#524126] text-stone-200 focus:outline-none focus:border-[#ca8a04]"
+            placeholder="e.g. Active on Discord, traveling this weekend..."
+            className="w-full px-3 py-2 rounded-xl bg-[#120c08] border border-[#3e2716] text-stone-200 focus:outline-none focus:border-[#ca8a04]"
           />
         </div>
 
-        {/* Buttons */}
-        <div className="flex items-center justify-end gap-3 pt-3 border-t border-[#3f311a]">
+        {/* Actions */}
+        <div className="flex items-center justify-end gap-3 pt-3 border-t border-[#3e2716]">
           <GameButton variant="slate" size="md" onClick={onClose} type="button">
             Cancel
           </GameButton>
-          <GameButton
-            variant="gold"
-            size="md"
+          <button
             type="submit"
             disabled={isSubmitting || !name.trim()}
+            className="btn-kingshot-gold px-4 py-2 text-xs font-fantasy font-black uppercase flex items-center justify-center gap-1.5 cursor-pointer shadow-md"
           >
-            {isSubmitting ? 'Saving...' : memberToEdit ? 'Save Changes' : 'Confirm Induction'}
-          </GameButton>
+            {memberToEdit ? <UserCog className="w-4 h-4" /> : <UserPlus className="w-4 h-4" />}
+            <span>{isSubmitting ? 'Saving...' : memberToEdit ? 'Save Changes' : 'Add Member'}</span>
+          </button>
         </div>
       </form>
     </Modal>

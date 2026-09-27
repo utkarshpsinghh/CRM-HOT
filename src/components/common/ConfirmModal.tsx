@@ -33,7 +33,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
       maxWidth="sm"
     >
       <div className="space-y-5">
-        <div className="text-sm text-stone-300 leading-relaxed bg-[#0c0e16]/80 p-4 rounded-lg border border-[#453820]">
+        <div className="text-sm text-stone-300 leading-relaxed bg-[#120c08] p-4 rounded-xl border border-[#3e2716]">
           {message}
         </div>
 
