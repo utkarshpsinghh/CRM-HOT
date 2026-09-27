@@ -192,7 +192,7 @@ function doPost(e) {
         break;
 
       case 'updateProfile':
-        result = handleUpdateProfile(body.adminId, body.name);
+        result = handleUpdateProfile(body.adminId, body.name, body.username);
         break;
 
       case 'createMember':
@@ -303,7 +303,7 @@ function handleLogin(username, password) {
           user: {
             id: String(data[i][0] || 'adm-' + i),
             username: String(data[i][1]).trim(),
-            name: String(data[i][1]).trim(),
+            name: String(data[i][4] || data[i][1]).trim(),
             role: isLeader ? 'MainAdmin' : 'SubAdmin',
             token: Utilities.getUuid()
           }
@@ -860,11 +860,28 @@ function handleUpdatePassword(adminId, newPassword) {
   return { status: 'error', message: 'Admin account not found.' };
 }
 
-function handleUpdateProfile(adminId, newName) {
+function handleUpdateProfile(adminId, newName, username) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName(SHEET_NAMES.ADMINS);
   if (!sheet) return { status: 'error', message: 'Admins sheet not found.' };
 
+  const data = sheet.getDataRange().getValues();
+  const normUser = String(username || adminId || '').trim().toLowerCase();
+  const targetId = String(adminId || '').trim();
+
+  // If Admins sheet has fewer than 5 columns, ensure Header 5 is 'Display Name'
+  if (sheet.getLastColumn() < 5) {
+    sheet.getRange(1, 5).setValue('Display Name');
+  }
+
+  for (let i = 1; i < data.length; i++) {
+    const rowId = String(data[i][0]).trim();
+    const rowUser = String(data[i][1]).trim().toLowerCase();
+    if (rowId === targetId || rowUser === normUser) {
+      sheet.getRange(i + 1, 5).setValue(newName);
+      return { status: 'success' };
+    }
+  }
   return { status: 'success' };
 }
 

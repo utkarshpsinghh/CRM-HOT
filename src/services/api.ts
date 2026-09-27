@@ -828,20 +828,24 @@ export const apiService = {
     return success;
   },
 
-  async updateAdminProfile(adminId: string, name: string, settings: AllianceSettings): Promise<boolean> {
-    const success = storageService.updateAdminProfile(adminId, name);
-    if (success && this.isLiveSheets(settings)) {
+  async updateAdminProfile(adminId: string, name: string, settings: AllianceSettings, username?: string): Promise<boolean> {
+    storageService.updateAdminProfile(adminId, name, username);
+    if (this.isLiveSheets(settings)) {
       try {
-        await fetch(settings.gasWebAppUrl, {
+        const gasUrl = normalizeGasUrl(settings.gasWebAppUrl);
+        await fetch(gasUrl, {
           method: 'POST',
           mode: 'cors',
-          body: JSON.stringify({ action: 'updateProfile', adminId, name }),
+          headers: {
+            'Content-Type': 'text/plain;charset=utf-8',
+          },
+          body: JSON.stringify({ action: 'updateProfile', adminId, username, name }),
         });
       } catch {
-        // Local only
+        // Local fallback
       }
     }
-    return success;
+    return true;
   }
 };
 

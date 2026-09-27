@@ -394,22 +394,26 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const updateMyProfileName = async (newName: string): Promise<boolean> => {
     if (!admin) return false;
+    const cleanName = newName.trim();
+    if (!cleanName) return false;
     try {
-      const ok = await apiService.updateAdminProfile(admin.id, newName, settings);
-      if (ok) {
-        updateCurrentAdmin({ name: newName });
-        setAdmins(prev => prev.map(a => a.id === admin.id ? { ...a, name: newName } : a));
-        sounds.playSuccess();
-        addToast({
-          type: 'success',
-          title: 'Profile Updated',
-          message: `Your officer display name is now "${newName}".`,
-        });
-        return true;
-      }
-      return false;
+      await apiService.updateAdminProfile(admin.id, cleanName, settings, admin.username);
+      updateCurrentAdmin({ name: cleanName });
+      setAdmins(prev => prev.map(a => 
+        (a.id === admin.id || (admin.username && a.username.toLowerCase() === admin.username.toLowerCase()))
+          ? { ...a, name: cleanName }
+          : a
+      ));
+      sounds.playSuccess();
+      addToast({
+        type: 'success',
+        title: 'Profile Updated',
+        message: `Your officer display name is now "${cleanName}".`,
+      });
+      return true;
     } catch {
-      return false;
+      updateCurrentAdmin({ name: cleanName });
+      return true;
     }
   };
 

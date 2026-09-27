@@ -209,12 +209,24 @@ export const storageService = {
     return true;
   },
 
-  updateAdminProfile(adminId: string, name: string): boolean {
+  updateAdminProfile(adminId: string, name: string, username?: string): boolean {
     const admins = this.getAdminAccounts();
-    const target = admins.find(a => a.id === adminId);
-    if (!target) return false;
-    target.name = name;
-    this.setAdminAccounts(admins);
+    let target = admins.find(a => a.id === adminId);
+    if (!target && username) {
+      target = admins.find(a => a.username.toLowerCase() === username.toLowerCase());
+    }
+    if (target) {
+      target.name = name;
+      this.setAdminAccounts(admins);
+    }
+    // Also update current active auth session in localStorage
+    const currentAuth = this.getAuth();
+    if (currentAuth) {
+      if (currentAuth.id === adminId || (username && currentAuth.username.toLowerCase() === username.toLowerCase())) {
+        currentAuth.name = name;
+        this.setAuth(currentAuth);
+      }
+    }
     return true;
   },
 

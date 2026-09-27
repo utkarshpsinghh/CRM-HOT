@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useCRM } from '../../context/CRMContext';
 import {
@@ -17,6 +17,7 @@ import {
   Edit2,
   Save,
   AlertCircle,
+  X,
 } from 'lucide-react';
 import { sounds } from '../../utils/sound';
 
@@ -65,6 +66,13 @@ export const AdminProfileView: React.FC = () => {
   const [displayName, setDisplayName] = useState(admin?.name || admin?.username || '');
   const [isSavingName, setIsSavingName] = useState(false);
 
+  // Sync displayName whenever admin profile updates
+  useEffect(() => {
+    if (admin) {
+      setDisplayName(admin.name || admin.username || '');
+    }
+  }, [admin?.name, admin?.username]);
+
   // Change Password State
   const [currentPass, setCurrentPass] = useState('');
   const [newPass, setNewPass] = useState('');
@@ -91,11 +99,14 @@ export const AdminProfileView: React.FC = () => {
   const rankInfo = getOfficerRankTitle(myStats.totalActions);
 
   const handleSaveName = async () => {
-    if (!displayName.trim()) return;
+    const clean = displayName.trim();
+    if (!clean) return;
     setIsSavingName(true);
-    await updateMyProfileName(displayName.trim());
+    const ok = await updateMyProfileName(clean);
     setIsSavingName(false);
-    setIsEditingName(false);
+    if (ok) {
+      setIsEditingName(false);
+    }
   };
 
   const handleChangePassword = async (e: React.FormEvent) => {
@@ -133,59 +144,93 @@ export const AdminProfileView: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Officer Personal Profile Header Card */}
-      <div className="p-5 sm:p-6 rounded-2xl bg-gradient-to-r from-[#221610] to-[#1a110c] border-2 border-[#522d14] shadow-xl relative overflow-hidden">
+      <div className="p-4 sm:p-6 rounded-2xl bg-gradient-to-r from-[#221610] to-[#1a110c] border-2 border-[#522d14] shadow-xl relative overflow-hidden w-full max-w-full">
         <div className="absolute right-0 top-0 translate-x-8 -translate-y-8 w-64 h-64 bg-amber-600/10 rounded-full blur-3xl pointer-events-none" />
 
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative z-10">
-          <div className="flex items-center gap-4">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-b from-[#801418] to-[#450a0a] border-2 border-[#ca8a04] flex items-center justify-center text-amber-300 shadow-lg shrink-0">
-              <User className="w-8 h-8" />
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative z-10 w-full min-w-0">
+          <div className="flex items-start sm:items-center gap-3.5 sm:gap-4 min-w-0 flex-1">
+            <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-b from-[#801418] to-[#450a0a] border-2 border-[#ca8a04] flex items-center justify-center text-amber-300 shadow-lg shrink-0 mt-0.5 sm:mt-0">
+              <User className="w-7 h-7 sm:w-8 sm:h-8" />
             </div>
 
-            <div>
-              <div className="flex items-center gap-2 flex-wrap">
-                {isEditingName ? (
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="text"
-                      value={displayName}
-                      onChange={e => setDisplayName(e.target.value)}
-                      className="px-2.5 py-1 rounded-lg bg-[#140c08] border border-[#d97706] text-amber-200 text-sm font-fantasy font-black focus:outline-none"
-                    />
+            <div className="min-w-0 flex-1">
+              {isEditingName ? (
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    handleSaveName();
+                  }}
+                  className="flex items-center gap-1.5 flex-wrap w-full max-w-full"
+                >
+                  <input
+                    type="text"
+                    value={displayName}
+                    autoFocus
+                    disabled={isSavingName}
+                    onChange={e => setDisplayName(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Escape') {
+                        setIsEditingName(false);
+                        setDisplayName(admin.name || admin.username);
+                      }
+                    }}
+                    placeholder="Enter display name..."
+                    className="flex-1 min-w-[130px] max-w-[200px] sm:max-w-[240px] px-2.5 py-1.5 rounded-xl bg-[#140c08] border-2 border-[#d97706] text-amber-200 text-base sm:text-sm font-fantasy font-black focus:outline-none focus:ring-1 focus:ring-[#f59e0b] shadow-inner"
+                  />
+                  <div className="flex items-center gap-1 shrink-0">
                     <button
-                      onClick={handleSaveName}
-                      disabled={isSavingName}
-                      className="p-1.5 rounded-lg bg-amber-600 text-stone-900 font-bold hover:bg-amber-500 cursor-pointer"
+                      type="submit"
+                      disabled={isSavingName || !displayName.trim()}
+                      className="btn-kingshot-gold px-2.5 py-1.5 rounded-xl text-xs font-fantasy font-black uppercase flex items-center justify-center gap-1 cursor-pointer shadow-sm disabled:opacity-50"
                       title="Save Name"
                     >
-                      <Save className="w-4 h-4" />
+                      <CheckCircle2 className={`w-3.5 h-3.5 ${isSavingName ? 'animate-spin' : ''}`} />
+                      <span>{isSavingName ? 'Saving...' : 'Save'}</span>
+                    </button>
+                    <button
+                      type="button"
+                      disabled={isSavingName}
+                      onClick={() => {
+                        sounds.playClick();
+                        setIsEditingName(false);
+                        setDisplayName(admin.name || admin.username);
+                      }}
+                      className="p-1.5 rounded-xl bg-[#1c120b] border border-[#3e2716] text-stone-400 hover:text-white cursor-pointer transition-colors"
+                      title="Cancel"
+                    >
+                      <X className="w-3.5 h-3.5" />
                     </button>
                   </div>
-                ) : (
-                  <div className="flex items-center gap-2">
-                    <h1 className="font-fantasy font-black text-xl sm:text-2xl text-[#fffbeb] tracking-wide">
+                </form>
+              ) : (
+                <div className="flex items-center gap-2 flex-wrap min-w-0">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <h1 className="font-fantasy font-black text-xl sm:text-2xl text-[#fffbeb] tracking-wide truncate">
                       {admin.name || admin.username}
                     </h1>
                     <button
-                      onClick={() => setIsEditingName(true)}
-                      className="p-1 rounded text-stone-400 hover:text-amber-300 cursor-pointer"
+                      onClick={() => {
+                        sounds.playClick();
+                        setIsEditingName(true);
+                      }}
+                      className="p-1.5 rounded-lg text-stone-400 hover:text-amber-300 hover:bg-[#2e180c] transition-colors cursor-pointer shrink-0"
                       title="Edit Display Name"
                     >
                       <Edit2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
-                )}
 
-                <span
-                  className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider border ${
-                    isMainAdmin
-                      ? 'bg-amber-950/90 text-amber-300 border-amber-600/70'
-                      : 'bg-stone-800 text-stone-300 border-stone-600/70'
-                  }`}
-                >
-                  {isMainAdmin ? '👑 Main Admin' : '⚔️ R4'}
-                </span>
-              </div>
+                  <span
+                    className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider border shrink-0 ${
+                      isMainAdmin
+                        ? 'bg-amber-950/90 text-amber-300 border-amber-600/70'
+                        : 'bg-stone-800 text-stone-300 border-stone-600/70'
+                    }`}
+                  >
+                    {isMainAdmin ? '👑 Main Admin' : '⚔️ R4'}
+                  </span>
+                </div>
+              )}
 
               <div className="text-xs text-stone-400 font-mono mt-1 flex items-center gap-2 flex-wrap">
                 <span>@{admin.username}</span>
@@ -197,7 +242,7 @@ export const AdminProfileView: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex items-center gap-2 self-start sm:self-auto">
+          <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
             <div className="px-3 py-2 rounded-xl bg-[#140c08] border border-[#3e2716] text-right">
               <div className="text-xl font-fantasy font-black text-amber-300">
                 {myStats.totalActions}
