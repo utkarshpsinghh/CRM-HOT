@@ -11,37 +11,67 @@ const STORAGE_KEYS = {
   ADMIN: 'crm_hot_auth_v1',
   ADMIN_ACCOUNTS: 'crm_hot_admin_accounts_v1',
   CONTRIBUTIONS: 'crm_hot_contributions_v1',
+  INITIALIZED: 'crm_hot_initialized_v2',
 };
 
 export const storageService = {
-  // Initialization check
+  // Initialization check: never overwrite existing settings or sheet configurations
   init() {
-    if (!localStorage.getItem(STORAGE_KEYS.MEMBERS)) {
-      this.resetToDefaults();
-    }
-    if (!localStorage.getItem(STORAGE_KEYS.ADMIN_ACCOUNTS)) {
-      localStorage.setItem(STORAGE_KEYS.ADMIN_ACCOUNTS, JSON.stringify(initialAdmins));
-    }
-    if (!localStorage.getItem(STORAGE_KEYS.CONTRIBUTIONS)) {
-      localStorage.setItem(STORAGE_KEYS.CONTRIBUTIONS, JSON.stringify(initialContributions));
+    const isInit = localStorage.getItem(STORAGE_KEYS.INITIALIZED);
+    if (!isInit) {
+      const existingSettings = localStorage.getItem(STORAGE_KEYS.SETTINGS);
+      if (!existingSettings) {
+        localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(initialSettings));
+        localStorage.setItem(STORAGE_KEYS.MEMBERS, JSON.stringify(initialMembers));
+        localStorage.setItem(STORAGE_KEYS.EVENTS, JSON.stringify(initialEvents));
+        localStorage.setItem(STORAGE_KEYS.ATTENDANCE, JSON.stringify(generateInitialAttendance(initialMembers, initialEvents)));
+        localStorage.setItem(STORAGE_KEYS.STRIKES, JSON.stringify(initialStrikes));
+        localStorage.setItem(STORAGE_KEYS.COMMUNICATION, JSON.stringify(initialCommunications));
+      }
+      if (!localStorage.getItem(STORAGE_KEYS.ADMIN_ACCOUNTS)) {
+        localStorage.setItem(STORAGE_KEYS.ADMIN_ACCOUNTS, JSON.stringify(initialAdmins));
+      }
+      if (!localStorage.getItem(STORAGE_KEYS.CONTRIBUTIONS)) {
+        localStorage.setItem(STORAGE_KEYS.CONTRIBUTIONS, JSON.stringify(initialContributions));
+      }
+      localStorage.setItem(STORAGE_KEYS.INITIALIZED, 'true');
     }
   },
 
   resetToDefaults() {
+    const currentSettings = this.getSettings();
     const attendance = generateInitialAttendance(initialMembers, initialEvents);
     localStorage.setItem(STORAGE_KEYS.MEMBERS, JSON.stringify(initialMembers));
     localStorage.setItem(STORAGE_KEYS.EVENTS, JSON.stringify(initialEvents));
     localStorage.setItem(STORAGE_KEYS.ATTENDANCE, JSON.stringify(attendance));
     localStorage.setItem(STORAGE_KEYS.STRIKES, JSON.stringify(initialStrikes));
     localStorage.setItem(STORAGE_KEYS.COMMUNICATION, JSON.stringify(initialCommunications));
-    localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(initialSettings));
-    localStorage.setItem(STORAGE_KEYS.ADMIN_ACCOUNTS, JSON.stringify(initialAdmins));
-    localStorage.setItem(STORAGE_KEYS.CONTRIBUTIONS, JSON.stringify(initialContributions));
+    // Preserve existing sheet URL if user has one configured
+    localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify({
+      ...initialSettings,
+      gasWebAppUrl: currentSettings.gasWebAppUrl || '',
+      demoMode: !currentSettings.gasWebAppUrl,
+    }));
+    if (!localStorage.getItem(STORAGE_KEYS.ADMIN_ACCOUNTS)) {
+      localStorage.setItem(STORAGE_KEYS.ADMIN_ACCOUNTS, JSON.stringify(initialAdmins));
+    }
+    localStorage.setItem(STORAGE_KEYS.INITIALIZED, 'true');
+  },
+
+  // Clear all local mock/demo data so only pure Google Sheets data is retained
+  clearLocalMockData() {
+    localStorage.setItem(STORAGE_KEYS.MEMBERS, JSON.stringify([]));
+    localStorage.setItem(STORAGE_KEYS.EVENTS, JSON.stringify([]));
+    localStorage.setItem(STORAGE_KEYS.ATTENDANCE, JSON.stringify([]));
+    localStorage.setItem(STORAGE_KEYS.STRIKES, JSON.stringify([]));
+    localStorage.setItem(STORAGE_KEYS.COMMUNICATION, JSON.stringify([]));
+    localStorage.setItem(STORAGE_KEYS.CONTRIBUTIONS, JSON.stringify([]));
+    localStorage.setItem(STORAGE_KEYS.INITIALIZED, 'true');
   },
 
   getMembers(): Member[] {
     const raw = localStorage.getItem(STORAGE_KEYS.MEMBERS);
-    return raw ? JSON.parse(raw) : initialMembers;
+    return raw ? JSON.parse(raw) : [];
   },
 
   setMembers(members: Member[]) {
@@ -50,7 +80,7 @@ export const storageService = {
 
   getEvents(): AllianceEvent[] {
     const raw = localStorage.getItem(STORAGE_KEYS.EVENTS);
-    return raw ? JSON.parse(raw) : initialEvents;
+    return raw ? JSON.parse(raw) : [];
   },
 
   setEvents(events: AllianceEvent[]) {
@@ -68,7 +98,7 @@ export const storageService = {
 
   getStrikes(): StrikeRecord[] {
     const raw = localStorage.getItem(STORAGE_KEYS.STRIKES);
-    return raw ? JSON.parse(raw) : initialStrikes;
+    return raw ? JSON.parse(raw) : [];
   },
 
   setStrikes(strikes: StrikeRecord[]) {
@@ -77,7 +107,7 @@ export const storageService = {
 
   getCommunications(): CommunicationRecord[] {
     const raw = localStorage.getItem(STORAGE_KEYS.COMMUNICATION);
-    return raw ? JSON.parse(raw) : initialCommunications;
+    return raw ? JSON.parse(raw) : [];
   },
 
   setCommunications(comms: CommunicationRecord[]) {
@@ -86,11 +116,28 @@ export const storageService = {
 
   getSettings(): AllianceSettings {
     const raw = localStorage.getItem(STORAGE_KEYS.SETTINGS);
-    return raw ? JSON.parse(raw) : initialSettings;
+    if (!raw) return initialSettings;
+    try {
+      const parsed: AllianceSettings = JSON.parse(raw);
+      // Auto-detect: if a Google Apps Script URL is saved, live mode should be active
+      if (parsed.gasWebAppUrl && parsed.gasWebAppUrl.trim().startsWith('http')) {
+        parsed.demoMode = false;
+      }
+      return parsed;
+    } catch {
+      return initialSettings;
+    }
   },
 
   setSettings(settings: AllianceSettings) {
-    localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(settings));
+    const url = (settings.gasWebAppUrl || '').trim();
+    const hasUrl = Boolean(url.startsWith('http'));
+    const updated: AllianceSettings = {
+      ...settings,
+      gasWebAppUrl: url,
+      demoMode: hasUrl ? false : Boolean(settings.demoMode),
+    };
+    localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(updated));
   },
 
   getAuth() {

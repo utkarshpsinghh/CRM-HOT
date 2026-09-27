@@ -12,6 +12,7 @@ interface ConfirmModalProps {
   confirmLabel?: string;
   cancelLabel?: string;
   variant?: 'crimson' | 'gold' | 'emerald';
+  position?: 'top' | 'center';
 }
 
 export const ConfirmModal: React.FC<ConfirmModalProps> = ({
@@ -23,6 +24,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
   confirmLabel = 'Confirm Action',
   cancelLabel = 'Cancel',
   variant = 'crimson',
+  position = 'top',
 }) => {
   return (
     <Modal
@@ -31,6 +33,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
       title={title}
       icon={<AlertTriangle className="w-5 h-5 text-amber-400" />}
       maxWidth="sm"
+      position={position}
     >
       <div className="space-y-5">
         <div className="text-sm text-stone-300 leading-relaxed bg-[#120c08] p-4 rounded-xl border border-[#3e2716]">

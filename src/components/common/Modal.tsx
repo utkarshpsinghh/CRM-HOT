@@ -11,6 +11,7 @@ interface ModalProps {
   icon?: React.ReactNode;
   children: React.ReactNode;
   maxWidth?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl';
+  position?: 'top' | 'center';
 }
 
 export const Modal: React.FC<ModalProps> = ({
@@ -21,6 +22,7 @@ export const Modal: React.FC<ModalProps> = ({
   icon,
   children,
   maxWidth = 'md',
+  position = 'center',
 }) => {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -44,8 +46,15 @@ export const Modal: React.FC<ModalProps> = ({
     '3xl': 'max-w-4xl',
   }[maxWidth];
 
+  const isTop = position === 'top';
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+    <div
+      className={clsx(
+        'fixed inset-0 p-3 sm:p-4 overflow-y-auto',
+        isTop ? 'z-[9999] flex items-start justify-center pt-8 sm:pt-16' : 'z-50 flex items-center justify-center'
+      )}
+    >
       {/* Backdrop */}
       <div
         className="fixed inset-0 bg-black/80 backdrop-blur-sm transition-opacity"
@@ -58,7 +67,8 @@ export const Modal: React.FC<ModalProps> = ({
       {/* Modal Dialog */}
       <div
         className={clsx(
-          'relative w-full rounded-2xl bg-[#1c140e] border-2 border-[#522d14] shadow-[0_10px_40px_rgba(0,0,0,0.8),0_0_15px_rgba(202,138,4,0.15)] z-10 overflow-hidden my-2 sm:my-8 flex flex-col max-h-[92vh]',
+          'relative w-full rounded-2xl bg-[#1c140e] border-2 border-[#522d14] shadow-[0_10px_40px_rgba(0,0,0,0.8),0_0_15px_rgba(202,138,4,0.15)] z-10 overflow-hidden flex flex-col max-h-[92vh]',
+          isTop ? 'my-0' : 'my-2 sm:my-8',
           maxWidthClasses
         )}
       >

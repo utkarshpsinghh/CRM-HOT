@@ -498,6 +498,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
         message={`Mark all ${stats.votedYes} members who voted YES as Joined for ${currentEvent.eventType}?`}
         confirmLabel="Confirm"
         variant="gold"
+        position="top"
       />
     </div>
   );

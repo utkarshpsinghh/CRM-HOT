@@ -64,7 +64,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCreateEvent }) => {
                     : 'bg-stone-800/80 text-stone-300 border-stone-600/60'
                 }`}
               >
-                {isMainAdmin ? 'Main Admin' : 'Officer'}
+                {isMainAdmin ? 'Main Admin' : 'R4'}
               </span>
             </div>
             <div className="text-[10px] text-stone-400 font-medium">Kingshot CRM</div>

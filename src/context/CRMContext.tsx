@@ -80,6 +80,9 @@ interface CRMContextType {
   removeStrike: (strikeId: string, memberId: string) => Promise<boolean>;
   addCommunication: (memberId: string, status: Member['communication'], note: string) => Promise<boolean>;
   updateSettings: (newSettings: AllianceSettings) => Promise<boolean>;
+  connectGoogleSheets: (url: string) => Promise<{ success: boolean; message: string }>;
+  disconnectGoogleSheets: () => void;
+  clearLocalData: () => void;
   createAdminUser: (username: string, pass: string, name?: string) => Promise<boolean>;
   deleteAdminUser: (adminId: string) => Promise<boolean>;
   testSheetsConnection: (url: string) => Promise<{ success: boolean; message: string }>;
@@ -156,44 +159,61 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (apiService.isLiveSheets(currentSettings)) {
         setIsSyncingSheets(true);
         setSyncStatus('syncing');
-        setSyncMessage('Fetching Google Sheets records...');
+        setSyncMessage('Updating from Google Sheets...');
         try {
           const [mList, eList, aList, sList, cList, admList, cntList] = await Promise.all([
             apiService.getMembers(currentSettings),
             apiService.getEvents(currentSettings),
             apiService.getAttendance(undefined, currentSettings),
-            storageService.getStrikes(),
-            storageService.getCommunications(),
+            apiService.getStrikes(currentSettings),
+            apiService.getCommunications(currentSettings),
             apiService.getAdmins(currentSettings),
             apiService.getContributions(currentSettings),
           ]);
 
-          // Only set if valid data received
-          if (Array.isArray(mList) && mList.length > 0) {
+          // Valid responses from Google Sheets are accepted (including clean empty roster)
+          if (Array.isArray(mList)) {
             setMembers(mList);
-            setEvents(eList);
-            setAttendance(aList);
-            setStrikes(sList);
-            setCommunications(cList);
-            setAdmins(admList);
-            setContributions(cntList);
-            setSyncStatus('connected');
-            setSyncMessage('Google Sheets Live Connected');
-            setLastSyncTime(new Date().toLocaleTimeString());
-          } else {
-            throw new Error('Empty response from Google Sheets');
+            storageService.setMembers(mList);
           }
-        } catch {
+          if (Array.isArray(eList)) {
+            setEvents(eList);
+            storageService.setEvents(eList);
+          }
+          if (Array.isArray(aList)) {
+            setAttendance(aList);
+            storageService.setAttendance(aList);
+          }
+          if (Array.isArray(sList)) {
+            setStrikes(sList);
+            storageService.setStrikes(sList);
+          }
+          if (Array.isArray(cList)) {
+            setCommunications(cList);
+            storageService.setCommunications(cList);
+          }
+          if (Array.isArray(admList) && admList.length > 0) {
+            setAdmins(admList);
+            storageService.setAdminAccounts(admList);
+          }
+          if (Array.isArray(cntList)) {
+            setContributions(cntList);
+            storageService.setContributions(cntList);
+          }
+
+          setSyncStatus('connected');
+          setSyncMessage('Google Sheets Live Connected');
+          setLastSyncTime(new Date().toLocaleTimeString());
+        } catch (err) {
+          console.warn('Google Sheets sync warning:', err);
           setSyncStatus('error');
           setSyncMessage('Google Sheets offline. Using cached roster.');
-          // Use safe local fallback
+          // Use cached storage data (which only contains sheet data, not 92 fake members)
           setMembers(storageService.getMembers());
           setEvents(storageService.getEvents());
           setAttendance(storageService.getAttendance());
           setStrikes(storageService.getStrikes());
           setCommunications(storageService.getCommunications());
-          setAdmins(storageService.getAdminAccounts());
-          setContributions(storageService.getContributions());
         } finally {
           setIsSyncingSheets(false);
         }
@@ -435,11 +455,11 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       await apiService.updateMember(member, settings);
       setMembers(prev => prev.map(m => (m.id === member.id ? member : m)));
-      await logContribution('MEMBER_UPDATED', `Updated dossier for ${member.name}`, member.name, 1);
+      await logContribution('MEMBER_UPDATED', `Updated profile for ${member.name}`, member.name, 1);
       sounds.playSuccess();
       addToast({
         type: 'success',
-        title: 'Member Dossier Updated',
+        title: 'Member Details Updated',
         message: `${member.name} details have been recorded.`,
       });
       return true;
@@ -605,6 +625,94 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return true;
   };
 
+  const connectGoogleSheets = async (url: string): Promise<{ success: boolean; message: string }> => {
+    const cleanUrl = (url || '').trim();
+    if (!cleanUrl) {
+      return { success: false, message: 'Please enter a Google Apps Script Web App URL.' };
+    }
+    if (cleanUrl.includes('docs.google.com/spreadsheets')) {
+      return {
+        success: false,
+        message: 'You entered a Google Sheet document link. Please enter the deployed Apps Script Web App URL (starts with https://script.google.com/macros/s/.../exec).',
+      };
+    }
+
+    setIsLoading(true);
+    setIsSyncingSheets(true);
+    try {
+      const testRes = await apiService.testConnection(cleanUrl);
+      if (!testRes.success) {
+        return testRes;
+      }
+
+      // Save permanently to storage with demoMode false
+      const newSettings: AllianceSettings = {
+        ...settings,
+        gasWebAppUrl: cleanUrl,
+        demoMode: false,
+      };
+      storageService.setSettings(newSettings);
+      setSettings(newSettings);
+
+      // Clear local mock data so ONLY sheet data is loaded!
+      storageService.clearLocalMockData();
+
+      // Refresh from live sheet
+      await refreshData();
+
+      sounds.playSuccess();
+      addToast({
+        type: 'success',
+        title: 'Google Sheet Connected',
+        message: 'Saved permanently. Synced with Google Sheets!',
+      });
+
+      return { success: true, message: 'Connected & synchronized with Google Sheets successfully!' };
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      return { success: false, message: `Connection error: ${msg}` };
+    } finally {
+      setIsLoading(false);
+      setIsSyncingSheets(false);
+    }
+  };
+
+  const disconnectGoogleSheets = () => {
+    sounds.playClick();
+    const newSettings: AllianceSettings = {
+      ...settings,
+      gasWebAppUrl: '',
+      demoMode: true,
+    };
+    storageService.setSettings(newSettings);
+    setSettings(newSettings);
+    setSyncStatus('demo');
+    setSyncMessage('Local Demo Mode');
+    addToast({
+      type: 'info',
+      title: 'Google Sheet Disconnected',
+      message: 'Switched back to local demo mode.',
+    });
+    refreshData();
+  };
+
+  const clearLocalData = () => {
+    sounds.playAlert();
+    storageService.clearLocalMockData();
+    setMembers([]);
+    setEvents([]);
+    setAttendance([]);
+    setStrikes([]);
+    setCommunications([]);
+    setContributions([]);
+    addToast({
+      type: 'info',
+      title: 'Local Demo Data Removed',
+      message: 'All local demo players, events, and mock dates have been wiped.',
+    });
+    refreshData();
+  };
+
   const testSheetsConnection = async (url: string) => {
     sounds.playClick();
     return await apiService.testConnection(url);
@@ -764,6 +872,9 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         removeStrike,
         addCommunication,
         updateSettings,
+        connectGoogleSheets,
+        disconnectGoogleSheets,
+        clearLocalData,
         createAdminUser,
         deleteAdminUser,
         testSheetsConnection,

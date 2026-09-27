@@ -26,6 +26,11 @@ export const SettingsView: React.FC = () => {
   const {
     settings,
     updateSettings,
+    connectGoogleSheets,
+    disconnectGoogleSheets,
+    clearLocalData,
+    syncWithGoogleSheets,
+    lastSyncTime,
     testSheetsConnection,
     resetDatabase,
     exportDatabase,
@@ -45,7 +50,9 @@ export const SettingsView: React.FC = () => {
 
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const [isTesting, setIsTesting] = useState(false);
+  const [isConnecting, setIsConnecting] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
 
   // Sub-admin creation state
@@ -57,16 +64,29 @@ export const SettingsView: React.FC = () => {
 
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
+    const hasUrl = Boolean(gasUrl.trim().startsWith('http'));
     await updateSettings({
       ...settings,
       gasWebAppUrl: gasUrl.trim(),
       inactivityWarningDays: Number(warningDays),
       inactivityInactiveDays: Number(inactiveDays),
       inactivityCriticalDays: Number(criticalDays),
-      demoMode,
+      demoMode: hasUrl ? false : demoMode,
     });
     setSavedSuccess(true);
     setTimeout(() => setSavedSuccess(false), 3000);
+  };
+
+  const handleConnectSheet = async () => {
+    if (!gasUrl.trim()) {
+      setTestResult({ success: false, message: 'Please enter a Google Apps Script Web App URL first.' });
+      return;
+    }
+    setIsConnecting(true);
+    setTestResult(null);
+    const result = await connectGoogleSheets(gasUrl.trim());
+    setIsConnecting(false);
+    setTestResult(result);
   };
 
   const handleTestConnection = async () => {
@@ -156,7 +176,7 @@ export const SettingsView: React.FC = () => {
                 Admin Accounts &amp; Officer Access
               </h2>
               <p className="text-xs text-stone-400">
-                Main Admin has full privileges. Sub-admins can manage attendance and members, but cannot access Settings.
+                Main Admin has full privileges. R4 officers can manage attendance and members, but cannot access Settings.
               </p>
             </div>
           </div>
@@ -190,7 +210,7 @@ export const SettingsView: React.FC = () => {
                             : 'bg-stone-800 text-stone-300 border border-stone-600/50'
                         }`}
                       >
-                        {isMain ? 'Main Admin' : 'Sub-Admin'}
+                        {isMain ? 'Main Admin' : 'R4'}
                       </span>
                     </div>
                     <div className="text-[11px] text-stone-500 font-mono mt-0.5 truncate">
@@ -203,7 +223,7 @@ export const SettingsView: React.FC = () => {
                       type="button"
                       onClick={() => setAdminToDelete(adm)}
                       className="p-1.5 rounded-lg text-stone-400 hover:text-red-400 hover:bg-red-950/40 transition-colors cursor-pointer shrink-0"
-                      title="Delete Sub-Admin"
+                      title="Delete R4 Account"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -218,7 +238,7 @@ export const SettingsView: React.FC = () => {
         <form onSubmit={handleCreateAdmin} className="p-3.5 sm:p-4 rounded-xl bg-[#120c08] border border-[#3e2716] space-y-3">
           <div className="flex items-center gap-1.5 text-xs font-fantasy font-bold text-[#fef08a] uppercase">
             <UserPlus className="w-4 h-4 text-[#ca8a04]" />
-            <span>Add New Officer Admin</span>
+            <span>Add New R4 Officer</span>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
@@ -266,7 +286,7 @@ export const SettingsView: React.FC = () => {
 
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-1">
             <p className="text-[11px] text-stone-500">
-              * Sub-admins cannot view Settings, cannot modify thresholds, and cannot create other admins.
+              * R4 officers cannot view Settings, cannot modify thresholds, and cannot create other admins.
             </p>
             <button
               type="submit"
@@ -274,7 +294,7 @@ export const SettingsView: React.FC = () => {
               className="btn-kingshot-gold px-3.5 py-1.5 text-xs font-fantasy font-black uppercase flex items-center justify-center gap-1.5 cursor-pointer shadow-md shrink-0 self-end sm:self-auto"
             >
               <UserPlus className="w-3.5 h-3.5" />
-              <span>{isCreatingAdmin ? 'Creating...' : 'Create Admin'}</span>
+              <span>{isCreatingAdmin ? 'Creating...' : 'Create R4 Officer'}</span>
             </button>
           </div>
         </form>
@@ -284,7 +304,7 @@ export const SettingsView: React.FC = () => {
       <form onSubmit={handleSaveSettings} className="space-y-6">
         {/* SECTION 2: GOOGLE SHEETS CONNECTION */}
         <div className="p-4 sm:p-5 rounded-2xl bg-[#1a1410] border-2 border-[#3e2716] shadow-md space-y-4">
-          <div className="flex items-start justify-between gap-3">
+          <div className="flex items-start justify-between gap-3 flex-wrap">
             <div className="flex items-center gap-2">
               <Database className="w-5 h-5 text-[#fef08a]" />
               <div>
@@ -297,46 +317,58 @@ export const SettingsView: React.FC = () => {
               </div>
             </div>
 
-            <span
-              className={`text-xs px-2.5 py-1 rounded-full border font-bold uppercase font-fantasy shrink-0 ${
-                syncStatus === 'connected'
-                  ? 'bg-emerald-950/70 text-emerald-300 border-emerald-500'
-                  : syncStatus === 'error'
-                  ? 'bg-red-950/70 text-red-300 border-red-500'
-                  : 'bg-amber-950/70 text-amber-300 border-amber-500'
-              }`}
-            >
-              {syncMessage}
-            </span>
+            <div className="flex items-center gap-2 flex-wrap">
+              <span
+                className={`text-xs px-2.5 py-1 rounded-full border font-bold uppercase font-fantasy shrink-0 ${
+                  syncStatus === 'connected'
+                    ? 'bg-emerald-950/70 text-emerald-300 border-emerald-500'
+                    : syncStatus === 'error'
+                    ? 'bg-red-950/70 text-red-300 border-red-500'
+                    : 'bg-amber-950/70 text-amber-300 border-amber-500'
+                }`}
+              >
+                {syncMessage}
+              </span>
+              {lastSyncTime && (
+                <span className="text-[11px] text-stone-400 font-mono">
+                  Synced: {lastSyncTime}
+                </span>
+              )}
+            </div>
           </div>
 
-          {/* Database Mode Switch */}
-          <div className="p-3.5 rounded-xl bg-[#120c08] border border-[#3e2716] flex items-center justify-between gap-3">
-            <div>
-              <div className="text-xs font-fantasy font-bold text-stone-200 uppercase">
-                Database Mode
+          {/* Connected Active Card */}
+          {syncStatus === 'connected' && (
+            <div className="p-3.5 rounded-xl bg-emerald-950/40 border border-emerald-700/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-2 text-xs text-emerald-300">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span>
+                  <strong>Connected &amp; Live:</strong> All changes sync with your Google Sheet. Refreshing the page will keep this sheet connected.
+                </span>
               </div>
-              <div className="text-xs text-stone-400">
-                {demoMode
-                  ? 'Local Demo Mode (Fast offline roster without Google account)'
-                  : 'Live Google Sheets Mode (Synchronized with Google Apps Script)'}
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => syncWithGoogleSheets()}
+                  className="px-3 py-1.5 rounded-lg bg-emerald-800 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                >
+                  <RefreshCw className="w-3 h-3" />
+                  <span>Sync Now</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={disconnectGoogleSheets}
+                  className="px-3 py-1.5 rounded-lg bg-stone-800 hover:bg-stone-700 text-stone-300 text-xs font-bold cursor-pointer transition-colors"
+                >
+                  Disconnect
+                </button>
               </div>
             </div>
+          )}
 
-            <label className="relative inline-flex items-center cursor-pointer shrink-0">
-              <input
-                type="checkbox"
-                checked={!demoMode}
-                onChange={e => setDemoMode(!e.target.checked)}
-                className="sr-only peer"
-              />
-              <div className="w-11 h-6 bg-stone-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#ca8a04]" />
-            </label>
-          </div>
-
-          {/* Google Apps Script Web App URL */}
-          <div>
-            <label className="block text-xs font-fantasy font-bold text-stone-300 uppercase mb-1">
+          {/* Google Apps Script Web App URL Input */}
+          <div className="space-y-2">
+            <label className="block text-xs font-fantasy font-bold text-stone-300 uppercase">
               Google Apps Script Web App URL
             </label>
             <div className="flex flex-col sm:flex-row gap-2">
@@ -347,17 +379,29 @@ export const SettingsView: React.FC = () => {
                 placeholder="https://script.google.com/macros/s/AKfycb.../exec"
                 className="flex-1 px-3 py-2 rounded-xl bg-[#120c08] border border-[#3e2716] text-stone-200 text-xs sm:text-sm focus:outline-none focus:border-[#ca8a04] font-mono"
               />
+              <button
+                type="button"
+                onClick={handleConnectSheet}
+                disabled={isConnecting || !gasUrl.trim()}
+                className="btn-kingshot-gold px-4 py-2 text-xs font-fantasy font-black uppercase flex items-center justify-center gap-1.5 cursor-pointer shadow-md shrink-0"
+              >
+                <CheckCircle2 className={`w-3.5 h-3.5 ${isConnecting ? 'animate-spin' : ''}`} />
+                <span>{isConnecting ? 'Connecting...' : 'Connect & Save Sheet'}</span>
+              </button>
               <GameButton
                 type="button"
                 variant="slate"
                 size="sm"
                 onClick={handleTestConnection}
-                disabled={isTesting}
+                disabled={isTesting || !gasUrl.trim()}
                 icon={<RefreshCw className={`w-3.5 h-3.5 ${isTesting ? 'animate-spin' : ''}`} />}
               >
-                {isTesting ? 'Testing...' : 'Test Connection'}
+                {isTesting ? 'Testing...' : 'Test Only'}
               </GameButton>
             </div>
+            <p className="text-[11px] text-stone-400">
+              Paste the deployed Web App URL (starts with <code className="text-[#fef08a] font-mono">https://script.google.com/macros/s/.../exec</code>). Do not paste the spreadsheet viewer URL.
+            </p>
           </div>
 
           {/* Connection Test Result */}
@@ -377,6 +421,26 @@ export const SettingsView: React.FC = () => {
               <span>{testResult.message}</span>
             </div>
           )}
+
+          {/* Sheets-Only Cleanliness Option */}
+          <div className="p-3.5 rounded-xl bg-[#120c08] border border-[#3e2716] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <div className="text-xs font-fantasy font-bold text-stone-200 uppercase">
+                Sheets-Only Mode (Remove Local Demo Data)
+              </div>
+              <div className="text-xs text-stone-400 mt-0.5">
+                Remove all starter demo members, fake events, and dates so the CRM exclusively displays records from your Google Sheet.
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowClearConfirm(true)}
+              className="px-3.5 py-1.5 rounded-lg bg-red-950/80 border border-red-700 hover:bg-red-900 text-red-200 text-xs font-bold uppercase cursor-pointer shrink-0 transition-colors flex items-center gap-1.5"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Clear Local Demo Data</span>
+            </button>
+          </div>
 
           {/* Quick Setup Instructions */}
           <div className="p-3.5 rounded-xl bg-[#120c08]/80 border border-[#3e2716] text-xs space-y-2">
@@ -564,13 +628,24 @@ export const SettingsView: React.FC = () => {
         variant="crimson"
       />
 
+      {/* Clear Local Data Confirmation Dialog */}
+      <ConfirmModal
+        isOpen={showClearConfirm}
+        onClose={() => setShowClearConfirm(false)}
+        onConfirm={clearLocalData}
+        title="⚠️ Remove Local Demo Data"
+        message="This will wipe all 92 starter demo members, fake events, and dates from local storage. The CRM will only contain and display records from your connected Google Sheet. Continue?"
+        confirmLabel="Wipe Demo Data"
+        variant="crimson"
+      />
+
       {/* Delete Admin Confirmation Dialog */}
       <ConfirmModal
         isOpen={Boolean(adminToDelete)}
         onClose={() => setAdminToDelete(null)}
         onConfirm={handleConfirmDeleteAdmin}
-        title="⚠️ Revoke Officer Admin Access"
-        message={`Are you sure you want to remove the officer admin account for "${adminToDelete?.username}" (${adminToDelete?.name || 'Officer'})? They will no longer be able to log in.`}
+        title="⚠️ Revoke R4 Officer Access"
+        message={`Are you sure you want to remove the R4 officer account for "${adminToDelete?.username}" (${adminToDelete?.name || 'Officer'})? They will no longer be able to log in.`}
         confirmLabel="Revoke Access"
         variant="crimson"
       />

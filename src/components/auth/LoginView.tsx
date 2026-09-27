@@ -1,16 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useCRM } from '../../context/CRMContext';
-import { User, Lock, AlertCircle, ArrowRight, Sparkles, ShieldCheck, Eye, EyeOff, Clock } from 'lucide-react';
+import { User, Lock, AlertCircle, ArrowRight, Eye, EyeOff, Clock } from 'lucide-react';
 import { sounds } from '../../utils/sound';
 import { getLoginAttemptState } from '../../utils/security';
 
 export const LoginView: React.FC = () => {
   const { login } = useAuth();
-  const { settings, updateSettings } = useCRM();
+  const { settings } = useCRM();
 
-  const [username, setUsername] = useState('admin');
-  const [password, setPassword] = useState('kingshot_hot');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -45,20 +45,12 @@ export const LoginView: React.FC = () => {
     setIsSubmitting(false);
 
     if (!result.success) {
-      setError(result.error || 'Access denied. Please check your credentials.');
+      setError(result.error || 'Invalid username or password.');
       const state = getLoginAttemptState();
       if (state.isLocked) {
         setLockoutSeconds(state.remainingSeconds);
       }
     }
-  };
-
-  const handleQuickFill = (user: string, pass: string) => {
-    if (isLocked) return;
-    sounds.playClick();
-    setUsername(user);
-    setPassword(pass);
-    setError(null);
   };
 
   const formatCountdown = (secs: number) => {
@@ -86,21 +78,18 @@ export const LoginView: React.FC = () => {
             <h1 className="font-fantasy font-black text-2xl sm:text-3xl text-[#fef08a] uppercase tracking-wide mt-0.5">
               HOT Alliance CRM
             </h1>
-            <p className="text-xs text-stone-400 mt-1">
-              Alliance Leadership Command Portal
+            <p className="text-xs text-stone-300 mt-1">
+              Officer Portal
             </p>
           </div>
 
           {/* Lockout Warning Banner */}
           {isLocked && (
-            <div className="mb-4 p-3.5 rounded-xl bg-red-950/90 border border-red-500/70 text-red-200 text-xs flex items-start gap-2.5 shadow-md animate-pulse">
-              <Clock className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+            <div className="mb-4 p-3.5 rounded-xl bg-red-950/90 border border-red-500/70 text-red-200 text-xs flex items-center gap-2.5 shadow-md">
+              <Clock className="w-4 h-4 text-red-400 shrink-0" />
               <div>
-                <div className="font-bold text-red-100">Rate-Limit Lockout Active</div>
-                <div className="text-[11px] text-red-300 mt-0.5">
-                  Too many failed attempts. Login unlocked in{' '}
-                  <span className="font-mono font-bold text-amber-300">{formatCountdown(lockoutSeconds)}</span>.
-                </div>
+                <span className="font-bold text-red-100">Too many failed attempts.</span> Please wait{' '}
+                <span className="font-mono font-bold text-amber-300">{formatCountdown(lockoutSeconds)}</span> before trying again.
               </div>
             </div>
           )}
@@ -126,7 +115,8 @@ export const LoginView: React.FC = () => {
                 disabled={isLocked}
                 onChange={e => setUsername(e.target.value)}
                 required
-                placeholder="e.g. admin"
+                autoComplete="off"
+                placeholder="Username"
                 className="w-full px-3.5 py-2.5 rounded-xl bg-[#120c08] border border-[#3e2716] text-[#fffbeb] text-sm focus:outline-none focus:border-[#ca8a04] placeholder-stone-600 transition-colors disabled:opacity-50"
               />
             </div>
@@ -152,26 +142,10 @@ export const LoginView: React.FC = () => {
                 disabled={isLocked}
                 onChange={e => setPassword(e.target.value)}
                 required
-                placeholder="••••••••••••"
+                autoComplete="new-password"
+                placeholder="Password"
                 className="w-full px-3.5 py-2.5 rounded-xl bg-[#120c08] border border-[#3e2716] text-[#fffbeb] text-sm focus:outline-none focus:border-[#ca8a04] placeholder-stone-600 transition-colors disabled:opacity-50"
               />
-            </div>
-
-            {/* Offline demo toggle */}
-            <div className="pt-1 flex items-center justify-between text-xs text-stone-400">
-              <label className="flex items-center gap-2 cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={settings.demoMode}
-                  onChange={e => updateSettings({ ...settings, demoMode: e.target.checked })}
-                  className="rounded bg-[#120c08] border-[#3e2716] text-[#ca8a04] focus:ring-0 cursor-pointer"
-                />
-                <span className="text-xs">Offline Demo Mode</span>
-              </label>
-              <div className="flex items-center gap-1 text-[11px] text-stone-400">
-                <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-                <span>Protected</span>
-              </div>
             </div>
 
             {/* Submit Button */}
@@ -181,43 +155,11 @@ export const LoginView: React.FC = () => {
                 disabled={isSubmitting || isLocked}
                 className="btn-kingshot-gold w-full py-2.5 text-sm font-fantasy font-black uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer shadow-lg disabled:opacity-50"
               >
-                <span>{isSubmitting ? 'Authenticating...' : isLocked ? `Locked (${formatCountdown(lockoutSeconds)})` : 'Sign In'}</span>
+                <span>{isSubmitting ? 'Signing In...' : isLocked ? `Locked (${formatCountdown(lockoutSeconds)})` : 'Sign In'}</span>
                 <ArrowRight className="w-4 h-4 stroke-[3]" />
               </button>
             </div>
           </form>
-
-          {/* Quick Demo Credentials Assistant */}
-          <div className="mt-5 pt-3.5 border-t border-[#3e2716] space-y-2 text-center">
-            <div className="text-[11px] font-bold text-stone-400 uppercase tracking-wider flex items-center justify-center gap-1">
-              <Sparkles className="w-3 h-3 text-[#ca8a04]" />
-              <span>Quick Demo Accounts</span>
-            </div>
-            <div className="flex flex-col sm:flex-row gap-2">
-              <button
-                type="button"
-                disabled={isLocked}
-                onClick={() => handleQuickFill('admin', 'kingshot_hot')}
-                className="flex-1 py-1.5 px-2.5 rounded-lg bg-[#120c08] border border-[#d97706]/60 text-xs text-amber-300 hover:bg-[#25150a] transition-all cursor-pointer font-bold disabled:opacity-40"
-              >
-                👑 Main Admin (<span className="font-mono text-amber-200">admin</span>)
-              </button>
-              <button
-                type="button"
-                disabled={isLocked}
-                onClick={() => handleQuickFill('officer', 'hot123')}
-                className="flex-1 py-1.5 px-2.5 rounded-lg bg-[#120c08] border border-stone-600/60 text-xs text-stone-300 hover:bg-[#25150a] transition-all cursor-pointer font-bold disabled:opacity-40"
-              >
-                ⚔️ Sub-Admin (<span className="font-mono text-stone-200">officer</span>)
-              </button>
-            </div>
-          </div>
-
-          {/* Security Assurance Footer */}
-          <div className="mt-4 pt-2.5 border-t border-[#25150c] flex items-center justify-center gap-1.5 text-[10px] text-stone-500 font-mono">
-            <ShieldCheck className="w-3.5 h-3.5 text-[#ca8a04]" />
-            <span>256-Bit Cryptographic Vault & Brute-Force Rate Limiter</span>
-          </div>
         </div>
       </div>
     </div>

@@ -18,16 +18,26 @@ import { getLoginAttemptState, recordFailedAttempt, resetLoginAttempts, addSecur
 export const apiService = {
   // Check if live Google Sheets backend should be used
   isLiveSheets(settings: AllianceSettings): boolean {
-    return !settings.demoMode && Boolean(settings.gasWebAppUrl && settings.gasWebAppUrl.startsWith('http'));
+    if (!settings) return false;
+    const url = (settings.gasWebAppUrl || '').trim();
+    if (!url.startsWith('http')) return false;
+    return !settings.demoMode;
   },
 
   // Test connection to Google Apps Script Web App
   async testConnection(url: string): Promise<{ success: boolean; message: string }> {
-    if (!url || !url.startsWith('http')) {
+    const clean = (url || '').trim();
+    if (!clean || !clean.startsWith('http')) {
       return { success: false, message: 'Invalid URL format. Must start with https://script.google.com' };
     }
+    if (clean.includes('docs.google.com/spreadsheets')) {
+      return {
+        success: false,
+        message: 'You entered a Google Sheet document link. Please enter the deployed Apps Script Web App URL (starts with https://script.google.com/macros/s/.../exec).',
+      };
+    }
     try {
-      const pingUrl = url.includes('?') ? `${url}&action=ping` : `${url}?action=ping`;
+      const pingUrl = clean.includes('?') ? `${clean}&action=ping` : `${clean}?action=ping`;
       const response = await fetch(pingUrl, {
         method: 'GET',
         mode: 'cors',
@@ -39,7 +49,7 @@ export const apiService = {
       return { success: false, message: data.message || 'Server returned non-success response.' };
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      return { success: false, message: `Could not reach Apps Script endpoint: ${msg}` };
+      return { success: false, message: `Could not reach Apps Script endpoint: ${msg}. Make sure deployment access is set to "Anyone".` };
     }
   },
 
@@ -160,13 +170,14 @@ export const apiService = {
   async getMembers(settings: AllianceSettings): Promise<Member[]> {
     if (this.isLiveSheets(settings)) {
       try {
-        const res = await fetch(`${settings.gasWebAppUrl}?action=getMembers`, { mode: 'cors' });
+        const res = await fetch(`${settings.gasWebAppUrl.trim()}?action=getMembers`, { mode: 'cors' });
         const json = await res.json();
         if (json.status === 'success' && Array.isArray(json.data)) {
+          storageService.setMembers(json.data);
           return json.data;
         }
-      } catch {
-        // Fallback to local
+      } catch (err) {
+        console.warn('Google Sheets getMembers error:', err);
       }
     }
     return storageService.getMembers();
@@ -245,13 +256,14 @@ export const apiService = {
   async getEvents(settings: AllianceSettings): Promise<AllianceEvent[]> {
     if (this.isLiveSheets(settings)) {
       try {
-        const res = await fetch(`${settings.gasWebAppUrl}?action=getEvents`, { mode: 'cors' });
+        const res = await fetch(`${settings.gasWebAppUrl.trim()}?action=getEvents`, { mode: 'cors' });
         const json = await res.json();
         if (json.status === 'success' && Array.isArray(json.data)) {
+          storageService.setEvents(json.data);
           return json.data;
         }
-      } catch {
-        // Fallback
+      } catch (err) {
+        console.warn('Google Sheets getEvents error:', err);
       }
     }
     return storageService.getEvents();
@@ -279,7 +291,7 @@ export const apiService = {
 
     if (this.isLiveSheets(settings)) {
       try {
-        await fetch(settings.gasWebAppUrl, {
+        await fetch(settings.gasWebAppUrl.trim(), {
           method: 'POST',
           mode: 'cors',
           body: JSON.stringify({ action: 'createEvent', event: newEvent }),
@@ -303,15 +315,21 @@ export const apiService = {
   // ATTENDANCE
   // --------------------------------------------------------------------------
   async getAttendance(eventId: string | undefined, settings: AllianceSettings): Promise<AttendanceRecord[]> {
-    if (this.isLiveSheets(settings) && eventId) {
+    if (this.isLiveSheets(settings)) {
       try {
-        const res = await fetch(`${settings.gasWebAppUrl}?action=getAttendance&eventId=${eventId}`, { mode: 'cors' });
+        const url = eventId
+          ? `${settings.gasWebAppUrl.trim()}?action=getAttendance&eventId=${eventId}`
+          : `${settings.gasWebAppUrl.trim()}?action=getAttendance`;
+        const res = await fetch(url, { mode: 'cors' });
         const json = await res.json();
         if (json.status === 'success' && Array.isArray(json.data)) {
+          if (!eventId) {
+            storageService.setAttendance(json.data);
+          }
           return json.data;
         }
-      } catch {
-        // Fallback
+      } catch (err) {
+        console.warn('Google Sheets getAttendance error:', err);
       }
     }
     const all = storageService.getAttendance();
@@ -431,6 +449,22 @@ export const apiService = {
   // --------------------------------------------------------------------------
   // STRIKES
   // --------------------------------------------------------------------------
+  async getStrikes(settings: AllianceSettings): Promise<StrikeRecord[]> {
+    if (this.isLiveSheets(settings)) {
+      try {
+        const res = await fetch(`${settings.gasWebAppUrl.trim()}?action=getStrikes`, { mode: 'cors' });
+        const json = await res.json();
+        if (json.status === 'success' && Array.isArray(json.data)) {
+          storageService.setStrikes(json.data);
+          return json.data;
+        }
+      } catch (err) {
+        console.warn('Google Sheets getStrikes error:', err);
+      }
+    }
+    return storageService.getStrikes();
+  },
+
   async addStrike(memberId: string, reason: string, addedBy: string, settings: AllianceSettings): Promise<StrikeRecord> {
     const strikeId = `strk-${Date.now().toString().slice(-6)}`;
     const date = new Date().toISOString().split('T')[0];
@@ -500,6 +534,22 @@ export const apiService = {
   // --------------------------------------------------------------------------
   // COMMUNICATIONS
   // --------------------------------------------------------------------------
+  async getCommunications(settings: AllianceSettings): Promise<CommunicationRecord[]> {
+    if (this.isLiveSheets(settings)) {
+      try {
+        const res = await fetch(`${settings.gasWebAppUrl.trim()}?action=getCommunications`, { mode: 'cors' });
+        const json = await res.json();
+        if (json.status === 'success' && Array.isArray(json.data)) {
+          storageService.setCommunications(json.data);
+          return json.data;
+        }
+      } catch (err) {
+        console.warn('Google Sheets getCommunications error:', err);
+      }
+    }
+    return storageService.getCommunications();
+  },
+
   async addCommunication(memberId: string, status: Member['communication'], note: string, addedBy: string, settings: AllianceSettings): Promise<CommunicationRecord> {
     const id = `comm-${Date.now().toString().slice(-6)}`;
     const date = new Date().toISOString().split('T')[0];
@@ -541,8 +591,7 @@ export const apiService = {
   },
 
   // --------------------------------------------------------------------------
-  // INACTIVITY CALCULATION LOGIC (Section 14 & 15)
-  // Last Activity = latest of: latest vote, latest event attendance, latest member activity record
+  // INACTIVITY CALCULATION LOGIC
   // --------------------------------------------------------------------------
   calculateInactivity(
     members: Member[],
@@ -561,7 +610,7 @@ export const apiService = {
     activeRoster.forEach(member => {
       const memberAtt = attendance.filter(a => a.memberId === member.id);
       let latestTimestamp = 0;
-      let activityDescription = 'No recorded activity';
+      let activityDescription = 'No recent activity';
 
       // 1. Check event attendance & votes
       memberAtt.forEach(rec => {
@@ -582,33 +631,66 @@ export const apiService = {
         }
       });
 
-      // 2. Check member manual update / creation timestamp if no events
-      if (latestTimestamp === 0) {
-        const memTime = new Date(member.updatedAt || member.createdAt).getTime();
-        latestTimestamp = memTime;
-        activityDescription = 'Roster enrollment';
+      // 2. Check if member has explicit lastActivityDate
+      if (member.lastActivityDate) {
+        const actTime = new Date(member.lastActivityDate).getTime();
+        if (actTime > latestTimestamp) {
+          latestTimestamp = actTime;
+          activityDescription = member.lastActivitySource || 'Roster activity';
+        }
       }
 
-      // Compute days inactive
-      const diffMs = Math.max(0, now - latestTimestamp);
-      const daysInactive = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+      // 3. Compute baseline days inactive from timestamp if found
+      let daysInactive = 0;
+      if (latestTimestamp > 0) {
+        const diffMs = Math.max(0, now - latestTimestamp);
+        daysInactive = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+      }
+
+      // 4. Check communication note for explicit offline/inactive day counts
+      const note = member.communicationNote || '';
+      const dayMatch = note.match(/(\d+)\s+days/i);
+      const noteDays = dayMatch ? parseInt(dayMatch[1], 10) : 0;
+
+      if (noteDays > daysInactive) {
+        daysInactive = noteDays;
+        latestTimestamp = now - (noteDays * 24 * 60 * 60 * 1000);
+        activityDescription = note;
+      } else if (member.status === 'Inactive') {
+        // Members explicitly marked Inactive are at least 8 to 15 days inactive
+        if (daysInactive < (settings.inactivityInactiveDays || 7)) {
+          daysInactive = 10;
+          latestTimestamp = now - (10 * 24 * 60 * 60 * 1000);
+          activityDescription = note || 'Flagged as inactive in alliance roster';
+        }
+      } else if (member.communication === 'Warning' && daysInactive < (settings.inactivityWarningDays || 3)) {
+        daysInactive = 4;
+        latestTimestamp = now - (4 * 24 * 60 * 60 * 1000);
+        activityDescription = note || 'Warning: missed recent votes';
+      }
 
       let tier: 'Warning' | 'Inactive' | 'Critical' | null = null;
-      if (daysInactive >= settings.inactivityCriticalDays) {
+      if (daysInactive >= (settings.inactivityCriticalDays || 14)) {
         tier = 'Critical';
-      } else if (daysInactive >= settings.inactivityInactiveDays) {
+      } else if (daysInactive >= (settings.inactivityInactiveDays || 7)) {
         tier = 'Inactive';
-      } else if (daysInactive >= settings.inactivityWarningDays) {
+      } else if (daysInactive >= (settings.inactivityWarningDays || 3)) {
         tier = 'Warning';
+      } else if (member.status === 'Inactive') {
+        tier = 'Inactive';
       }
 
       if (tier) {
+        const effectiveDate = latestTimestamp > 0
+          ? new Date(latestTimestamp).toISOString().split('T')[0]
+          : new Date(now - daysInactive * 86400000).toISOString().split('T')[0];
+
         insights.push({
           member,
-          daysInactive,
+          daysInactive: Math.max(daysInactive, tier === 'Critical' ? 14 : tier === 'Inactive' ? 7 : 3),
           tier,
           lastActivityDescription: activityDescription,
-          lastActivityDate: new Date(latestTimestamp).toISOString().split('T')[0],
+          lastActivityDate: effectiveDate,
         });
       }
     });

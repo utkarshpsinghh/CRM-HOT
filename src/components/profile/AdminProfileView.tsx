@@ -183,7 +183,7 @@ export const AdminProfileView: React.FC = () => {
                       : 'bg-stone-800 text-stone-300 border-stone-600/70'
                   }`}
                 >
-                  {isMainAdmin ? '👑 Main Admin' : '⚔️ Sub-Admin Officer'}
+                  {isMainAdmin ? '👑 Main Admin' : '⚔️ R4'}
                 </span>
               </div>
 
@@ -215,7 +215,7 @@ export const AdminProfileView: React.FC = () => {
             <Award className="w-4 h-4 text-amber-400" />
             <span>My Contribution Statistics</span>
           </h2>
-          <span className="text-xs text-stone-400 font-mono">Personal Telemetry Only</span>
+          <span className="text-xs text-stone-400 font-mono">Your Activity</span>
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
@@ -260,7 +260,7 @@ export const AdminProfileView: React.FC = () => {
             <div className="text-2xl font-fantasy font-black text-purple-300">
               {myStats.commsSum}
             </div>
-            <div className="text-[10px] text-stone-400">Dossier entries logged</div>
+            <div className="text-[10px] text-stone-400">Player notes logged</div>
           </div>
         </div>
       </div>
@@ -376,15 +376,15 @@ export const AdminProfileView: React.FC = () => {
             </div>
             <div className="flex items-center justify-between pt-1 border-t border-[#29150b]">
               <span>Officer Role:</span>
-              <span className="font-mono text-stone-200">{admin.role}</span>
+              <span className="font-mono text-stone-200">{admin.role === 'MainAdmin' ? 'Main Admin' : 'R4'}</span>
             </div>
             <div className="flex items-center justify-between">
-              <span>Token Vault:</span>
-              <span className="font-mono text-emerald-400">Authenticated</span>
+              <span>Login Status:</span>
+              <span className="font-mono text-emerald-400">Active</span>
             </div>
             <div className="flex items-center justify-between">
-              <span>Anti-Tamper Shield:</span>
-              <span className="font-mono text-amber-300">Active</span>
+              <span>Account Protection:</span>
+              <span className="font-mono text-amber-300">Secure</span>
             </div>
           </div>
         </div>

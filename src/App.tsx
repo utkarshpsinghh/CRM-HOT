@@ -54,7 +54,7 @@ const MainAppContent: React.FC = () => {
   }, []);
 
   if (authLoading) {
-    return <LoadingScreen message="Accessing Command Gateways..." subMessage="Authenticating officer session..." />;
+    return <LoadingScreen message="Loading..." />;
   }
 
   if (!isAuthenticated) {
@@ -66,11 +66,7 @@ const MainAppContent: React.FC = () => {
     return (
       <div className="min-h-screen bg-[#14110e]">
         <Header />
-        <LoadingScreen
-          message={syncStatus === 'syncing' ? 'Fetching Google Sheets Database...' : 'Loading HOT Alliance Roster...'}
-          subMessage="Retrieving live member participation, strikes, and war event telemetry..."
-          isSheetsSync={syncStatus === 'syncing'}
-        />
+        <LoadingScreen message="Loading..." />
       </div>
     );
   }
@@ -98,9 +94,9 @@ const MainAppContent: React.FC = () => {
 
       {/* Syncing live banner when fetching in background */}
       {isSyncingSheets && (
-        <div className="bg-[#451a03] border-b border-[#78350f] px-4 py-2 text-center text-xs text-[#fef08a] flex items-center justify-center gap-2">
+        <div className="bg-[#451a03] border-b border-[#78350f] px-4 py-1.5 text-center text-xs text-[#fef08a] flex items-center justify-center gap-2">
           <RefreshCw className="w-3.5 h-3.5 animate-spin text-[#fbbf24]" />
-          <span>Syncing latest records from Google Sheets database... Please wait.</span>
+          <span>Updating records...</span>
         </div>
       )}
 
