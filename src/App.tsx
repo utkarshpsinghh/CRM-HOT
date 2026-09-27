@@ -22,7 +22,7 @@ import { Member } from './types/crm';
 import { CheckCircle2, AlertTriangle, AlertCircle, Info, X, RefreshCw, Database } from 'lucide-react';
 
 const MainAppContent: React.FC = () => {
-  const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const { isAuthenticated, isLoading: authLoading, isMainAdmin } = useAuth();
   const {
     activeTab,
     selectedMemberForProfile,
@@ -125,7 +125,7 @@ const MainAppContent: React.FC = () => {
 
         {activeTab === 'activity' && <InactivityTrackerView />}
 
-        {activeTab === 'settings' && <SettingsView />}
+        {activeTab === 'settings' && isMainAdmin && <SettingsView />}
       </main>
 
       {/* Footer */}

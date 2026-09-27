@@ -58,21 +58,21 @@ export const Modal: React.FC<ModalProps> = ({
       {/* Modal Dialog */}
       <div
         className={clsx(
-          'relative w-full rounded-2xl bg-[#1c140e] border-2 border-[#522d14] shadow-[0_10px_40px_rgba(0,0,0,0.8),0_0_15px_rgba(202,138,4,0.15)] z-10 overflow-hidden my-8',
+          'relative w-full rounded-2xl bg-[#1c140e] border-2 border-[#522d14] shadow-[0_10px_40px_rgba(0,0,0,0.8),0_0_15px_rgba(202,138,4,0.15)] z-10 overflow-hidden my-2 sm:my-8 flex flex-col max-h-[92vh]',
           maxWidthClasses
         )}
       >
         {/* Header */}
-        <div className="px-5 py-4 bg-gradient-to-r from-[#2c190e] via-[#24160f] to-[#1c130d] border-b border-[#3e2716] flex items-center justify-between gap-3">
+        <div className="px-4 sm:px-5 py-3.5 sm:py-4 bg-gradient-to-r from-[#2c190e] via-[#24160f] to-[#1c130d] border-b border-[#3e2716] flex items-center justify-between gap-3 shrink-0">
           <div className="flex items-center gap-2.5 min-w-0">
             <div className="p-1.5 rounded-lg bg-[#522d14]/40 border border-[#ca8a04]/40 text-[#fef08a] shrink-0">
               {icon || <Shield className="w-5 h-5" />}
             </div>
             <div className="min-w-0">
-              <h3 className="font-fantasy font-black text-base sm:text-lg text-[#fef08a] tracking-wide truncate">
+              <h3 className="font-fantasy font-black text-sm sm:text-lg text-[#fef08a] tracking-wide truncate">
                 {title}
               </h3>
-              {subtitle && <p className="text-xs text-stone-400 truncate mt-0.5">{subtitle}</p>}
+              {subtitle && <p className="text-[11px] sm:text-xs text-stone-400 truncate mt-0.5">{subtitle}</p>}
             </div>
           </div>
           <button
@@ -88,7 +88,7 @@ export const Modal: React.FC<ModalProps> = ({
         </div>
 
         {/* Content */}
-        <div className="p-5 max-h-[80vh] overflow-y-auto">{children}</div>
+        <div className="p-4 sm:p-5 overflow-y-auto overscroll-contain flex-1">{children}</div>
       </div>
     </div>
   );

@@ -1,7 +1,7 @@
 import React from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useCRM } from '../../context/CRMContext';
-import { Volume2, VolumeX, LogOut, Castle, RefreshCw, Swords } from 'lucide-react';
+import { Volume2, VolumeX, LogOut, Castle, RefreshCw, Swords, ShieldCheck, Shield } from 'lucide-react';
 import { sounds } from '../../utils/sound';
 
 interface HeaderProps {
@@ -9,7 +9,7 @@ interface HeaderProps {
 }
 
 export const Header: React.FC<HeaderProps> = ({ onOpenCreateEvent }) => {
-  const { logout } = useAuth();
+  const { logout, admin, isMainAdmin } = useAuth();
   const {
     activeTab,
     setActiveTab,
@@ -33,33 +33,45 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCreateEvent }) => {
     { id: 'events', label: 'Events' },
     { id: 'attendance', label: 'Attendance' },
     { id: 'activity', label: 'Inactive', badge: inactiveInsights.length > 0 ? `${inactiveInsights.length}` : null },
-    { id: 'settings', label: 'Settings' },
+    ...(isMainAdmin ? [{ id: 'settings', label: 'Settings' }] : []),
   ];
 
   return (
     <header className="sticky top-0 z-40 bg-[#1c140e] border-b border-[#3d200e] shadow-md">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 h-16 flex items-center justify-between gap-3">
         {/* Left: Brand */}
         <div
           onClick={() => {
             sounds.playClick();
             setActiveTab('dashboard');
           }}
-          className="flex items-center gap-2.5 cursor-pointer select-none group shrink-0"
+          className="flex items-center gap-2 cursor-pointer select-none group shrink-0"
         >
-          <div className="w-9 h-9 rounded-lg bg-[#b45309] flex items-center justify-center text-[#fffbeb] shadow group-hover:scale-105 transition-transform">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-b from-[#b45309] to-[#78350f] flex items-center justify-center text-[#fffbeb] shadow group-hover:scale-105 transition-transform border border-[#f59e0b]/40">
             <Castle className="w-5 h-5 text-[#fffbeb]" />
           </div>
           <div>
-            <div className="font-bold text-lg text-[#fffbeb] tracking-tight leading-none group-hover:text-[#f59e0b] transition-colors">
-              HOT Alliance
+            <div className="flex items-center gap-1.5">
+              <span className="font-fantasy font-black text-base sm:text-lg text-[#fffbeb] tracking-wide group-hover:text-[#f59e0b] transition-colors">
+                HOT Alliance
+              </span>
+              {/* Role Badge */}
+              <span
+                className={`text-[9px] px-1.5 py-0.2 rounded-full font-bold uppercase tracking-wider border ${
+                  isMainAdmin
+                    ? 'bg-amber-950/80 text-amber-300 border-amber-600/60'
+                    : 'bg-stone-800/80 text-stone-300 border-stone-600/60'
+                }`}
+              >
+                {isMainAdmin ? 'Main Admin' : 'Officer'}
+              </span>
             </div>
             <div className="text-[10px] text-stone-400 font-medium">Kingshot CRM</div>
           </div>
         </div>
 
-        {/* Center: Clean Nav Links */}
-        <nav className="hidden md:flex items-center gap-1 sm:gap-2">
+        {/* Center: Desktop Nav Links */}
+        <nav className="hidden md:flex items-center gap-1">
           {navLinks.map(link => {
             const isActive = activeTab === link.id;
             return (
@@ -69,9 +81,9 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCreateEvent }) => {
                   sounds.playClick();
                   setActiveTab(link.id);
                 }}
-                className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all cursor-pointer select-none flex items-center gap-1.5 ${
+                className={`px-3 py-1.5 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer select-none flex items-center gap-1.5 ${
                   isActive
-                    ? 'bg-[#331c0d] text-[#fbbf24] shadow-sm'
+                    ? 'bg-[#331c0d] text-[#fbbf24] border border-[#522d14] shadow-sm'
                     : 'text-stone-300 hover:text-white hover:bg-[#26150a]'
                 }`}
               >
@@ -87,7 +99,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCreateEvent }) => {
         </nav>
 
         {/* Right Actions */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2">
           {/* Quick Create Event */}
           <button
             onClick={() => {
@@ -105,7 +117,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCreateEvent }) => {
           <button
             onClick={() => syncWithGoogleSheets()}
             disabled={isSyncingSheets}
-            className="p-2 rounded-lg bg-[#29160a] border border-[#42220d] text-amber-300 hover:text-white hover:border-[#b45309] transition-colors cursor-pointer disabled:opacity-50"
+            className="p-2 rounded-xl bg-[#29160a] border border-[#42220d] text-amber-300 hover:text-white hover:border-[#b45309] transition-colors cursor-pointer disabled:opacity-50"
             title="Sync with Google Sheets"
           >
             <RefreshCw className={`w-4 h-4 ${isSyncingSheets ? 'animate-spin text-amber-400' : ''}`} />
@@ -114,7 +126,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCreateEvent }) => {
           {/* Audio Toggle */}
           <button
             onClick={toggleSound}
-            className="p-2 rounded-lg bg-[#29160a] border border-[#42220d] text-stone-300 hover:text-[#fbbf24] transition-colors cursor-pointer"
+            className="p-2 rounded-xl bg-[#29160a] border border-[#42220d] text-stone-300 hover:text-[#fbbf24] transition-colors cursor-pointer"
             title={settings.soundEnabled ? 'Mute Audio' : 'Enable Audio'}
           >
             {settings.soundEnabled ? (
@@ -130,8 +142,8 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCreateEvent }) => {
               sounds.playClick();
               logout();
             }}
-            className="p-2 rounded-lg bg-[#29160a] border border-[#42220d] text-stone-300 hover:text-red-400 transition-colors cursor-pointer"
-            title="Logout"
+            className="p-2 rounded-xl bg-[#29160a] border border-[#42220d] text-stone-300 hover:text-red-400 transition-colors cursor-pointer"
+            title={`Log out (${admin?.username})`}
           >
             <LogOut className="w-4 h-4" />
           </button>

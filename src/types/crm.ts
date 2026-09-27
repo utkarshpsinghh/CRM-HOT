@@ -111,9 +111,21 @@ export interface DashboardStats {
   latestEventSummary?: AllianceEvent & EventAttendanceSummary;
 }
 
+export type AdminRole = 'MainAdmin' | 'SubAdmin';
+
+export interface AdminAccount {
+  id: string;
+  username: string;
+  password?: string;
+  role: AdminRole;
+  name?: string;
+  createdAt: string;
+}
+
 export interface AdminUser {
   id: string;
   username: string;
-  role: 'Leader' | 'Officer' | 'Admin';
+  role: AdminRole;
+  name?: string;
   token: string;
 }

@@ -1,5 +1,5 @@
-import { Member, AllianceEvent, AttendanceRecord, StrikeRecord, CommunicationRecord, AllianceSettings } from '../types/crm';
-import { initialMembers, initialEvents, generateInitialAttendance, initialStrikes, initialCommunications, initialSettings } from './mockData';
+import { Member, AllianceEvent, AttendanceRecord, StrikeRecord, CommunicationRecord, AllianceSettings, AdminAccount } from '../types/crm';
+import { initialMembers, initialEvents, generateInitialAttendance, initialStrikes, initialCommunications, initialSettings, initialAdmins } from './mockData';
 
 const STORAGE_KEYS = {
   MEMBERS: 'crm_hot_members_v1',
@@ -9,6 +9,7 @@ const STORAGE_KEYS = {
   COMMUNICATION: 'crm_hot_comms_v1',
   SETTINGS: 'crm_hot_settings_v1',
   ADMIN: 'crm_hot_auth_v1',
+  ADMIN_ACCOUNTS: 'crm_hot_admin_accounts_v1',
 };
 
 export const storageService = {
@@ -16,6 +17,9 @@ export const storageService = {
   init() {
     if (!localStorage.getItem(STORAGE_KEYS.MEMBERS)) {
       this.resetToDefaults();
+    }
+    if (!localStorage.getItem(STORAGE_KEYS.ADMIN_ACCOUNTS)) {
+      localStorage.setItem(STORAGE_KEYS.ADMIN_ACCOUNTS, JSON.stringify(initialAdmins));
     }
   },
 
@@ -27,6 +31,7 @@ export const storageService = {
     localStorage.setItem(STORAGE_KEYS.STRIKES, JSON.stringify(initialStrikes));
     localStorage.setItem(STORAGE_KEYS.COMMUNICATION, JSON.stringify(initialCommunications));
     localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(initialSettings));
+    localStorage.setItem(STORAGE_KEYS.ADMIN_ACCOUNTS, JSON.stringify(initialAdmins));
   },
 
   getMembers(): Member[] {
@@ -96,6 +101,40 @@ export const storageService = {
     }
   },
 
+  // Admin Account Management
+  getAdminAccounts(): AdminAccount[] {
+    const raw = localStorage.getItem(STORAGE_KEYS.ADMIN_ACCOUNTS);
+    return raw ? JSON.parse(raw) : initialAdmins;
+  },
+
+  setAdminAccounts(admins: AdminAccount[]) {
+    localStorage.setItem(STORAGE_KEYS.ADMIN_ACCOUNTS, JSON.stringify(admins));
+  },
+
+  createAdminAccount(data: Omit<AdminAccount, 'id' | 'createdAt'>): AdminAccount {
+    const admins = this.getAdminAccounts();
+    const newAdmin: AdminAccount = {
+      ...data,
+      id: `adm-${Date.now()}`,
+      createdAt: new Date().toISOString(),
+    };
+    admins.push(newAdmin);
+    this.setAdminAccounts(admins);
+    return newAdmin;
+  },
+
+  deleteAdminAccount(id: string): boolean {
+    const admins = this.getAdminAccounts();
+    // Cannot delete main admin
+    const target = admins.find(a => a.id === id);
+    if (!target || target.role === 'MainAdmin' || target.username.toLowerCase() === 'admin') {
+      return false;
+    }
+    const filtered = admins.filter(a => a.id !== id);
+    this.setAdminAccounts(filtered);
+    return true;
+  },
+
   exportDatabaseJSON(): string {
     const data = {
       members: this.getMembers(),
@@ -104,6 +143,7 @@ export const storageService = {
       strikes: this.getStrikes(),
       communications: this.getCommunications(),
       settings: this.getSettings(),
+      adminAccounts: this.getAdminAccounts().map(a => ({ id: a.id, username: a.username, role: a.role, name: a.name, createdAt: a.createdAt })),
       exportedAt: new Date().toISOString(),
       alliance: 'HOT Kingshot Alliance',
     };
@@ -119,6 +159,7 @@ export const storageService = {
       if (Array.isArray(data.strikes)) this.setStrikes(data.strikes);
       if (Array.isArray(data.communications)) this.setCommunications(data.communications);
       if (data.settings) this.setSettings(data.settings);
+      if (Array.isArray(data.adminAccounts)) this.setAdminAccounts(data.adminAccounts);
       return true;
     } catch {
       return false;

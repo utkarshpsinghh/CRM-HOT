@@ -7,6 +7,7 @@ import { sounds } from '../utils/sound';
 interface AuthContextType {
   admin: AdminUser | null;
   isAuthenticated: boolean;
+  isMainAdmin: boolean;
   isLoading: boolean;
   login: (username: string, pass: string, settings: AllianceSettings) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
@@ -49,11 +50,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     sounds.playClick();
   };
 
+  const isMainAdmin = Boolean(admin && admin.role === 'MainAdmin');
+
   return (
     <AuthContext.Provider
       value={{
         admin,
         isAuthenticated: Boolean(admin),
+        isMainAdmin,
         isLoading,
         login,
         logout,

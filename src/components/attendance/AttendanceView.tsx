@@ -202,8 +202,143 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
         </div>
       </div>
 
-      {/* Clean Attendance Table */}
-      <div className="rounded-xl bg-[#20150f] border border-[#4d2b14] overflow-hidden shadow-sm">
+      {/* Mobile Attendance Cards (Visible on screens < md) */}
+      <div className="block md:hidden space-y-3">
+        {categorizedRecords.length === 0 ? (
+          <div className="p-8 text-center text-stone-400 bg-[#20150f] rounded-2xl border border-[#4d2b14]">
+            No members in this category.
+          </div>
+        ) : (
+          categorizedRecords.map(record => {
+            const member = activeMembersMap.get(record.memberId);
+            if (!member) return null;
+
+            const isFlaked = record.voteStatus === 'YES' && record.attendanceStatus === 'DIDNT_JOIN';
+
+            return (
+              <div
+                key={record.id}
+                className={`p-3.5 rounded-2xl bg-[#20150f] border-2 space-y-2.5 transition-colors ${
+                  isFlaked ? 'border-red-600/70 bg-[#2a130f]' : 'border-[#4d2b14]'
+                }`}
+              >
+                {/* Header: Player Name + Rank */}
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span
+                      onClick={() => {
+                        sounds.playClick();
+                        setSelectedMemberForProfile(member);
+                      }}
+                      className="font-fantasy font-black text-sm text-[#fffbeb] hover:text-[#fbbf24] cursor-pointer truncate"
+                    >
+                      {member.name}
+                    </span>
+                    <RankBadge rank={member.currentRank} size="sm" />
+                  </div>
+
+                  {isFlaked && (
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-red-950 text-red-200 border border-red-500 font-bold shrink-0">
+                      ⚠️ Flaked
+                    </span>
+                  )}
+                </div>
+
+                {/* Vote Row */}
+                <div className="p-2 rounded-xl bg-[#140c08] border border-[#3d200e] flex items-center justify-between gap-2">
+                  <span className="text-[11px] font-bold text-stone-400 uppercase">Vote Cast:</span>
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => updateVote(currentEvent.id, member.id, 'YES')}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                        record.voteStatus === 'YES'
+                          ? 'bg-emerald-600 text-white shadow-sm'
+                          : 'bg-[#20150f] text-stone-400 hover:text-white'
+                      }`}
+                    >
+                      YES
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => updateVote(currentEvent.id, member.id, 'NO')}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                        record.voteStatus === 'NO'
+                          ? 'bg-red-700 text-white shadow-sm'
+                          : 'bg-[#20150f] text-stone-400 hover:text-white'
+                      }`}
+                    >
+                      NO
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => updateVote(currentEvent.id, member.id, 'NO RESPONSE')}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                        record.voteStatus === 'NO RESPONSE'
+                          ? 'bg-stone-700 text-stone-200'
+                          : 'bg-[#20150f] text-stone-500 hover:text-white'
+                      }`}
+                    >
+                      —
+                    </button>
+                  </div>
+                </div>
+
+                {/* Attendance Toggle Buttons */}
+                <div className="flex items-center gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => updateAttendance(currentEvent.id, member.id, 'JOINED')}
+                    className={`flex-1 py-2 rounded-xl text-xs font-fantasy font-black uppercase flex items-center justify-center gap-1.5 transition-all cursor-pointer select-none active:scale-95 ${
+                      record.attendanceStatus === 'JOINED'
+                        ? 'bg-emerald-600 text-white shadow-md border-2 border-emerald-400'
+                        : 'bg-[#140c08] border border-[#3d200e] text-stone-400 hover:text-emerald-300'
+                    }`}
+                  >
+                    <Check className="w-4 h-4 stroke-[3]" />
+                    <span>Joined Battle</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => updateAttendance(currentEvent.id, member.id, 'DIDNT_JOIN')}
+                    className={`flex-1 py-2 rounded-xl text-xs font-fantasy font-black uppercase flex items-center justify-center gap-1.5 transition-all cursor-pointer select-none active:scale-95 ${
+                      record.attendanceStatus === 'DIDNT_JOIN'
+                        ? 'bg-red-700 text-white shadow-md border-2 border-red-400'
+                        : 'bg-[#140c08] border border-[#3d200e] text-stone-400 hover:text-red-300'
+                    }`}
+                  >
+                    <X className="w-4 h-4 stroke-[3]" />
+                    <span>Missed</span>
+                  </button>
+                </div>
+
+                {/* Strike action if flaked */}
+                {isFlaked && (
+                  <div className="pt-1">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        onOpenAddStrike(
+                          member,
+                          `Missed ${currentEvent.eventType} after voting YES`
+                        )
+                      }
+                      className="w-full py-1.5 rounded-xl bg-red-950/80 border border-red-600 text-red-200 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer shadow-sm"
+                    >
+                      <Flame className="w-3.5 h-3.5 text-red-400" />
+                      <span>Issue Penalty Strike</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      {/* Desktop Attendance Table (Hidden on screens < md) */}
+      <div className="hidden md:block rounded-xl bg-[#20150f] border border-[#4d2b14] overflow-hidden shadow-sm">
         <table className="w-full text-left text-xs sm:text-sm">
           <thead className="bg-[#170e09] text-stone-300 font-semibold text-xs border-b border-[#3d200e]">
             <tr>

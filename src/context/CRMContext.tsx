@@ -8,6 +8,7 @@ import {
   AllianceSettings,
   DashboardStats,
   InactiveMemberInsight,
+  AdminAccount,
   VoteStatus,
   AttendanceStatus,
 } from '../types/crm';
@@ -32,6 +33,7 @@ interface CRMContextType {
   settings: AllianceSettings;
   inactiveInsights: InactiveMemberInsight[];
   stats: DashboardStats;
+  admins: AdminAccount[];
   syncStatus: 'connected' | 'demo' | 'syncing' | 'error';
   syncMessage: string;
   isLoading: boolean;
@@ -72,6 +74,8 @@ interface CRMContextType {
   removeStrike: (strikeId: string, memberId: string) => Promise<boolean>;
   addCommunication: (memberId: string, status: Member['communication'], note: string) => Promise<boolean>;
   updateSettings: (newSettings: AllianceSettings) => Promise<boolean>;
+  createAdminUser: (username: string, pass: string, name?: string) => Promise<boolean>;
+  deleteAdminUser: (adminId: string) => Promise<boolean>;
   testSheetsConnection: (url: string) => Promise<{ success: boolean; message: string }>;
   resetDatabase: () => void;
   exportDatabase: () => string;
@@ -89,6 +93,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
   const [strikes, setStrikes] = useState<StrikeRecord[]>([]);
   const [communications, setCommunications] = useState<CommunicationRecord[]>([]);
+  const [admins, setAdmins] = useState<AdminAccount[]>([]);
   const [settings, setSettings] = useState<AllianceSettings>(storageService.getSettings());
   const [syncStatus, setSyncStatus] = useState<'connected' | 'demo' | 'syncing' | 'error'>('demo');
   const [syncMessage, setSyncMessage] = useState<string>('Local Demo Mode');
@@ -101,6 +106,13 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [activeTab, setActiveTab] = useState<string>('dashboard');
   const [selectedMemberForProfile, setSelectedMemberForProfile] = useState<Member | null>(null);
   const [selectedEventIdForAttendance, setSelectedEventIdForAttendance] = useState<string | null>(null);
+
+  // Security guard: Non-MainAdmin cannot view Settings
+  useEffect(() => {
+    if (admin && admin.role !== 'MainAdmin' && activeTab === 'settings') {
+      setActiveTab('dashboard');
+    }
+  }, [admin, activeTab]);
 
   const [memberFilter, setMemberFilter] = useState({
     search: '',
@@ -139,12 +151,13 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setSyncStatus('syncing');
         setSyncMessage('Fetching Google Sheets records...');
         try {
-          const [mList, eList, aList, sList, cList] = await Promise.all([
+          const [mList, eList, aList, sList, cList, admList] = await Promise.all([
             apiService.getMembers(currentSettings),
             apiService.getEvents(currentSettings),
             apiService.getAttendance(undefined, currentSettings),
             storageService.getStrikes(),
             storageService.getCommunications(),
+            apiService.getAdmins(currentSettings),
           ]);
 
           // Only set if valid data received
@@ -154,6 +167,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             setAttendance(aList);
             setStrikes(sList);
             setCommunications(cList);
+            setAdmins(admList);
             setSyncStatus('connected');
             setSyncMessage('Google Sheets Live Connected');
             setLastSyncTime(new Date().toLocaleTimeString());
@@ -169,6 +183,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           setAttendance(storageService.getAttendance());
           setStrikes(storageService.getStrikes());
           setCommunications(storageService.getCommunications());
+          setAdmins(storageService.getAdminAccounts());
         } finally {
           setIsSyncingSheets(false);
         }
@@ -180,6 +195,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setAttendance(storageService.getAttendance());
         setStrikes(storageService.getStrikes());
         setCommunications(storageService.getCommunications());
+        setAdmins(storageService.getAdminAccounts());
       }
     } finally {
       setIsLoading(false);
@@ -531,6 +547,79 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
+  const createAdminUser = async (username: string, pass: string, name?: string): Promise<boolean> => {
+    if (!username.trim() || !pass.trim()) {
+      addToast({
+        type: 'warning',
+        title: 'Missing Details',
+        message: 'Username and password are required to create an officer account.',
+      });
+      return false;
+    }
+
+    const norm = username.trim().toLowerCase();
+    const existing = admins.find(a => a.username.toLowerCase() === norm);
+    if (existing) {
+      addToast({
+        type: 'error',
+        title: 'Username Exists',
+        message: `An admin account with username "${username}" already exists.`,
+      });
+      return false;
+    }
+
+    try {
+      const created = await apiService.createAdmin(
+        {
+          username: username.trim(),
+          password: pass.trim(),
+          role: 'SubAdmin',
+          name: name?.trim() || username.trim(),
+        },
+        settings
+      );
+      setAdmins(prev => [...prev.filter(a => a.id !== created.id), created]);
+      sounds.playSuccess();
+      addToast({
+        type: 'success',
+        title: 'Officer Admin Created',
+        message: `Admin account "${username}" created. (Cannot view Settings or create admins).`,
+      });
+      return true;
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      addToast({ type: 'error', title: 'Error Creating Admin', message: msg });
+      return false;
+    }
+  };
+
+  const deleteAdminUser = async (adminId: string): Promise<boolean> => {
+    try {
+      const success = await apiService.deleteAdmin(adminId, settings);
+      if (success) {
+        setAdmins(prev => prev.filter(a => a.id !== adminId));
+        sounds.playSuccess();
+        addToast({
+          type: 'success',
+          title: 'Officer Admin Removed',
+          message: 'Officer access has been revoked.',
+        });
+        return true;
+      } else {
+        addToast({
+          type: 'error',
+          title: 'Action Prohibited',
+          message: 'Cannot delete the Main Admin account.',
+        });
+        return false;
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      addToast({ type: 'error', title: 'Error Deleting Admin', message: msg });
+      return false;
+    }
+  };
+
   return (
     <CRMContext.Provider
       value={{
@@ -542,6 +631,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         settings,
         inactiveInsights,
         stats,
+        admins,
         syncStatus,
         syncMessage,
         isLoading,
@@ -569,6 +659,8 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         removeStrike,
         addCommunication,
         updateSettings,
+        createAdminUser,
+        deleteAdminUser,
         testSheetsConnection,
         resetDatabase,
         exportDatabase,

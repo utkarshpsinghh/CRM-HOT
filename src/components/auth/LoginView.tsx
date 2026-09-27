@@ -122,15 +122,27 @@ export const LoginView: React.FC = () => {
           </form>
 
           {/* Quick Demo Credentials Assistant */}
-          <div className="mt-6 pt-4 border-t border-[#3e2716] text-center">
-            <button
-              type="button"
-              onClick={() => handleQuickFill('admin', 'kingshot_hot')}
-              className="text-xs text-stone-400 hover:text-[#fef08a] transition-colors inline-flex items-center gap-1.5 cursor-pointer"
-            >
-              <Sparkles className="w-3.5 h-3.5 text-[#ca8a04]" />
-              <span>Fill Demo Login (<strong className="text-stone-300 font-mono">admin / kingshot_hot</strong>)</span>
-            </button>
+          <div className="mt-5 pt-3.5 border-t border-[#3e2716] space-y-2 text-center">
+            <div className="text-[11px] font-bold text-stone-400 uppercase tracking-wider flex items-center justify-center gap-1">
+              <Sparkles className="w-3 h-3 text-[#ca8a04]" />
+              <span>Quick Demo Accounts</span>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <button
+                type="button"
+                onClick={() => handleQuickFill('admin', 'kingshot_hot')}
+                className="flex-1 py-1.5 px-2.5 rounded-lg bg-[#120c08] border border-[#d97706]/60 text-xs text-amber-300 hover:bg-[#25150a] transition-all cursor-pointer font-bold"
+              >
+                👑 Main Admin (<span className="font-mono text-amber-200">admin</span>)
+              </button>
+              <button
+                type="button"
+                onClick={() => handleQuickFill('officer', 'hot123')}
+                className="flex-1 py-1.5 px-2.5 rounded-lg bg-[#120c08] border border-stone-600/60 text-xs text-stone-300 hover:bg-[#25150a] transition-all cursor-pointer font-bold"
+              >
+                ⚔️ Sub-Admin (<span className="font-mono text-stone-200">officer</span>)
+              </button>
+            </div>
           </div>
         </div>
       </div>

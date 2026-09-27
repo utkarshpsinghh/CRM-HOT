@@ -138,6 +138,8 @@ function doGet(e) {
       result = { status: 'success', data: fetchCommunications() };
     } else if (action === 'getSettings') {
       result = { status: 'success', data: fetchSettings() };
+    } else if (action === 'getAdmins') {
+      result = { status: 'success', data: fetchAdmins() };
     } else if (action === 'getDashboard') {
       result = { status: 'success', data: getDashboardData() };
     } else {
@@ -161,6 +163,14 @@ function doPost(e) {
     switch (action) {
       case 'login':
         result = handleLogin(body.username, body.password);
+        break;
+
+      case 'createAdmin':
+        result = handleCreateAdmin(body.admin);
+        break;
+
+      case 'deleteAdmin':
+        result = handleDeleteAdmin(body.adminId);
         break;
 
       case 'createMember':
@@ -682,3 +692,70 @@ function handleUpdateSettings(newSettings) {
   }
   return { status: 'success' };
 }
+
+// --------------------------------------------------------------------------
+// ADMINS
+// --------------------------------------------------------------------------
+function fetchAdmins() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(SHEET_NAMES.ADMINS);
+  if (!sheet || sheet.getLastRow() <= 1) return [];
+
+  const data = sheet.getDataRange().getValues();
+  const admins = [];
+
+  for (let i = 1; i < data.length; i++) {
+    const rawRole = String(data[i][3] || 'Officer');
+    const role = (rawRole === 'MainAdmin' || rawRole === 'Leader') ? 'MainAdmin' : 'SubAdmin';
+    admins.push({
+      id: String(data[i][0]),
+      username: String(data[i][1]),
+      role: role,
+      name: String(data[i][1]),
+      createdAt: new Date().toISOString()
+    });
+  }
+  return admins;
+}
+
+function handleCreateAdmin(adminData) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(SHEET_NAMES.ADMINS);
+  if (!sheet) return { status: 'error', message: 'Admins database sheet not found.' };
+
+  const admId = 'adm-' + Utilities.getUuid().substring(0, 8);
+  const hash = hashPassword(adminData.password || 'hot123');
+  const role = adminData.role === 'MainAdmin' ? 'Leader' : 'Officer';
+
+  sheet.appendRow([admId, adminData.username.trim(), hash, role]);
+  return {
+    status: 'success',
+    admin: {
+      id: admId,
+      username: adminData.username.trim(),
+      role: 'SubAdmin',
+      name: adminData.name || adminData.username.trim(),
+      createdAt: new Date().toISOString()
+    }
+  };
+}
+
+function handleDeleteAdmin(adminId) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(SHEET_NAMES.ADMINS);
+  if (!sheet) return { status: 'error', message: 'Admins database sheet not found.' };
+
+  const data = sheet.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][0]) === String(adminId)) {
+      const role = String(data[i][3]);
+      if (role === 'Leader' || role === 'MainAdmin' || String(data[i][1]).toLowerCase() === 'admin') {
+        return { status: 'error', message: 'Cannot delete the Main Admin account.' };
+      }
+      sheet.deleteRow(i + 1);
+      return { status: 'success' };
+    }
+  }
+  return { status: 'error', message: 'Admin account not found in database.' };
+}
+

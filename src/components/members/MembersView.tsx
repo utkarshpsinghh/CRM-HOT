@@ -214,8 +214,142 @@ export const MembersView: React.FC<MembersViewProps> = ({
         </button>
       </div>
 
-      {/* Clean Member Table */}
-      <div className="rounded-xl bg-[#20150f] border border-[#4d2b14] overflow-hidden shadow-sm">
+      {/* Mobile Member Cards (Visible on screens < md) */}
+      <div className="block md:hidden space-y-3">
+        {sortedMembers.length === 0 ? (
+          <div className="p-8 text-center text-stone-400 bg-[#20150f] rounded-2xl border border-[#4d2b14]">
+            No members found matching your search.
+          </div>
+        ) : (
+          sortedMembers.map(member => {
+            const isInactive = inactiveInsights.some(i => i.member.id === member.id);
+            const activityStatus = member.status === 'Archived'
+              ? 'Inactive'
+              : isInactive
+              ? 'Needs Attention'
+              : member.status === 'Inactive'
+              ? 'Inactive'
+              : 'Active';
+
+            const partStats = memberParticipationMap.get(member.id);
+            const partPct = partStats ? partStats.percentage : 0;
+            const joinedRatio = partStats ? `${partStats.joinedCount}/${partStats.totalEvents}` : '0/0';
+
+            return (
+              <div
+                key={member.id}
+                className="p-3.5 rounded-2xl bg-[#20150f] border-2 border-[#4d2b14] space-y-2.5 shadow-sm"
+              >
+                {/* Top row: Name, Rank, Status */}
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span
+                      onClick={() => {
+                        sounds.playClick();
+                        setSelectedMemberForProfile(member);
+                      }}
+                      className="font-fantasy font-black text-sm text-[#fffbeb] hover:text-[#fbbf24] cursor-pointer truncate"
+                    >
+                      {member.name}
+                    </span>
+                    <RankBadge rank={member.currentRank} size="sm" />
+                  </div>
+                  <ActivityBadge status={activityStatus} size="sm" />
+                </div>
+
+                {/* Middle row: Attendance bar & Strikes */}
+                <div className="p-2.5 rounded-xl bg-[#140c08] border border-[#3d200e] flex items-center justify-between gap-2">
+                  <div>
+                    <div className="text-[10px] uppercase font-bold text-stone-400">War Attendance</div>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      <span
+                        className={`font-mono font-bold text-xs ${
+                          partPct >= 75
+                            ? 'text-emerald-400'
+                            : partPct >= 50
+                            ? 'text-amber-400'
+                            : 'text-red-400'
+                        }`}
+                      >
+                        {partPct.toFixed(0)}%
+                      </span>
+                      <span className="text-[10px] text-stone-500 font-mono">
+                        ({joinedRatio} events)
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="text-right">
+                    <div className="text-[10px] uppercase font-bold text-stone-400">Strikes</div>
+                    <div className="mt-0.5">
+                      <StrikeBadge
+                        count={member.strikes}
+                        size="sm"
+                        onClick={() => {
+                          sounds.playClick();
+                          setSelectedMemberForProfile(member);
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Bottom row: Quick action buttons */}
+                <div className="flex items-center justify-end gap-2 pt-1 border-t border-[#3d200e]">
+                  <button
+                    onClick={() => {
+                      sounds.playClick();
+                      setSelectedMemberForProfile(member);
+                    }}
+                    className="flex-1 py-1.5 px-2 rounded-lg bg-[#170e09] border border-[#3d200e] text-stone-200 hover:text-white text-xs font-semibold flex items-center justify-center gap-1 cursor-pointer"
+                  >
+                    <Eye className="w-3.5 h-3.5 text-amber-400" />
+                    <span>Profile</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      sounds.playClick();
+                      onOpenAddStrike(member);
+                    }}
+                    className="flex-1 py-1.5 px-2 rounded-lg bg-red-950/40 border border-red-900/60 text-red-200 text-xs font-semibold flex items-center justify-center gap-1 cursor-pointer"
+                  >
+                    <Flame className="w-3.5 h-3.5 text-red-400" />
+                    <span>Strike</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      sounds.playClick();
+                      onOpenEditMember(member);
+                    }}
+                    className="p-1.5 rounded-lg bg-[#170e09] border border-[#3d200e] text-stone-300 hover:text-white cursor-pointer"
+                    title="Edit"
+                  >
+                    <Edit className="w-3.5 h-3.5" />
+                  </button>
+
+                  {member.status !== 'Archived' && (
+                    <button
+                      onClick={() => {
+                        sounds.playClick();
+                        setMemberToArchive(member);
+                      }}
+                      className="p-1.5 rounded-lg bg-[#170e09] border border-[#3d200e] text-stone-400 hover:text-red-400 cursor-pointer"
+                      title="Archive"
+                    >
+                      <Archive className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      {/* Desktop Member Table (Hidden on screens < md) */}
+      <div className="hidden md:block rounded-xl bg-[#20150f] border border-[#4d2b14] overflow-hidden shadow-sm">
         <table className="w-full text-left text-xs sm:text-sm">
           <thead className="bg-[#170e09] text-stone-300 font-semibold text-xs border-b border-[#3d200e]">
             <tr>

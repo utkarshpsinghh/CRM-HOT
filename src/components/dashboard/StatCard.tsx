@@ -10,6 +10,7 @@ interface StatCardProps {
   variant?: 'gold' | 'emerald' | 'crimson' | 'amber' | 'slate';
   onClick?: () => void;
   badge?: string;
+  className?: string;
 }
 
 export const StatCard: React.FC<StatCardProps> = ({
@@ -20,6 +21,7 @@ export const StatCard: React.FC<StatCardProps> = ({
   variant = 'gold',
   onClick,
   badge,
+  className,
 }) => {
   const variantStyles = {
     gold: {
@@ -60,7 +62,8 @@ export const StatCard: React.FC<StatCardProps> = ({
       className={clsx(
         'rounded-xl bg-[#20150f] border p-4 transition-all duration-150 select-none shadow-sm',
         variantStyles.border,
-        onClick ? 'cursor-pointer hover:border-[#b45309] hover:bg-[#271a13]' : ''
+        onClick ? 'cursor-pointer hover:border-[#b45309] hover:bg-[#271a13]' : '',
+        className
       )}
     >
       <div className="flex items-center justify-between gap-2 mb-2">

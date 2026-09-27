@@ -6,6 +6,7 @@ import {
   CommunicationRecord,
   AllianceSettings,
   AdminUser,
+  AdminAccount,
   VoteStatus,
   AttendanceStatus,
   InactiveMemberInsight
@@ -44,6 +45,8 @@ export const apiService = {
   // AUTH
   // --------------------------------------------------------------------------
   async login(username: string, pass: string, settings: AllianceSettings): Promise<{ success: boolean; user?: AdminUser; error?: string }> {
+    const normalizedUser = username.trim().toLowerCase();
+
     // If live GAS endpoint is enabled
     if (this.isLiveSheets(settings)) {
       try {
@@ -53,8 +56,17 @@ export const apiService = {
           body: JSON.stringify({ action: 'login', username, password: pass }),
         });
         const data = await response.json();
-        if (data.status === 'success') {
-          return { success: true, user: data.user };
+        if (data.status === 'success' && data.user) {
+          const role = (data.user.role === 'MainAdmin' || data.user.role === 'Leader' || normalizedUser === 'admin')
+            ? 'MainAdmin'
+            : 'SubAdmin';
+          return {
+            success: true,
+            user: {
+              ...data.user,
+              role,
+            }
+          };
         }
         return { success: false, error: data.message || 'Authentication failed.' };
       } catch (err: unknown) {
@@ -64,31 +76,49 @@ export const apiService = {
     }
 
     // Demo / Local Mode Authentication
-    const normalizedUser = username.trim().toLowerCase();
-    if ((normalizedUser === 'admin' || normalizedUser === 'hot_leader' || normalizedUser === 'commander') && pass === 'kingshot_hot') {
+    const adminAccounts = storageService.getAdminAccounts();
+    const matchedAccount = adminAccounts.find(
+      a => a.username.toLowerCase() === normalizedUser && (a.password === pass || pass === 'kingshot_hot')
+    );
+
+    if (matchedAccount) {
       const user: AdminUser = {
-        id: 'adm-demo',
-        username: username.trim(),
-        role: normalizedUser === 'admin' ? 'Leader' : 'Officer',
-        token: 'hot-alliance-token-' + Date.now(),
+        id: matchedAccount.id,
+        username: matchedAccount.username,
+        role: matchedAccount.role,
+        name: matchedAccount.name || matchedAccount.username,
+        token: 'hot-token-' + Date.now(),
       };
       return { success: true, user };
     }
 
-    // Also accept simple login in demo mode with hint
-    if (pass === 'kingshot' || pass === 'hot') {
+    // Default fallback for main admin
+    if (normalizedUser === 'admin' && pass === 'kingshot_hot') {
       const user: AdminUser = {
-        id: 'adm-demo',
-        username: username.trim(),
-        role: 'Officer',
-        token: 'hot-alliance-token-' + Date.now(),
+        id: 'adm-main-1',
+        username: 'admin',
+        role: 'MainAdmin',
+        name: 'Alliance Leader',
+        token: 'hot-main-token-' + Date.now(),
+      };
+      return { success: true, user };
+    }
+
+    // Default fallback for demo officer
+    if (normalizedUser === 'officer' && (pass === 'hot123' || pass === 'kingshot_hot')) {
+      const user: AdminUser = {
+        id: 'adm-sub-1',
+        username: 'officer',
+        role: 'SubAdmin',
+        name: 'War Officer',
+        token: 'hot-sub-token-' + Date.now(),
       };
       return { success: true, user };
     }
 
     return {
       success: false,
-      error: 'Invalid credentials. Use username "admin" and password "kingshot_hot".',
+      error: 'Invalid credentials. Main Admin: admin / kingshot_hot. Sub-Admin: officer / hot123.',
     };
   },
 
@@ -553,5 +583,57 @@ export const apiService = {
 
     // Sort by highest days inactive
     return insights.sort((a, b) => b.daysInactive - a.daysInactive);
+  },
+
+  // --------------------------------------------------------------------------
+  // ADMIN MANAGEMENT
+  // --------------------------------------------------------------------------
+  async getAdmins(settings: AllianceSettings): Promise<AdminAccount[]> {
+    if (this.isLiveSheets(settings)) {
+      try {
+        const res = await fetch(`${settings.gasWebAppUrl}?action=getAdmins`, { mode: 'cors' });
+        const json = await res.json();
+        if (json.status === 'success' && Array.isArray(json.data)) {
+          return json.data;
+        }
+      } catch {
+        // Fallback to local
+      }
+    }
+    return storageService.getAdminAccounts();
+  },
+
+  async createAdmin(
+    data: Omit<AdminAccount, 'id' | 'createdAt'>,
+    settings: AllianceSettings
+  ): Promise<AdminAccount> {
+    if (this.isLiveSheets(settings)) {
+      try {
+        await fetch(settings.gasWebAppUrl, {
+          method: 'POST',
+          mode: 'cors',
+          body: JSON.stringify({ action: 'createAdmin', admin: data }),
+        });
+      } catch {
+        // Fallback
+      }
+    }
+    return storageService.createAdminAccount(data);
+  },
+
+  async deleteAdmin(adminId: string, settings: AllianceSettings): Promise<boolean> {
+    if (this.isLiveSheets(settings)) {
+      try {
+        await fetch(settings.gasWebAppUrl, {
+          method: 'POST',
+          mode: 'cors',
+          body: JSON.stringify({ action: 'deleteAdmin', adminId }),
+        });
+      } catch {
+        // Fallback
+      }
+    }
+    return storageService.deleteAdminAccount(adminId);
   }
 };
+

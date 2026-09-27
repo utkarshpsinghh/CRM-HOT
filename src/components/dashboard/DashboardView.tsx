@@ -121,6 +121,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           subtitle="Across all war events"
           icon={<BarChart3 className="w-4 h-4" />}
           variant="slate"
+          className="col-span-2 sm:col-span-1 lg:col-span-1"
           onClick={() => {
             setActiveTab('attendance');
           }}
