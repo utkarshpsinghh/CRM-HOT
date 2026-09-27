@@ -11,6 +11,7 @@ interface AuthContextType {
   isLoading: boolean;
   login: (username: string, pass: string, settings: AllianceSettings) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
+  updateCurrentAdmin: (partial: Partial<AdminUser>) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -50,6 +51,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     sounds.playClick();
   };
 
+  const updateCurrentAdmin = (partial: Partial<AdminUser>) => {
+    if (!admin) return;
+    const updated = { ...admin, ...partial };
+    setAdmin(updated);
+    storageService.setAuth(updated);
+  };
+
   const isMainAdmin = Boolean(admin && admin.role === 'MainAdmin');
 
   return (
@@ -61,6 +69,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isLoading,
         login,
         logout,
+        updateCurrentAdmin,
       }}
     >
       {children}

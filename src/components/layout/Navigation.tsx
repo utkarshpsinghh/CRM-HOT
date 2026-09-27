@@ -1,7 +1,7 @@
 import React from 'react';
 import { useCRM } from '../../context/CRMContext';
 import { useAuth } from '../../context/AuthContext';
-import { Shield, Users, Swords, BarChart3, AlertTriangle, Settings } from 'lucide-react';
+import { Shield, Users, Swords, BarChart3, AlertTriangle, Settings, Award, User } from 'lucide-react';
 import { sounds } from '../../utils/sound';
 
 export const Navigation: React.FC = () => {
@@ -14,6 +14,8 @@ export const Navigation: React.FC = () => {
     { id: 'events', label: 'Events', icon: <Swords className="w-3.5 h-3.5" /> },
     { id: 'attendance', label: 'Attendance', icon: <BarChart3 className="w-3.5 h-3.5" /> },
     { id: 'activity', label: 'Inactive', icon: <AlertTriangle className="w-3.5 h-3.5" />, badge: inactiveInsights.length > 0 ? `${inactiveInsights.length}` : null },
+    { id: 'contributions', label: 'Contributions', icon: <Award className="w-3.5 h-3.5" /> },
+    { id: 'profile', label: 'Profile', icon: <User className="w-3.5 h-3.5" /> },
     ...(isMainAdmin ? [{ id: 'settings', label: 'Settings', icon: <Settings className="w-3.5 h-3.5" /> }] : []),
   ];
 

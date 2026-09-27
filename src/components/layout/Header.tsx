@@ -1,7 +1,7 @@
 import React from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useCRM } from '../../context/CRMContext';
-import { Volume2, VolumeX, LogOut, Castle, RefreshCw, Swords, ShieldCheck, Shield } from 'lucide-react';
+import { Volume2, VolumeX, LogOut, Castle, RefreshCw, Swords, ShieldCheck, Shield, User, Award } from 'lucide-react';
 import { sounds } from '../../utils/sound';
 
 interface HeaderProps {
@@ -33,6 +33,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCreateEvent }) => {
     { id: 'events', label: 'Events' },
     { id: 'attendance', label: 'Attendance' },
     { id: 'activity', label: 'Inactive', badge: inactiveInsights.length > 0 ? `${inactiveInsights.length}` : null },
+    { id: 'contributions', label: 'Contributions' },
     ...(isMainAdmin ? [{ id: 'settings', label: 'Settings' }] : []),
   ];
 
@@ -121,6 +122,23 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCreateEvent }) => {
             title="Sync with Google Sheets"
           >
             <RefreshCw className={`w-4 h-4 ${isSyncingSheets ? 'animate-spin text-amber-400' : ''}`} />
+          </button>
+
+          {/* Profile Quick Button */}
+          <button
+            onClick={() => {
+              sounds.playClick();
+              setActiveTab('profile');
+            }}
+            className={`p-2 rounded-xl border transition-colors cursor-pointer flex items-center gap-1.5 ${
+              activeTab === 'profile'
+                ? 'bg-[#331c0d] border-[#fbbf24] text-amber-300'
+                : 'bg-[#29160a] border-[#42220d] text-stone-300 hover:text-white hover:border-[#b45309]'
+            }`}
+            title={`My Profile (${admin?.name || admin?.username})`}
+          >
+            <User className="w-4 h-4 text-amber-400" />
+            <span className="hidden lg:inline text-xs font-bold">{admin?.name || admin?.username}</span>
           </button>
 
           {/* Audio Toggle */}

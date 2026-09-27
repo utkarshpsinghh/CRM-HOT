@@ -129,3 +129,36 @@ export interface AdminUser {
   name?: string;
   token: string;
 }
+
+export type ContributionActionType =
+  | 'ATTENDANCE_MARKED'
+  | 'ATTENDANCE_BULK'
+  | 'EVENT_CREATED'
+  | 'EVENT_COMPLETED'
+  | 'STRIKE_ADDED'
+  | 'STRIKE_REMOVED'
+  | 'MEMBER_ADDED'
+  | 'MEMBER_UPDATED'
+  | 'MEMBER_ARCHIVED'
+  | 'COMMUNICATION_LOGGED';
+
+export interface OfficerContribution {
+  id: string;
+  adminId: string;
+  adminUsername: string;
+  adminName: string;
+  adminRole: AdminRole;
+  action: ContributionActionType;
+  description: string;
+  targetName?: string;
+  count?: number;
+  timestamp: string;
+}
+
+export interface SecurityAuditLog {
+  id: string;
+  type: 'LOGIN_SUCCESS' | 'LOGIN_FAILED' | 'ACCOUNT_LOCKED' | 'LOGOUT' | 'PASSWORD_CHANGED' | 'SECURITY_WARNING';
+  username: string;
+  details: string;
+  timestamp: string;
+}

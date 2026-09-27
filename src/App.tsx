@@ -11,7 +11,10 @@ import { EventsView } from './components/events/EventsView';
 import { AttendanceView } from './components/attendance/AttendanceView';
 import { InactivityTrackerView } from './components/activity/InactivityTrackerView';
 import { SettingsView } from './components/settings/SettingsView';
+import { ContributionsView } from './components/contributions/ContributionsView';
+import { AdminProfileView } from './components/profile/AdminProfileView';
 import { LoadingScreen } from './components/common/LoadingScreen';
+import { setupClientProtection } from './utils/security';
 
 // Modals
 import { CreateEventModal } from './components/events/CreateEventModal';
@@ -43,6 +46,12 @@ const MainAppContent: React.FC = () => {
   const [isAddStrikeOpen, setIsAddStrikeOpen] = useState(false);
   const [strikeMember, setStrikeMember] = useState<Member | null>(null);
   const [strikeReason, setStrikeReason] = useState<string>('');
+
+  // Initialize client security protection against code inspection, right click, and hotkeys
+  React.useEffect(() => {
+    const cleanup = setupClientProtection();
+    return cleanup;
+  }, []);
 
   if (authLoading) {
     return <LoadingScreen message="Accessing Command Gateways..." subMessage="Authenticating officer session..." />;
@@ -124,6 +133,10 @@ const MainAppContent: React.FC = () => {
         )}
 
         {activeTab === 'activity' && <InactivityTrackerView />}
+
+        {activeTab === 'contributions' && <ContributionsView />}
+
+        {activeTab === 'profile' && <AdminProfileView />}
 
         {activeTab === 'settings' && isMainAdmin && <SettingsView />}
       </main>

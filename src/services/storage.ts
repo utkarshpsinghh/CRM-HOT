@@ -1,5 +1,5 @@
-import { Member, AllianceEvent, AttendanceRecord, StrikeRecord, CommunicationRecord, AllianceSettings, AdminAccount } from '../types/crm';
-import { initialMembers, initialEvents, generateInitialAttendance, initialStrikes, initialCommunications, initialSettings, initialAdmins } from './mockData';
+import { Member, AllianceEvent, AttendanceRecord, StrikeRecord, CommunicationRecord, AllianceSettings, AdminAccount, OfficerContribution } from '../types/crm';
+import { initialMembers, initialEvents, generateInitialAttendance, initialStrikes, initialCommunications, initialSettings, initialAdmins, initialContributions } from './mockData';
 
 const STORAGE_KEYS = {
   MEMBERS: 'crm_hot_members_v1',
@@ -10,6 +10,7 @@ const STORAGE_KEYS = {
   SETTINGS: 'crm_hot_settings_v1',
   ADMIN: 'crm_hot_auth_v1',
   ADMIN_ACCOUNTS: 'crm_hot_admin_accounts_v1',
+  CONTRIBUTIONS: 'crm_hot_contributions_v1',
 };
 
 export const storageService = {
@@ -20,6 +21,9 @@ export const storageService = {
     }
     if (!localStorage.getItem(STORAGE_KEYS.ADMIN_ACCOUNTS)) {
       localStorage.setItem(STORAGE_KEYS.ADMIN_ACCOUNTS, JSON.stringify(initialAdmins));
+    }
+    if (!localStorage.getItem(STORAGE_KEYS.CONTRIBUTIONS)) {
+      localStorage.setItem(STORAGE_KEYS.CONTRIBUTIONS, JSON.stringify(initialContributions));
     }
   },
 
@@ -32,6 +36,7 @@ export const storageService = {
     localStorage.setItem(STORAGE_KEYS.COMMUNICATION, JSON.stringify(initialCommunications));
     localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(initialSettings));
     localStorage.setItem(STORAGE_KEYS.ADMIN_ACCOUNTS, JSON.stringify(initialAdmins));
+    localStorage.setItem(STORAGE_KEYS.CONTRIBUTIONS, JSON.stringify(initialContributions));
   },
 
   getMembers(): Member[] {
@@ -135,6 +140,46 @@ export const storageService = {
     return true;
   },
 
+  updateAdminPassword(adminId: string, newPass: string): boolean {
+    const admins = this.getAdminAccounts();
+    const target = admins.find(a => a.id === adminId);
+    if (!target) return false;
+    target.password = newPass;
+    this.setAdminAccounts(admins);
+    return true;
+  },
+
+  updateAdminProfile(adminId: string, name: string): boolean {
+    const admins = this.getAdminAccounts();
+    const target = admins.find(a => a.id === adminId);
+    if (!target) return false;
+    target.name = name;
+    this.setAdminAccounts(admins);
+    return true;
+  },
+
+  // Contributions Management
+  getContributions(): OfficerContribution[] {
+    const raw = localStorage.getItem(STORAGE_KEYS.CONTRIBUTIONS);
+    return raw ? JSON.parse(raw) : initialContributions;
+  },
+
+  setContributions(contributions: OfficerContribution[]) {
+    localStorage.setItem(STORAGE_KEYS.CONTRIBUTIONS, JSON.stringify(contributions));
+  },
+
+  recordContribution(data: Omit<OfficerContribution, 'id' | 'timestamp'>): OfficerContribution {
+    const list = this.getContributions();
+    const newEntry: OfficerContribution = {
+      ...data,
+      id: `cnt-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      timestamp: new Date().toISOString(),
+    };
+    list.unshift(newEntry);
+    this.setContributions(list);
+    return newEntry;
+  },
+
   exportDatabaseJSON(): string {
     const data = {
       members: this.getMembers(),
@@ -142,6 +187,7 @@ export const storageService = {
       attendance: this.getAttendance(),
       strikes: this.getStrikes(),
       communications: this.getCommunications(),
+      contributions: this.getContributions(),
       settings: this.getSettings(),
       adminAccounts: this.getAdminAccounts().map(a => ({ id: a.id, username: a.username, role: a.role, name: a.name, createdAt: a.createdAt })),
       exportedAt: new Date().toISOString(),
@@ -158,6 +204,7 @@ export const storageService = {
       if (Array.isArray(data.attendance)) this.setAttendance(data.attendance);
       if (Array.isArray(data.strikes)) this.setStrikes(data.strikes);
       if (Array.isArray(data.communications)) this.setCommunications(data.communications);
+      if (Array.isArray(data.contributions)) this.setContributions(data.contributions);
       if (data.settings) this.setSettings(data.settings);
       if (Array.isArray(data.adminAccounts)) this.setAdminAccounts(data.adminAccounts);
       return true;

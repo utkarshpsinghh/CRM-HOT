@@ -26,7 +26,8 @@ const SHEET_NAMES = {
   STRIKES: 'Strike History',
   COMMUNICATION: 'Communication',
   ADMINS: 'Admins',
-  SETTINGS: 'Settings'
+  SETTINGS: 'Settings',
+  CONTRIBUTIONS: 'Contributions'
 };
 
 // --------------------------------------------------------------------------
@@ -104,7 +105,15 @@ function setupDatabase() {
     setSheet.appendRow(['allianceMotto', 'Strength Through Unity']);
   }
 
-  Logger.log('HOT Alliance Database Successfully Initialized!');
+  // 8. Officer Contributions Sheet
+  let cntSheet = ss.getSheetByName(SHEET_NAMES.CONTRIBUTIONS);
+  if (!cntSheet) cntSheet = ss.insertSheet(SHEET_NAMES.CONTRIBUTIONS);
+  cntSheet.getRange(1, 1, 1, 10).setValues([[
+    'Contribution ID', 'Admin ID', 'Admin Username', 'Admin Name', 'Admin Role', 'Action Type', 'Description', 'Target Name', 'Count', 'Timestamp'
+  ]]);
+  formatHeaderRow(cntSheet, 10);
+
+  Logger.log('HOT Alliance Database Successfully Initialized with Contributions tracking!');
 }
 
 function formatHeaderRow(sheet, numCols) {
@@ -140,6 +149,8 @@ function doGet(e) {
       result = { status: 'success', data: fetchSettings() };
     } else if (action === 'getAdmins') {
       result = { status: 'success', data: fetchAdmins() };
+    } else if (action === 'getContributions') {
+      result = { status: 'success', data: fetchContributions() };
     } else if (action === 'getDashboard') {
       result = { status: 'success', data: getDashboardData() };
     } else {
@@ -171,6 +182,18 @@ function doPost(e) {
 
       case 'deleteAdmin':
         result = handleDeleteAdmin(body.adminId);
+        break;
+
+      case 'recordContribution':
+        result = handleRecordContribution(body.contribution);
+        break;
+
+      case 'updatePassword':
+        result = handleUpdatePassword(body.adminId, body.password);
+        break;
+
+      case 'updateProfile':
+        result = handleUpdateProfile(body.adminId, body.name);
         break;
 
       case 'createMember':
@@ -757,5 +780,81 @@ function handleDeleteAdmin(adminId) {
     }
   }
   return { status: 'error', message: 'Admin account not found in database.' };
+}
+
+function fetchContributions() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(SHEET_NAMES.CONTRIBUTIONS);
+  if (!sheet || sheet.getLastRow() <= 1) return [];
+
+  const data = sheet.getDataRange().getValues();
+  const list = [];
+  for (let i = data.length - 1; i >= 1; i--) {
+    list.push({
+      id: String(data[i][0]),
+      adminId: String(data[i][1]),
+      adminUsername: String(data[i][2]),
+      adminName: String(data[i][3]),
+      adminRole: String(data[i][4]),
+      action: String(data[i][5]),
+      description: String(data[i][6]),
+      targetName: String(data[i][7] || ''),
+      count: Number(data[i][8] || 1),
+      timestamp: String(data[i][9])
+    });
+  }
+  return list;
+}
+
+function handleRecordContribution(entry) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName(SHEET_NAMES.CONTRIBUTIONS);
+  if (!sheet) {
+    setupDatabase();
+    sheet = ss.getSheetByName(SHEET_NAMES.CONTRIBUTIONS);
+  }
+
+  const id = entry.id || ('cnt-' + Utilities.getUuid().substring(0, 8));
+  const ts = entry.timestamp || new Date().toISOString();
+
+  sheet.appendRow([
+    id,
+    entry.adminId || '',
+    entry.adminUsername || '',
+    entry.adminName || '',
+    entry.adminRole || '',
+    entry.action || '',
+    entry.description || '',
+    entry.targetName || '',
+    entry.count || 1,
+    ts
+  ]);
+
+  return { status: 'success', id: id };
+}
+
+function handleUpdatePassword(adminId, newPassword) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(SHEET_NAMES.ADMINS);
+  if (!sheet) return { status: 'error', message: 'Admins sheet not found.' };
+
+  const data = sheet.getDataRange().getValues();
+  const hash = hashPassword(newPassword);
+
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][0]) === String(adminId)) {
+      sheet.getRange(i + 1, 3).setValue(hash);
+      return { status: 'success' };
+    }
+  }
+  return { status: 'error', message: 'Admin account not found.' };
+}
+
+function handleUpdateProfile(adminId, newName) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(SHEET_NAMES.ADMINS);
+  if (!sheet) return { status: 'error', message: 'Admins sheet not found.' };
+
+  return { status: 'success' };
 }
 

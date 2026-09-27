@@ -11,6 +11,8 @@ import {
   AdminAccount,
   VoteStatus,
   AttendanceStatus,
+  OfficerContribution,
+  ContributionActionType,
 } from '../types/crm';
 import { storageService } from '../services/storage';
 import { apiService } from '../services/api';
@@ -34,6 +36,7 @@ interface CRMContextType {
   inactiveInsights: InactiveMemberInsight[];
   stats: DashboardStats;
   admins: AdminAccount[];
+  contributions: OfficerContribution[];
   syncStatus: 'connected' | 'demo' | 'syncing' | 'error';
   syncMessage: string;
   isLoading: boolean;
@@ -63,6 +66,9 @@ interface CRMContextType {
   // Operations
   refreshData: () => Promise<void>;
   syncWithGoogleSheets: () => Promise<boolean>;
+  logContribution: (action: ContributionActionType, desc: string, targetName?: string, count?: number) => Promise<void>;
+  updateMyPassword: (newPass: string) => Promise<boolean>;
+  updateMyProfileName: (newName: string) => Promise<boolean>;
   createMember: (data: Omit<Member, 'id' | 'createdAt' | 'updatedAt' | 'strikes'>) => Promise<boolean>;
   updateMember: (member: Member) => Promise<boolean>;
   archiveMember: (memberId: string) => Promise<boolean>;
@@ -87,13 +93,14 @@ interface CRMContextType {
 const CRMContext = createContext<CRMContextType | undefined>(undefined);
 
 export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { admin } = useAuth();
+  const { admin, updateCurrentAdmin } = useAuth();
   const [members, setMembers] = useState<Member[]>([]);
   const [events, setEvents] = useState<AllianceEvent[]>([]);
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
   const [strikes, setStrikes] = useState<StrikeRecord[]>([]);
   const [communications, setCommunications] = useState<CommunicationRecord[]>([]);
   const [admins, setAdmins] = useState<AdminAccount[]>([]);
+  const [contributions, setContributions] = useState<OfficerContribution[]>([]);
   const [settings, setSettings] = useState<AllianceSettings>(storageService.getSettings());
   const [syncStatus, setSyncStatus] = useState<'connected' | 'demo' | 'syncing' | 'error'>('demo');
   const [syncMessage, setSyncMessage] = useState<string>('Local Demo Mode');
@@ -151,13 +158,14 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setSyncStatus('syncing');
         setSyncMessage('Fetching Google Sheets records...');
         try {
-          const [mList, eList, aList, sList, cList, admList] = await Promise.all([
+          const [mList, eList, aList, sList, cList, admList, cntList] = await Promise.all([
             apiService.getMembers(currentSettings),
             apiService.getEvents(currentSettings),
             apiService.getAttendance(undefined, currentSettings),
             storageService.getStrikes(),
             storageService.getCommunications(),
             apiService.getAdmins(currentSettings),
+            apiService.getContributions(currentSettings),
           ]);
 
           // Only set if valid data received
@@ -168,6 +176,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             setStrikes(sList);
             setCommunications(cList);
             setAdmins(admList);
+            setContributions(cntList);
             setSyncStatus('connected');
             setSyncMessage('Google Sheets Live Connected');
             setLastSyncTime(new Date().toLocaleTimeString());
@@ -184,6 +193,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           setStrikes(storageService.getStrikes());
           setCommunications(storageService.getCommunications());
           setAdmins(storageService.getAdminAccounts());
+          setContributions(storageService.getContributions());
         } finally {
           setIsSyncingSheets(false);
         }
@@ -196,6 +206,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setStrikes(storageService.getStrikes());
         setCommunications(storageService.getCommunications());
         setAdmins(storageService.getAdminAccounts());
+        setContributions(storageService.getContributions());
       }
     } finally {
       setIsLoading(false);
@@ -311,6 +322,77 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
   }, [members, events, attendance, inactiveInsights]);
 
+  // Contribution and Officer Tracking Helper
+  const logContribution = useCallback(
+    async (
+      action: ContributionActionType,
+      desc: string,
+      targetName?: string,
+      count: number = 1
+    ) => {
+      if (!admin) return;
+      try {
+        const entry = await apiService.recordContribution(
+          {
+            adminId: admin.id,
+            adminUsername: admin.username,
+            adminName: admin.name || admin.username,
+            adminRole: admin.role,
+            action,
+            description: desc,
+            targetName,
+            count,
+          },
+          settings
+        );
+        setContributions(prev => [entry, ...prev]);
+      } catch (err) {
+        console.error('Failed to log contribution:', err);
+      }
+    },
+    [admin, settings]
+  );
+
+  const updateMyPassword = async (newPass: string): Promise<boolean> => {
+    if (!admin) return false;
+    try {
+      const ok = await apiService.updateAdminPassword(admin.id, newPass, settings);
+      if (ok) {
+        sounds.playSuccess();
+        addToast({
+          type: 'success',
+          title: 'Password Updated',
+          message: 'Your administrator password has been updated securely.',
+        });
+        return true;
+      }
+      return false;
+    } catch {
+      return false;
+    }
+  };
+
+  const updateMyProfileName = async (newName: string): Promise<boolean> => {
+    if (!admin) return false;
+    try {
+      const ok = await apiService.updateAdminProfile(admin.id, newName, settings);
+      if (ok) {
+        updateCurrentAdmin({ name: newName });
+        setAdmins(prev => prev.map(a => a.id === admin.id ? { ...a, name: newName } : a));
+        sounds.playSuccess();
+        addToast({
+          type: 'success',
+          title: 'Profile Updated',
+          message: `Your officer display name is now "${newName}".`,
+        });
+        return true;
+      }
+      return false;
+    } catch {
+      return false;
+    }
+  };
+
   // Operations
   const createMember = async (data: Omit<Member, 'id' | 'createdAt' | 'updatedAt' | 'strikes'>) => {
     try {
@@ -330,6 +412,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       storageService.setAttendance([...newAttendanceRows, ...currentAttendance]);
       setAttendance(storageService.getAttendance());
 
+      await logContribution('MEMBER_ADDED', `Enrolled member ${created.name} (${created.currentRank})`, created.name, 1);
       sounds.playSuccess();
       addToast({
         type: 'success',
@@ -352,6 +435,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       await apiService.updateMember(member, settings);
       setMembers(prev => prev.map(m => (m.id === member.id ? member : m)));
+      await logContribution('MEMBER_UPDATED', `Updated dossier for ${member.name}`, member.name, 1);
       sounds.playSuccess();
       addToast({
         type: 'success',
@@ -372,10 +456,12 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const archiveMember = async (memberId: string) => {
     try {
+      const target = members.find(m => m.id === memberId);
       await apiService.archiveMember(memberId, settings);
       setMembers(prev =>
         prev.map(m => (m.id === memberId ? { ...m, status: 'Archived' as const } : m))
       );
+      await logContribution('MEMBER_ARCHIVED', `Archived member ${target?.name || memberId}`, target?.name, 1);
       sounds.playClick();
       addToast({
         type: 'warning',
@@ -394,6 +480,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const created = await apiService.createEvent(data, members, settings);
       setEvents(prev => [created, ...prev]);
       setAttendance(storageService.getAttendance());
+      await logContribution('EVENT_CREATED', `Scheduled battle event: ${created.eventName} (${created.eventType})`, created.eventName, 1);
       sounds.playSuccess();
       addToast({
         type: 'success',
@@ -416,12 +503,18 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     sounds.playClick();
     await apiService.updateVote(eventId, memberId, vote, settings);
     setAttendance(storageService.getAttendance());
+    const targetEvt = events.find(e => e.id === eventId);
+    const targetMem = members.find(m => m.id === memberId);
+    await logContribution('ATTENDANCE_MARKED', `Updated vote to ${vote} for ${targetMem?.name || 'member'} in ${targetEvt?.eventName || 'event'}`, targetEvt?.eventName, 1);
   };
 
   const updateAttendance = async (eventId: string, memberId: string, att: AttendanceStatus) => {
     sounds.playClick();
     await apiService.updateAttendance(eventId, memberId, att, settings);
     setAttendance(storageService.getAttendance());
+    const targetEvt = events.find(e => e.id === eventId);
+    const targetMem = members.find(m => m.id === memberId);
+    await logContribution('ATTENDANCE_MARKED', `Marked attendance (${att}) for ${targetMem?.name || 'member'} in ${targetEvt?.eventName || 'event'}`, targetEvt?.eventName, 1);
   };
 
   const bulkUpdateAttendance = async (
@@ -431,6 +524,8 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     sounds.playSuccess();
     await apiService.bulkUpdateAttendance(eventId, updates, settings);
     setAttendance(storageService.getAttendance());
+    const targetEvt = events.find(e => e.id === eventId);
+    await logContribution('ATTENDANCE_BULK', `Bulk recorded attendance checks for ${updates.length} members`, targetEvt?.eventName, updates.length);
     addToast({
       type: 'success',
       title: 'Bulk Roster Updated',
@@ -445,6 +540,8 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const record = await apiService.addStrike(memberId, reason, adminName, settings);
       setStrikes(prev => [record, ...prev]);
       setMembers(storageService.getMembers());
+      const targetMem = members.find(m => m.id === memberId);
+      await logContribution('STRIKE_ADDED', `Issued strike to ${targetMem?.name || 'member'}: "${reason}"`, targetMem?.name, 1);
       addToast({
         type: 'warning',
         title: '⚠️ Strike Issued',
@@ -462,6 +559,8 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       await apiService.removeStrike(strikeId, memberId, settings);
       setStrikes(prev => prev.filter(s => s.id !== strikeId));
       setMembers(storageService.getMembers());
+      const targetMem = members.find(m => m.id === memberId);
+      await logContribution('STRIKE_REMOVED', `Pardoned strike for ${targetMem?.name || 'member'}`, targetMem?.name, 1);
       addToast({
         type: 'info',
         title: 'Strike Pardoned',
@@ -480,6 +579,8 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const record = await apiService.addCommunication(memberId, status, note, adminName, settings);
       setCommunications(prev => [record, ...prev]);
       setMembers(storageService.getMembers());
+      const targetMem = members.find(m => m.id === memberId);
+      await logContribution('COMMUNICATION_LOGGED', `Recorded ${status} communication note for ${targetMem?.name || 'member'}`, targetMem?.name, 1);
       addToast({
         type: 'success',
         title: 'Communication Dispatched',
@@ -632,6 +733,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         inactiveInsights,
         stats,
         admins,
+        contributions,
         syncStatus,
         syncMessage,
         isLoading,
@@ -648,6 +750,9 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setMemberFilter,
         refreshData,
         syncWithGoogleSheets,
+        logContribution,
+        updateMyPassword,
+        updateMyProfileName,
         createMember,
         updateMember,
         archiveMember,

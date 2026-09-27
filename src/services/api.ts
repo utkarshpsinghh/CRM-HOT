@@ -9,9 +9,11 @@ import {
   AdminAccount,
   VoteStatus,
   AttendanceStatus,
-  InactiveMemberInsight
+  InactiveMemberInsight,
+  OfficerContribution,
 } from '../types/crm';
 import { storageService } from './storage';
+import { getLoginAttemptState, recordFailedAttempt, resetLoginAttempts, addSecurityLog } from '../utils/security';
 
 export const apiService = {
   // Check if live Google Sheets backend should be used
@@ -47,6 +49,18 @@ export const apiService = {
   async login(username: string, pass: string, settings: AllianceSettings): Promise<{ success: boolean; user?: AdminUser; error?: string }> {
     const normalizedUser = username.trim().toLowerCase();
 
+    // Check brute-force lockout status
+    const attemptState = getLoginAttemptState();
+    if (attemptState.isLocked) {
+      const minutes = Math.floor(attemptState.remainingSeconds / 60);
+      const seconds = attemptState.remainingSeconds % 60;
+      const formatted = `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+      return {
+        success: false,
+        error: `Account temporarily locked due to repeated failed attempts. Please wait ${formatted} before trying again.`,
+      };
+    }
+
     // If live GAS endpoint is enabled
     if (this.isLiveSheets(settings)) {
       try {
@@ -57,6 +71,7 @@ export const apiService = {
         });
         const data = await response.json();
         if (data.status === 'success' && data.user) {
+          resetLoginAttempts(normalizedUser);
           const role = (data.user.role === 'MainAdmin' || data.user.role === 'Leader' || normalizedUser === 'admin')
             ? 'MainAdmin'
             : 'SubAdmin';
@@ -68,7 +83,12 @@ export const apiService = {
             }
           };
         }
-        return { success: false, error: data.message || 'Authentication failed.' };
+        const state = recordFailedAttempt(normalizedUser);
+        const rem = Math.max(0, 4 - state.attempts);
+        return {
+          success: false,
+          error: data.message || (rem > 0 ? `Authentication failed. ${rem} attempts remaining before temporary lockout.` : 'Account locked due to multiple failed attempts.'),
+        };
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err);
         return { success: false, error: `Connection error: ${msg}. Try Demo Mode.` };
@@ -82,6 +102,7 @@ export const apiService = {
     );
 
     if (matchedAccount) {
+      resetLoginAttempts(normalizedUser);
       const user: AdminUser = {
         id: matchedAccount.id,
         username: matchedAccount.username,
@@ -94,6 +115,7 @@ export const apiService = {
 
     // Default fallback for main admin
     if (normalizedUser === 'admin' && pass === 'kingshot_hot') {
+      resetLoginAttempts(normalizedUser);
       const user: AdminUser = {
         id: 'adm-main-1',
         username: 'admin',
@@ -106,6 +128,7 @@ export const apiService = {
 
     // Default fallback for demo officer
     if (normalizedUser === 'officer' && (pass === 'hot123' || pass === 'kingshot_hot')) {
+      resetLoginAttempts(normalizedUser);
       const user: AdminUser = {
         id: 'adm-sub-1',
         username: 'officer',
@@ -116,9 +139,18 @@ export const apiService = {
       return { success: true, user };
     }
 
+    const state = recordFailedAttempt(normalizedUser);
+    if (state.isLocked) {
+      return {
+        success: false,
+        error: `Account locked due to 4 consecutive failed attempts. Please wait 3 minutes.`,
+      };
+    }
+
+    const remaining = 4 - state.attempts;
     return {
       success: false,
-      error: 'Invalid credentials. Main Admin: admin / kingshot_hot. Sub-Admin: officer / hot123.',
+      error: `Invalid credentials. ${remaining} attempt${remaining === 1 ? '' : 's'} remaining before temporary security lockout.`,
     };
   },
 
@@ -634,6 +666,75 @@ export const apiService = {
       }
     }
     return storageService.deleteAdminAccount(adminId);
+  },
+
+  // --------------------------------------------------------------------------
+  // CONTRIBUTIONS & AUDIT
+  // --------------------------------------------------------------------------
+  async getContributions(settings: AllianceSettings): Promise<OfficerContribution[]> {
+    if (this.isLiveSheets(settings)) {
+      try {
+        const res = await fetch(`${settings.gasWebAppUrl}?action=getContributions`, { mode: 'cors' });
+        const json = await res.json();
+        if (json.status === 'success' && Array.isArray(json.data)) {
+          return json.data;
+        }
+      } catch {
+        // Fallback
+      }
+    }
+    return storageService.getContributions();
+  },
+
+  async recordContribution(
+    data: Omit<OfficerContribution, 'id' | 'timestamp'>,
+    settings: AllianceSettings
+  ): Promise<OfficerContribution> {
+    const entry = storageService.recordContribution(data);
+    if (this.isLiveSheets(settings)) {
+      try {
+        await fetch(settings.gasWebAppUrl, {
+          method: 'POST',
+          mode: 'cors',
+          body: JSON.stringify({ action: 'recordContribution', contribution: entry }),
+        });
+      } catch {
+        // Logged locally
+      }
+    }
+    return entry;
+  },
+
+  async updateAdminPassword(adminId: string, newPass: string, settings: AllianceSettings): Promise<boolean> {
+    const success = storageService.updateAdminPassword(adminId, newPass);
+    if (success && this.isLiveSheets(settings)) {
+      try {
+        await fetch(settings.gasWebAppUrl, {
+          method: 'POST',
+          mode: 'cors',
+          body: JSON.stringify({ action: 'updatePassword', adminId, password: newPass }),
+        });
+      } catch {
+        // Local only
+      }
+    }
+    return success;
+  },
+
+  async updateAdminProfile(adminId: string, name: string, settings: AllianceSettings): Promise<boolean> {
+    const success = storageService.updateAdminProfile(adminId, name);
+    if (success && this.isLiveSheets(settings)) {
+      try {
+        await fetch(settings.gasWebAppUrl, {
+          method: 'POST',
+          mode: 'cors',
+          body: JSON.stringify({ action: 'updateProfile', adminId, name }),
+        });
+      } catch {
+        // Local only
+      }
+    }
+    return success;
   }
 };
 
