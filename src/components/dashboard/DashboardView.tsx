@@ -4,7 +4,6 @@ import { StatCard } from './StatCard';
 import { AlertsBanner } from './AlertsBanner';
 import { EventOverviewCard } from './EventOverviewCard';
 import { RecentEventsList } from './RecentEventsList';
-import { GameButton } from '../common/GameButton';
 import {
   Users,
   ShieldCheck,
@@ -12,9 +11,10 @@ import {
   Flame,
   Clock,
   Swords,
-  PlusCircle,
+  UserPlus,
   BarChart3,
   Sparkles,
+  ArrowRight,
 } from 'lucide-react';
 import { sounds } from '../../utils/sound';
 
@@ -30,55 +30,94 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const { stats, events, setActiveTab, setMemberFilter } = useCRM();
 
   return (
-    <div className="space-y-6">
-      {/* Alliance War-Room Banner Header (Section 6 & 38) */}
-      <div className="relative rounded-2xl bg-gradient-to-r from-[#2a1315] via-[#1a1e2d] to-[#121622] border-2 border-[#ca8a04] p-5 sm:p-7 shadow-[0_0_30px_rgba(202,138,4,0.25)] overflow-hidden">
-        {/* Filigree corner decorations */}
-        <div className="absolute top-2 left-2 w-4 h-4 border-t-2 border-l-2 border-[#fef08a]" />
-        <div className="absolute top-2 right-2 w-4 h-4 border-t-2 border-r-2 border-[#fef08a]" />
-        <div className="absolute bottom-2 left-2 w-4 h-4 border-b-2 border-l-2 border-[#fef08a]" />
-        <div className="absolute bottom-2 right-2 w-4 h-4 border-b-2 border-r-2 border-[#fef08a]" />
+    <div className="space-y-8">
+      {/* ========================================================================= */}
+      {/* KINGSHOT WOODEN SIGNBOARD HERO (Matches Reference UI Screenshot Exactly) */}
+      {/* ========================================================================= */}
+      <div className="relative pt-3 pb-4">
+        {/* Cute Cartoon Decorative Flowers (matches 🌸 in screenshot) */}
+        <div className="hidden sm:block absolute -left-2 bottom-6 text-2xl select-none animate-bounce" style={{ animationDuration: '3s' }}>
+          🌸
+        </div>
+        <div className="hidden sm:block absolute -right-2 bottom-6 text-2xl select-none animate-bounce" style={{ animationDuration: '3.5s' }}>
+          🌸
+        </div>
 
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="space-y-1">
-            <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-red-950/80 border border-red-600/70 text-red-200 text-xs font-fantasy uppercase tracking-widest font-bold">
-              <Sparkles className="w-3 h-3 text-[#fef08a]" />
-              <span>War Room Telemetry</span>
+        {/* The Centerpiece Wooden Signboard */}
+        <div className="max-w-3xl mx-auto kingshot-signboard p-6 sm:p-10 text-center relative overflow-hidden">
+          {/* Top Left Brass Bolt + Leaf Sprout 🌱 (matches screenshot) */}
+          <div className="corner-bolt top-3 left-3" />
+          <div className="absolute top-2 left-6 text-lg select-none">
+            🌱
+          </div>
+
+          {/* Top Right Brass Bolt + Leaf Sprout 🌱 (matches screenshot) */}
+          <div className="corner-bolt top-3 right-3" />
+          <div className="absolute top-2 right-6 text-lg select-none">
+            🌱
+          </div>
+
+          {/* Bottom Brass Bolts */}
+          <div className="corner-bolt bottom-3 left-3" />
+          <div className="corner-bolt bottom-3 right-3" />
+
+          {/* Inner Content */}
+          <div className="relative z-10 space-y-2 sm:space-y-3">
+            {/* Top tiny label */}
+            <div className="text-[11px] sm:text-xs font-black uppercase tracking-widest text-[#fbbf24] font-sans">
+              KINGSHOT ALLIANCE HOT
             </div>
 
-            <h1 className="font-fantasy font-black text-2xl sm:text-4xl text-transparent bg-clip-text bg-gradient-to-r from-[#fffbeb] via-[#fef08a] to-[#ca8a04] tracking-wide">
-              HOT ALLIANCE COMMAND CENTER
+            {/* Huge 3D Woodcut Title (Matches "FIND YOUR FOREVER HOME") */}
+            <h1 className="woodcut-title text-3xl sm:text-5xl lg:text-6xl font-black uppercase leading-none tracking-wider">
+              ALLIANCE<br />COMMAND CENTER
             </h1>
 
-            <p className="text-sm text-stone-300 font-sans italic">
-              &quot;Strength Through Unity&quot; • Kingshot Alliance Management CRM
-            </p>
+            {/* Sub-heading (Matches "in K1391") */}
+            <div className="font-kingshot text-lg sm:text-2xl text-[#fde68a] tracking-wide">
+              in HOT Alliance
+            </div>
           </div>
+        </div>
 
-          {/* Quick Action War Buttons */}
-          <div className="flex items-center gap-2.5 flex-wrap">
-            <GameButton
-              variant="crimson"
-              size="md"
-              onClick={onOpenCreateEvent}
-              icon={<Swords className="w-4 h-4" />}
-            >
-              Summon Event
-            </GameButton>
+        {/* Subtitle text below signboard (Matches screenshot's text) */}
+        <div className="text-center mt-5 mb-5 max-w-xl mx-auto px-4">
+          <p className="text-sm sm:text-base font-bold text-[#ffffff] drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] leading-relaxed">
+            A friendly kingdom for active players, strong alliances and unforgettable battles.
+          </p>
+        </div>
 
-            <GameButton
-              variant="gold"
-              size="md"
-              onClick={onOpenAddMember}
-              icon={<PlusCircle className="w-4 h-4" />}
-            >
-              Induct Member
-            </GameButton>
-          </div>
+        {/* Two Kingshot Action Buttons (Matches "EXPLORE ALLIANCES" and "TRANSFER INFORMATION") */}
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-3.5 max-w-md mx-auto px-4">
+          {/* Golden Button */}
+          <button
+            onClick={() => {
+              sounds.playClick();
+              onOpenCreateEvent();
+            }}
+            className="btn-kingshot-gold w-full sm:w-auto px-6 py-3 text-sm sm:text-base font-black uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer"
+          >
+            <span>SUMMON WAR EVENT</span>
+            <ArrowRight className="w-4 h-4 stroke-[3]" />
+          </button>
+
+          {/* Cream / Parchment Button */}
+          <button
+            onClick={() => {
+              sounds.playClick();
+              onOpenAddMember();
+            }}
+            className="btn-kingshot-cream w-full sm:w-auto px-6 py-3 text-sm sm:text-base font-black uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer"
+          >
+            <span>INDUCT MEMBER</span>
+            <ArrowRight className="w-4 h-4 stroke-[3]" />
+          </button>
         </div>
       </div>
 
-      {/* Alliance Summary Metric Cards (Section 6 & 25) */}
+      {/* ========================================================================= */}
+      {/* ALLIANCE SUMMARY METRIC CARDS (In Kingshot Wooden Panels) */}
+      {/* ========================================================================= */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
         <StatCard
           title="Total Members"
@@ -131,7 +170,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         <StatCard
           title="Needs Attention"
           value={stats.needsAttentionMembers}
-          subtitle="Silent / Unrecorded"
+          subtitle="Silent / Watchlist"
           icon={<Clock className="w-5 h-5" />}
           variant="slate"
           badge={stats.needsAttentionMembers > 0 ? 'Alert' : undefined}
@@ -141,15 +180,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         />
       </div>
 
-      {/* Actionable War Alerts Banner */}
+      {/* Actionable War Room Alerts */}
       <AlertsBanner />
 
-      {/* Event Overview: 6 Event Cards (Section 7) */}
+      {/* Event Overview: 6 Event Cards */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Swords className="w-5 h-5 text-[#ca8a04]" />
-            <h2 className="font-fantasy font-bold text-lg sm:text-xl text-[#fef08a] tracking-wide">
+            <Swords className="w-5 h-5 text-[#fbbf24]" />
+            <h2 className="font-kingshot text-xl sm:text-2xl text-[#fffbeb] tracking-wide drop-shadow-md">
               ⚔️ War Events Telemetry
             </h2>
           </div>
@@ -159,7 +198,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               sounds.playClick();
               setActiveTab('events');
             }}
-            className="text-xs font-fantasy font-bold uppercase text-[#ca8a04] hover:text-[#fef08a] transition-colors flex items-center gap-1 cursor-pointer"
+            className="text-xs font-bold uppercase text-[#fef08a] hover:underline flex items-center gap-1 cursor-pointer font-sans"
           >
             <span>Manage All Events</span>
             <span>→</span>
@@ -180,44 +219,43 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
 
         <div className="space-y-4">
-          <div className="rounded-xl bg-gradient-to-b from-[#1b1f2d] to-[#121520] border-[1.5px] border-[#524126] p-5 shadow-md">
+          <div className="kingshot-panel p-5 shadow-lg">
             <div className="flex items-center gap-2 mb-3">
-              <BarChart3 className="w-5 h-5 text-[#eab308]" />
-              <h3 className="font-fantasy font-bold text-sm text-[#fef08a]">
+              <BarChart3 className="w-5 h-5 text-[#fbbf24]" />
+              <h3 className="font-kingshot text-lg text-[#fffbeb]">
                 Alliance Performance
               </h3>
             </div>
 
             <div className="space-y-3 text-xs">
-              <div className="p-3 rounded-lg bg-[#0c0e16] border border-[#3f311a]">
-                <div className="text-stone-400">Average Event Attendance</div>
-                <div className="font-fantasy font-bold text-xl text-emerald-300 mt-1">
+              <div className="p-3.5 rounded-lg bg-[#241106] border border-[#5c2a0d]">
+                <div className="text-stone-300 font-bold">Average Event Attendance</div>
+                <div className="font-kingshot text-2xl text-emerald-400 mt-1">
                   {stats.averageAttendanceRate.toFixed(1)}%
                 </div>
-                <p className="text-[11px] text-stone-500 mt-0.5">Across completed throne and swordland wars</p>
+                <p className="text-[11px] text-stone-400 mt-0.5">Across completed throne and swordland wars</p>
               </div>
 
-              <div className="p-3 rounded-lg bg-[#0c0e16] border border-[#3f311a]">
-                <div className="text-stone-400">Average Vote Participation</div>
-                <div className="font-fantasy font-bold text-xl text-blue-300 mt-1">
+              <div className="p-3.5 rounded-lg bg-[#241106] border border-[#5c2a0d]">
+                <div className="text-stone-300 font-bold">Average Vote Turnout</div>
+                <div className="font-kingshot text-2xl text-blue-300 mt-1">
                   {stats.averageVoteRate.toFixed(1)}%
                 </div>
-                <p className="text-[11px] text-stone-500 mt-0.5">Members responding to pre-war summons</p>
+                <p className="text-[11px] text-stone-400 mt-0.5">Members responding to pre-war summons</p>
               </div>
             </div>
 
-            <div className="mt-4 pt-3 border-t border-[#3f311a]">
-              <GameButton
-                variant="outline"
-                size="sm"
-                className="w-full text-xs"
+            <div className="mt-4 pt-3 border-t border-[#4d2309]">
+              <button
                 onClick={() => {
                   sounds.playClick();
                   setActiveTab('attendance');
                 }}
+                className="btn-kingshot-gold w-full py-2.5 text-xs font-black uppercase tracking-wider flex items-center justify-center gap-1.5 cursor-pointer"
               >
-                Open Attendance Analyzer
-              </GameButton>
+                <span>OPEN ATTENDANCE ANALYZER</span>
+                <ArrowRight className="w-3.5 h-3.5 stroke-[3]" />
+              </button>
             </div>
           </div>
         </div>

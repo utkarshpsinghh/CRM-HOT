@@ -1,0 +1,84 @@
+import { AllianceEvent, AttendanceRecord } from '../types/crm';
+
+export interface MemberParticipationStats {
+  memberId: string;
+  totalEvents: number;
+  joinedCount: number;
+  votedCount: number;
+  percentage: number;
+  votePercentage: number;
+  perEvent: Array<{
+    eventId: string;
+    eventType: string;
+    eventName: string;
+    date: string;
+    joined: boolean;
+    voteStatus: string;
+    attendanceStatus: string;
+  }>;
+  perType: Record<string, { total: number; joined: number; percentage: number }>;
+}
+
+export function calculateMemberParticipation(
+  memberId: string,
+  events: AllianceEvent[],
+  attendance: AttendanceRecord[]
+): MemberParticipationStats {
+  // Only count completed or live events for fair evaluation
+  const activeEvents = events.filter(e => e.status === 'Completed' || e.status === 'Live');
+  const totalEvents = activeEvents.length;
+
+  let joinedCount = 0;
+  let votedCount = 0;
+  const perEvent: MemberParticipationStats['perEvent'] = [];
+  const perType: Record<string, { total: number; joined: number; percentage: number }> = {};
+
+  activeEvents.forEach(evt => {
+    const rec = attendance.find(a => a.eventId === evt.id && a.memberId === memberId);
+    const isJoined = rec ? rec.attendanceStatus === 'JOINED' : false;
+    const isVoted = rec ? rec.voteStatus === 'YES' || rec.voteStatus === 'NO' : false;
+
+    if (isJoined) joinedCount++;
+    if (isVoted) votedCount++;
+
+    perEvent.push({
+      eventId: evt.id,
+      eventType: evt.eventType,
+      eventName: evt.eventName,
+      date: evt.date,
+      joined: isJoined,
+      voteStatus: rec ? rec.voteStatus : 'NO RESPONSE',
+      attendanceStatus: rec ? rec.attendanceStatus : 'NOT_APPLICABLE',
+    });
+
+    // Per event type
+    const typeKey = evt.eventType;
+    if (!perType[typeKey]) {
+      perType[typeKey] = { total: 0, joined: 0, percentage: 0 };
+    }
+    perType[typeKey].total++;
+    if (isJoined) {
+      perType[typeKey].joined++;
+    }
+  });
+
+  // Calculate percentages for each type
+  Object.keys(perType).forEach(key => {
+    const t = perType[key];
+    t.percentage = t.total > 0 ? (t.joined / t.total) * 100 : 0;
+  });
+
+  const percentage = totalEvents > 0 ? (joinedCount / totalEvents) * 100 : 0;
+  const votePercentage = totalEvents > 0 ? (votedCount / totalEvents) * 100 : 0;
+
+  return {
+    memberId,
+    totalEvents,
+    joinedCount,
+    votedCount,
+    percentage,
+    votePercentage,
+    perEvent,
+    perType,
+  };
+}

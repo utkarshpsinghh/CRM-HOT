@@ -2,136 +2,167 @@
 
 @layer base {
   :root {
-    --gold-primary: #d4af37;
-    --gold-light: #fef08a;
-    --gold-dark: #854d0e;
-    --crimson: #991b1b;
-    --parchment: #f4ecd8;
-    --stone-dark: #12131a;
-    --stone-panel: #1a1c26;
+    --wood-dark: #2a1306;
+    --wood-main: #693414;
+    --wood-light: #8b481d;
+    --gold-bright: #fbbf24;
+    --gold-text: #fef08a;
+    --cream-bg: #fffbeb;
+    --grass-green: #22c55e;
+    --sky-blue: #38bdf8;
   }
 
   body {
     font-family: 'Outfit', sans-serif;
-    background-color: #0d0f17;
-    background-image: 
-      radial-gradient(ellipse at 50% 0%, rgba(185, 28, 28, 0.15) 0%, transparent 60%),
-      radial-gradient(ellipse at 50% 100%, rgba(212, 175, 55, 0.08) 0%, transparent 70%),
-      linear-gradient(to bottom, #090a10, #0f121d 50%, #0a0b12);
+    /* Kingshot Kingdom Sky to Green Hills Landscape Background */
+    background-color: #17381a;
+    background-image:
+      radial-gradient(ellipse 120% 70% at 50% 0%, #38bdf8 0%, #7dd3fc 35%, #bae6fd 55%, transparent 75%),
+      radial-gradient(ellipse 140% 60% at 50% 100%, #15803d 0%, #166534 40%, #14532d 100%);
     min-height: 100vh;
-    color: #f1ebd9;
+    color: #fef9ee;
+    background-attachment: fixed;
   }
 
-  h1, h2, h3, .font-fantasy {
-    font-family: 'Cinzel', serif;
+  h1, h2, h3, .font-kingshot {
+    font-family: 'Lilita One', 'Rye', cursive;
   }
 }
 
-/* Custom Scrollbar */
+/* Custom Wood Scrollbar */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 9px;
+  height: 9px;
 }
 ::-webkit-scrollbar-track {
-  background: #0f1118;
+  background: #2b1407;
 }
 ::-webkit-scrollbar-thumb {
-  background: #3f3521;
-  border-radius: 4px;
-  border: 1px solid #785a28;
+  background: #78350f;
+  border-radius: 6px;
+  border: 1px solid #d97706;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #854d0e;
+  background: #b45309;
 }
 
-/* Medieval Fantasy Game Borders and Panels */
-.fantasy-panel {
-  background: linear-gradient(145deg, #1d2130, #141722);
-  border: 1px solid #785a28;
+/* Kingshot Wooden Signboard (matches the center hero board in reference UI) */
+.kingshot-signboard {
+  background: linear-gradient(180deg, #7c3f1a 0%, #632f11 50%, #4a210a 100%);
+  border: 4px solid #2d1406;
+  border-radius: 1.25rem;
   box-shadow: 
-    0 4px 20px rgba(0, 0, 0, 0.6),
-    inset 0 1px 0 rgba(254, 240, 138, 0.2),
-    inset 0 0 12px rgba(0, 0, 0, 0.5);
+    0 8px 0 #1b0a02,
+    0 18px 30px rgba(0, 0, 0, 0.6),
+    inset 0 2px 4px rgba(254, 240, 138, 0.25),
+    inset 0 -2px 6px rgba(0, 0, 0, 0.4);
   position: relative;
 }
 
-.fantasy-panel-gold {
-  background: linear-gradient(145deg, #242938, #181c28);
-  border: 2px solid #ca8a04;
+/* Wooden Panel for inner cards */
+.kingshot-panel {
+  background: linear-gradient(180deg, #3d1e0c 0%, #2e1507 100%);
+  border: 2px solid #57290d;
+  border-radius: 0.875rem;
   box-shadow: 
-    0 0 15px rgba(202, 138, 4, 0.25),
-    0 8px 30px rgba(0, 0, 0, 0.7),
-    inset 0 1px 2px rgba(254, 240, 138, 0.4),
-    inset 0 0 20px rgba(0, 0, 0, 0.6);
-  position: relative;
+    0 4px 12px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(254, 240, 138, 0.15);
 }
 
-.fantasy-parchment {
-  background: linear-gradient(135deg, #2c2419, #1c1710);
-  border: 1px solid #8d6b38;
-  color: #fce7b0;
+.kingshot-panel-parchment {
+  background: linear-gradient(180deg, #fffbeb 0%, #fef3c7 100%);
+  border: 2px solid #78350f;
+  color: #381a07;
+  border-radius: 0.875rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
 }
 
-.gold-gradient-text {
-  background: linear-gradient(180deg, #fffbeb 0%, #fef08a 35%, #eab308 65%, #a16207 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.7));
+/* 3D Western/Fantasy Woodcut Typography (Matches "FIND YOUR FOREVER HOME") */
+.woodcut-title {
+  font-family: 'Lilita One', 'Rye', cursive;
+  color: #fff1b8;
+  text-shadow: 
+    0 2px 0 #c28829,
+    0 4px 0 #78350f,
+    0 6px 0 #3a1705,
+    0 8px 12px rgba(0, 0, 0, 0.7);
+  letter-spacing: 0.05em;
 }
 
-.silver-gradient-text {
-  background: linear-gradient(180deg, #ffffff 0%, #e2e8f0 40%, #94a3b8 70%, #64748b 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.7));
-}
-
-.crimson-gradient-text {
-  background: linear-gradient(180deg, #fecaca 0%, #ef4444 40%, #b91c1c 70%, #7f1d1d 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.7));
-}
-
-/* Medieval filigree corner decorations */
-.corner-decor {
-  position: relative;
-}
-.corner-decor::before,
-.corner-decor::after {
-  content: '';
+/* Brass Rivet / Bolt Stud with cute green leaf */
+.corner-bolt {
   position: absolute;
-  width: 8px;
-  height: 8px;
-  border-color: #ca8a04;
-  pointer-events: none;
-}
-.corner-decor::before {
-  top: 2px;
-  left: 2px;
-  border-top: 2px solid #eab308;
-  border-left: 2px solid #eab308;
-}
-.corner-decor::after {
-  bottom: 2px;
-  right: 2px;
-  border-bottom: 2px solid #eab308;
-  border-right: 2px solid #eab308;
+  width: 14px;
+  height: 14px;
+  border-radius: 9999px;
+  background: radial-gradient(circle at 35% 35%, #fef08a 0%, #eab308 50%, #854d0e 100%);
+  border: 1.5px solid #451a03;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
+  z-index: 10;
 }
 
-/* Button pressed effect */
-.game-btn:active {
+/* Kingshot Buttons matching screenshot */
+.btn-kingshot-gold {
+  background: linear-gradient(180deg, #fde047 0%, #f59e0b 55%, #d97706 100%);
+  border: 2px solid #78350f;
+  color: #3b1704;
+  font-family: 'Lilita One', sans-serif;
+  box-shadow: 0 4px 0 #78350f, 0 6px 12px rgba(0, 0, 0, 0.4);
+  transition: all 0.1s ease-in-out;
+  border-radius: 0.5rem;
+}
+.btn-kingshot-gold:hover {
+  background: linear-gradient(180deg, #fef08a 0%, #fbbf24 55%, #b45309 100%);
+}
+.btn-kingshot-gold:active {
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 #78350f;
+}
+
+.btn-kingshot-cream {
+  background: linear-gradient(180deg, #ffffff 0%, #fffbeb 50%, #fef3c7 100%);
+  border: 2px solid #57290d;
+  color: #3b1704;
+  font-family: 'Lilita One', sans-serif;
+  box-shadow: 0 4px 0 #57290d, 0 6px 12px rgba(0, 0, 0, 0.4);
+  transition: all 0.1s ease-in-out;
+  border-radius: 0.5rem;
+}
+.btn-kingshot-cream:hover {
+  background: linear-gradient(180deg, #ffffff 0%, #ffffff 50%, #fffbeb 100%);
+}
+.btn-kingshot-cream:active {
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 #57290d;
+}
+
+.btn-kingshot-orange {
+  background: linear-gradient(180deg, #fb923c 0%, #ea580c 55%, #c2410c 100%);
+  border: 2px solid #fef08a;
+  color: #ffffff;
+  font-family: 'Lilita One', sans-serif;
+  box-shadow: 0 4px 0 #7c2d12, 0 6px 12px rgba(0, 0, 0, 0.4);
+  transition: all 0.1s ease-in-out;
+  border-radius: 0.5rem;
+}
+.btn-kingshot-orange:hover {
+  background: linear-gradient(180deg, #fdba74 0%, #f97316 55%, #9a3412 100%);
+}
+.btn-kingshot-orange:active {
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 #7c2d12;
+}
+
+.btn-kingshot-brown {
+  background: linear-gradient(180deg, #572a10 0%, #431d08 100%);
+  border: 2px solid #854d0e;
+  color: #fef3c7;
+  font-family: 'Lilita One', sans-serif;
+  box-shadow: 0 3px 0 #200c03, 0 4px 8px rgba(0, 0, 0, 0.3);
+  transition: all 0.1s ease-in-out;
+  border-radius: 0.5rem;
+}
+.btn-kingshot-brown:active {
   transform: translateY(2px);
-  filter: brightness(0.92);
-}
-
-/* Glowing text effects */
-.glow-gold {
-  text-shadow: 0 0 10px rgba(234, 179, 8, 0.6);
-}
-.glow-red {
-  text-shadow: 0 0 10px rgba(239, 68, 68, 0.6);
-}
-.glow-green {
-  text-shadow: 0 0 10px rgba(34, 197, 94, 0.6);
+  box-shadow: 0 1px 0 #200c03;
 }

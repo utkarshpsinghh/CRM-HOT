@@ -24,33 +24,33 @@ export const StatCard: React.FC<StatCardProps> = ({
   const variantStyles = {
     gold: {
       border: 'border-[#ca8a04]',
-      glow: 'shadow-[0_0_15px_rgba(202,138,4,0.15)]',
+      glow: 'shadow-[0_4px_12px_rgba(202,138,4,0.25)]',
       valueColor: 'text-[#fef08a]',
-      iconBg: 'bg-[#713f12]/40 text-[#fef08a] border-[#eab308]/60',
+      iconBg: 'bg-[#52290d] text-[#fef08a] border-[#eab308]',
     },
     emerald: {
-      border: 'border-emerald-700/80',
-      glow: 'shadow-[0_0_15px_rgba(16,185,129,0.15)]',
+      border: 'border-[#15803d]',
+      glow: 'shadow-[0_4px_12px_rgba(22,163,74,0.25)]',
       valueColor: 'text-emerald-300',
-      iconBg: 'bg-emerald-950/60 text-emerald-400 border-emerald-600/60',
+      iconBg: 'bg-[#0f3d1e] text-emerald-400 border-emerald-500',
     },
     crimson: {
-      border: 'border-red-700/80',
-      glow: 'shadow-[0_0_15px_rgba(239,68,68,0.2)]',
-      valueColor: 'text-red-400',
-      iconBg: 'bg-red-950/70 text-red-400 border-red-600/70',
+      border: 'border-[#991b1b]',
+      glow: 'shadow-[0_4px_12px_rgba(239,68,68,0.25)]',
+      valueColor: 'text-red-300',
+      iconBg: 'bg-[#450a0a] text-red-400 border-red-600',
     },
     amber: {
-      border: 'border-amber-600/80',
-      glow: 'shadow-[0_0_15px_rgba(245,158,11,0.2)]',
+      border: 'border-[#d97706]',
+      glow: 'shadow-[0_4px_12px_rgba(245,158,11,0.25)]',
       valueColor: 'text-amber-300',
-      iconBg: 'bg-amber-950/70 text-amber-300 border-amber-600/70',
+      iconBg: 'bg-[#451a03] text-amber-300 border-amber-600',
     },
     slate: {
-      border: 'border-stone-700/80',
-      glow: 'shadow-[0_0_15px_rgba(0,0,0,0.4)]',
+      border: 'border-[#5c2a0d]',
+      glow: 'shadow-[0_4px_12px_rgba(0,0,0,0.4)]',
       valueColor: 'text-stone-200',
-      iconBg: 'bg-stone-800/80 text-stone-300 border-stone-600/60',
+      iconBg: 'bg-[#291307] text-stone-300 border-stone-600',
     },
   }[variant];
 
@@ -63,40 +63,40 @@ export const StatCard: React.FC<StatCardProps> = ({
         }
       }}
       className={clsx(
-        'relative rounded-xl bg-gradient-to-b from-[#1b1f2e] via-[#141724] to-[#0e101a] border-[1.5px] p-4 sm:p-5 transition-all duration-200 select-none overflow-hidden',
+        'relative rounded-xl bg-gradient-to-b from-[#311608] via-[#241005] to-[#1c0c04] border-2 p-4 transition-all duration-200 select-none overflow-hidden',
         variantStyles.border,
         variantStyles.glow,
         onClick ? 'cursor-pointer hover:-translate-y-1 hover:brightness-110 active:translate-y-0' : ''
       )}
     >
-      {/* Corner Filigree */}
-      <div className="absolute top-1 left-1 w-2.5 h-2.5 border-t border-l border-[#fef08a]/60 pointer-events-none" />
-      <div className="absolute top-1 right-1 w-2.5 h-2.5 border-t border-r border-[#fef08a]/60 pointer-events-none" />
-      <div className="absolute bottom-1 left-1 w-2.5 h-2.5 border-b border-l border-[#fef08a]/60 pointer-events-none" />
-      <div className="absolute bottom-1 right-1 w-2.5 h-2.5 border-b border-r border-[#fef08a]/60 pointer-events-none" />
+      {/* Corner Rivet Details */}
+      <div className="corner-bolt top-2 left-2 !w-2 !h-2" />
+      <div className="corner-bolt top-2 right-2 !w-2 !h-2" />
+      <div className="corner-bolt bottom-2 left-2 !w-2 !h-2" />
+      <div className="corner-bolt bottom-2 right-2 !w-2 !h-2" />
 
-      <div className="flex items-start justify-between gap-3 mb-2">
-        <span className="font-fantasy text-xs uppercase tracking-wider text-stone-300 font-bold truncate">
+      <div className="flex items-start justify-between gap-2 mb-1.5 pl-1">
+        <span className="font-bold text-xs uppercase tracking-wider text-stone-300 truncate font-sans">
           {title}
         </span>
-        <div className={clsx('p-2 rounded-lg border shrink-0', variantStyles.iconBg)}>
+        <div className={clsx('p-2 rounded-lg border-2 shrink-0 shadow-sm', variantStyles.iconBg)}>
           {icon}
         </div>
       </div>
 
-      <div className="flex items-baseline gap-2">
-        <div className={clsx('font-fantasy font-black text-3xl sm:text-4xl tracking-tight', variantStyles.valueColor)}>
+      <div className="flex items-baseline gap-2 pl-1">
+        <div className={clsx('font-kingshot text-3xl sm:text-4xl tracking-tight leading-none', variantStyles.valueColor)}>
           {value}
         </div>
         {badge && (
-          <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-950/80 border border-amber-600/70 text-amber-300 font-bold uppercase font-fantasy">
+          <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-700 border border-red-500 text-white font-bold uppercase font-sans">
             {badge}
           </span>
         )}
       </div>
 
       {subtitle && (
-        <div className="mt-1 text-xs text-stone-400 font-sans truncate">
+        <div className="mt-1 text-xs text-stone-400 font-sans truncate pl-1">
           {subtitle}
         </div>
       )}
