@@ -642,7 +642,7 @@ export const apiService = {
     attendance: AttendanceRecord[],
     settings: AllianceSettings
   ): InactiveMemberInsight[] {
-    const now = new Date('2026-09-27T13:30:00Z').getTime(); // Anchor to current alliance time
+    const now = Date.now();
     const eventMap = new Map(events.map(e => [e.id, e]));
 
     const insights: InactiveMemberInsight[] = [];

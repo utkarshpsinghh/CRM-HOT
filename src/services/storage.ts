@@ -15,24 +15,92 @@ const STORAGE_KEYS = {
 };
 
 export const storageService = {
-  // Initialization check: never overwrite existing settings or sheet configurations
+  // Purge any legacy mock / demo data from localStorage
+  purgeMockJunk() {
+    try {
+      // 1. Purge old mock members (e.g. mem-001..mem-092 or names like HOT_Ares)
+      const rawMem = localStorage.getItem(STORAGE_KEYS.MEMBERS);
+      if (rawMem) {
+        const mems: Member[] = JSON.parse(rawMem);
+        const filtered = mems.filter(m => !/^mem-\d{3}$/.test(m.id) && m.name !== 'HOT_Ares' && m.name !== 'Valkyrie_HOT');
+        if (filtered.length !== mems.length) {
+          localStorage.setItem(STORAGE_KEYS.MEMBERS, JSON.stringify(filtered));
+        }
+      }
+
+      // 2. Purge old mock events (e.g. evt-001..evt-006 or Tri Alliance Level 1 Showdown)
+      const rawEvt = localStorage.getItem(STORAGE_KEYS.EVENTS);
+      if (rawEvt) {
+        const evts: AllianceEvent[] = JSON.parse(rawEvt);
+        const filtered = evts.filter(e => !/^evt-\d{3}$/.test(e.id) && !e.eventName.includes('Showdown') && !e.eventName.includes('Siege'));
+        if (filtered.length !== evts.length) {
+          localStorage.setItem(STORAGE_KEYS.EVENTS, JSON.stringify(filtered));
+        }
+      }
+
+      // 3. Purge old mock attendance
+      const rawAtt = localStorage.getItem(STORAGE_KEYS.ATTENDANCE);
+      if (rawAtt) {
+        const att: AttendanceRecord[] = JSON.parse(rawAtt);
+        const filtered = att.filter(a => !/^att-evt-\d{3}/.test(a.id));
+        if (filtered.length !== att.length) {
+          localStorage.setItem(STORAGE_KEYS.ATTENDANCE, JSON.stringify(filtered));
+        }
+      }
+
+      // 4. Purge old mock strikes
+      const rawStrk = localStorage.getItem(STORAGE_KEYS.STRIKES);
+      if (rawStrk) {
+        const strks: StrikeRecord[] = JSON.parse(rawStrk);
+        const filtered = strks.filter(s => !/^strk-\d{3}$/.test(s.id));
+        if (filtered.length !== strks.length) {
+          localStorage.setItem(STORAGE_KEYS.STRIKES, JSON.stringify(filtered));
+        }
+      }
+
+      // 5. Purge old mock comms
+      const rawComms = localStorage.getItem(STORAGE_KEYS.COMMUNICATION);
+      if (rawComms) {
+        const comms: CommunicationRecord[] = JSON.parse(rawComms);
+        const filtered = comms.filter(c => !/^comm-\d{3}$/.test(c.id));
+        if (filtered.length !== comms.length) {
+          localStorage.setItem(STORAGE_KEYS.COMMUNICATION, JSON.stringify(filtered));
+        }
+      }
+
+      // 6. Purge old mock contributions
+      const rawCnt = localStorage.getItem(STORAGE_KEYS.CONTRIBUTIONS);
+      if (rawCnt) {
+        const cnts: OfficerContribution[] = JSON.parse(rawCnt);
+        const filtered = cnts.filter(c => !/^cnt-\d{3}$/.test(c.id));
+        if (filtered.length !== cnts.length) {
+          localStorage.setItem(STORAGE_KEYS.CONTRIBUTIONS, JSON.stringify(filtered));
+        }
+      }
+    } catch (err) {
+      console.warn('Error purging mock junk:', err);
+    }
+  },
+
+  // Initialization check: clean empty arrays, never seed mock data
   init() {
+    this.purgeMockJunk();
     const isInit = localStorage.getItem(STORAGE_KEYS.INITIALIZED);
     if (!isInit) {
       const existingSettings = localStorage.getItem(STORAGE_KEYS.SETTINGS);
       if (!existingSettings) {
         localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(initialSettings));
-        localStorage.setItem(STORAGE_KEYS.MEMBERS, JSON.stringify(initialMembers));
-        localStorage.setItem(STORAGE_KEYS.EVENTS, JSON.stringify(initialEvents));
-        localStorage.setItem(STORAGE_KEYS.ATTENDANCE, JSON.stringify(generateInitialAttendance(initialMembers, initialEvents)));
-        localStorage.setItem(STORAGE_KEYS.STRIKES, JSON.stringify(initialStrikes));
-        localStorage.setItem(STORAGE_KEYS.COMMUNICATION, JSON.stringify(initialCommunications));
+        localStorage.setItem(STORAGE_KEYS.MEMBERS, JSON.stringify([]));
+        localStorage.setItem(STORAGE_KEYS.EVENTS, JSON.stringify([]));
+        localStorage.setItem(STORAGE_KEYS.ATTENDANCE, JSON.stringify([]));
+        localStorage.setItem(STORAGE_KEYS.STRIKES, JSON.stringify([]));
+        localStorage.setItem(STORAGE_KEYS.COMMUNICATION, JSON.stringify([]));
       }
       if (!localStorage.getItem(STORAGE_KEYS.ADMIN_ACCOUNTS)) {
         localStorage.setItem(STORAGE_KEYS.ADMIN_ACCOUNTS, JSON.stringify(initialAdmins));
       }
       if (!localStorage.getItem(STORAGE_KEYS.CONTRIBUTIONS)) {
-        localStorage.setItem(STORAGE_KEYS.CONTRIBUTIONS, JSON.stringify(initialContributions));
+        localStorage.setItem(STORAGE_KEYS.CONTRIBUTIONS, JSON.stringify([]));
       }
       localStorage.setItem(STORAGE_KEYS.INITIALIZED, 'true');
     }
@@ -50,17 +118,17 @@ export const storageService = {
 
   resetToDefaults() {
     const currentSettings = this.getSettings();
-    const attendance = generateInitialAttendance(initialMembers, initialEvents);
-    localStorage.setItem(STORAGE_KEYS.MEMBERS, JSON.stringify(initialMembers));
-    localStorage.setItem(STORAGE_KEYS.EVENTS, JSON.stringify(initialEvents));
-    localStorage.setItem(STORAGE_KEYS.ATTENDANCE, JSON.stringify(attendance));
-    localStorage.setItem(STORAGE_KEYS.STRIKES, JSON.stringify(initialStrikes));
-    localStorage.setItem(STORAGE_KEYS.COMMUNICATION, JSON.stringify(initialCommunications));
+    localStorage.setItem(STORAGE_KEYS.MEMBERS, JSON.stringify([]));
+    localStorage.setItem(STORAGE_KEYS.EVENTS, JSON.stringify([]));
+    localStorage.setItem(STORAGE_KEYS.ATTENDANCE, JSON.stringify([]));
+    localStorage.setItem(STORAGE_KEYS.STRIKES, JSON.stringify([]));
+    localStorage.setItem(STORAGE_KEYS.COMMUNICATION, JSON.stringify([]));
+    localStorage.setItem(STORAGE_KEYS.CONTRIBUTIONS, JSON.stringify([]));
     // Preserve existing sheet URL if user has one configured
     localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify({
       ...initialSettings,
-      gasWebAppUrl: currentSettings.gasWebAppUrl || '',
-      demoMode: !currentSettings.gasWebAppUrl,
+      gasWebAppUrl: currentSettings.gasWebAppUrl || DEFAULT_GAS_URL || '',
+      demoMode: !currentSettings.gasWebAppUrl && !DEFAULT_GAS_URL,
     }));
     if (!localStorage.getItem(STORAGE_KEYS.ADMIN_ACCOUNTS)) {
       localStorage.setItem(STORAGE_KEYS.ADMIN_ACCOUNTS, JSON.stringify(initialAdmins));

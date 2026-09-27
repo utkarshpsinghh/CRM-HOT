@@ -13,6 +13,7 @@ import {
   CheckCircle2,
 } from 'lucide-react';
 import { sounds } from '../../utils/sound';
+import { safeFormatDate } from '../../utils/date';
 
 interface AttendanceViewProps {
   onOpenAddStrike: (member: Member, defaultReason: string) => void;
@@ -149,7 +150,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
           >
             {events.map(e => (
               <option key={e.id} value={e.id}>
-                {e.eventType} ({new Date(e.date).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric' })})
+                {e.eventType} ({safeFormatDate(e.date, { month: 'numeric', day: 'numeric' })})
               </option>
             ))}
           </select>

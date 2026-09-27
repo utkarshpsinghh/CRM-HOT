@@ -2,6 +2,7 @@ import React from 'react';
 import { useCRM } from '../../context/CRMContext';
 import { Swords, ChevronRight, CheckCircle2 } from 'lucide-react';
 import { sounds } from '../../utils/sound';
+import { safeFormatDate } from '../../utils/date';
 
 export const RecentEventsList: React.FC = () => {
   const { events, attendance, setSelectedEventIdForAttendance, setActiveTab } = useCRM();
@@ -31,7 +32,7 @@ export const RecentEventsList: React.FC = () => {
           const joined = records.filter(r => r.attendanceStatus === 'JOINED').length;
           const pct = total > 0 ? ((joined / total) * 100).toFixed(0) : '0';
 
-          const formattedDate = new Date(evt.date).toLocaleDateString('en-US', {
+          const formattedDate = safeFormatDate(evt.date, {
             month: 'short',
             day: 'numeric',
           });

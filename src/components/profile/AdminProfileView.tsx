@@ -20,6 +20,7 @@ import {
   X,
 } from 'lucide-react';
 import { sounds } from '../../utils/sound';
+import { safeFormatDateTime } from '../../utils/date';
 
 export const AdminProfileView: React.FC = () => {
   const { admin, isMainAdmin } = useAuth();
@@ -340,7 +341,7 @@ export const AdminProfileView: React.FC = () => {
                       {c.targetName || c.action.replace('_', ' ')}
                     </span>
                     <span className="text-[10px] text-stone-400 font-mono">
-                      {new Date(c.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • {new Date(c.timestamp).toLocaleDateString()}
+                      {safeFormatDateTime(c.timestamp)}
                     </span>
                   </div>
 

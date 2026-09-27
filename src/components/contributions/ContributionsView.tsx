@@ -18,6 +18,7 @@ import {
   CheckCircle2,
   Users,
 } from 'lucide-react';
+import { safeFormatDate, safeFormatDateTime } from '../../utils/date';
 import { sounds } from '../../utils/sound';
 
 export const ContributionsView: React.FC = () => {
@@ -441,7 +442,7 @@ export const ContributionsView: React.FC = () => {
                     Last Active:
                   </span>
                   <span className="font-mono text-stone-300">
-                    {officer.lastActive ? new Date(officer.lastActive).toLocaleDateString() : 'Never'}
+                    {officer.lastActive ? safeFormatDate(officer.lastActive) : 'Never'}
                   </span>
                 </div>
               </div>
@@ -581,7 +582,7 @@ export const ContributionsView: React.FC = () => {
 
                 <div className="flex items-center justify-between text-[10px] text-stone-400 font-mono pt-1">
                   <span>Count: {item.count || 1}</span>
-                  <span>{new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • {new Date(item.timestamp).toLocaleDateString()}</span>
+                  <span>{safeFormatDateTime(item.timestamp)}</span>
                 </div>
               </div>
             ))

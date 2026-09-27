@@ -4,6 +4,7 @@ import { useCRM } from '../../context/CRMContext';
 import { ProgressBar } from '../common/ProgressBar';
 import { ChevronRight, Calendar } from 'lucide-react';
 import { sounds } from '../../utils/sound';
+import { safeFormatDate } from '../../utils/date';
 
 interface EventOverviewCardProps {
   event: AllianceEvent;
@@ -31,7 +32,7 @@ export const EventOverviewCard: React.FC<EventOverviewCardProps> = ({ event }) =
     setActiveTab('attendance');
   };
 
-  const formattedDate = new Date(event.date).toLocaleDateString('en-US', {
+  const formattedDate = safeFormatDate(event.date, {
     month: 'short',
     day: 'numeric',
   });

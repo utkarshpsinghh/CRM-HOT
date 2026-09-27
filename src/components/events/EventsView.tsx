@@ -5,6 +5,7 @@ import { ProgressBar } from '../common/ProgressBar';
 import { calculateAllEventAverages } from '../../utils/participation';
 import { Swords, PlusCircle, Calendar, ChevronRight, Filter, TrendingUp, BarChart3 } from 'lucide-react';
 import { sounds } from '../../utils/sound';
+import { safeFormatDate } from '../../utils/date';
 
 interface EventsViewProps {
   onOpenCreateEvent: () => void;
@@ -169,7 +170,7 @@ export const EventsView: React.FC<EventsViewProps> = ({ onOpenCreateEvent }) => 
           // Event type all-time average
           const typeAvg = eventAverages[evt.eventType]?.averageAttendancePercentage ?? null;
 
-          const formattedDate = new Date(evt.date).toLocaleDateString('en-US', {
+          const formattedDate = safeFormatDate(evt.date, {
             weekday: 'short',
             month: 'short',
             day: 'numeric',

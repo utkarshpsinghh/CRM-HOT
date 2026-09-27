@@ -219,7 +219,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
       } else {
         setSyncStatus('demo');
-        setSyncMessage('Demo Mode (Local Data)');
+        setSyncMessage('Connect Google Sheets to view alliance data');
         setMembers(storageService.getMembers());
         setEvents(storageService.getEvents());
         setAttendance(storageService.getAttendance());
