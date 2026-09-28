@@ -33,7 +33,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCreateEvent }) => {
     { id: 'events', label: 'Events' },
     { id: 'attendance', label: 'Attendance' },
     { id: 'activity', label: 'Inactive', badge: inactiveInsights.length > 0 ? `${inactiveInsights.length}` : null },
-    { id: 'contributions', label: 'Contributions' },
+    ...(isMainAdmin ? [{ id: 'contributions', label: 'Contributions' }] : []),
     ...(isMainAdmin ? [{ id: 'settings', label: 'Settings' }] : []),
   ];
 
@@ -101,18 +101,20 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCreateEvent }) => {
 
         {/* Right Actions */}
         <div className="flex items-center gap-1 sm:gap-2 shrink-0">
-          {/* Quick Create Event */}
-          <button
-            onClick={() => {
-              sounds.playClick();
-              if (onOpenCreateEvent) onOpenCreateEvent();
-              else setActiveTab('events');
-            }}
-            className="hidden sm:flex btn-kingshot-gold px-3 py-1.5 text-xs font-bold uppercase items-center gap-1 cursor-pointer"
-          >
-            <Swords className="w-3.5 h-3.5" />
-            <span>New Event</span>
-          </button>
+          {/* Quick Create Event (MainAdmin only) */}
+          {isMainAdmin && (
+            <button
+              onClick={() => {
+                sounds.playClick();
+                if (onOpenCreateEvent) onOpenCreateEvent();
+                else setActiveTab('events');
+              }}
+              className="hidden sm:flex btn-kingshot-gold px-3 py-1.5 text-xs font-bold uppercase items-center gap-1 cursor-pointer"
+            >
+              <Swords className="w-3.5 h-3.5" />
+              <span>New Event</span>
+            </button>
+          )}
 
           {/* Sync Sheets Button */}
           <button

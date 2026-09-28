@@ -14,7 +14,7 @@ export const Navigation: React.FC = () => {
     { id: 'events', label: 'Events', icon: <Swords className="w-3.5 h-3.5" /> },
     { id: 'attendance', label: 'Attendance', icon: <BarChart3 className="w-3.5 h-3.5" /> },
     { id: 'activity', label: 'Inactive', icon: <AlertTriangle className="w-3.5 h-3.5" />, badge: inactiveInsights.length > 0 ? `${inactiveInsights.length}` : null },
-    { id: 'contributions', label: 'Contributions', icon: <Award className="w-3.5 h-3.5" /> },
+    ...(isMainAdmin ? [{ id: 'contributions', label: 'Contributions', icon: <Award className="w-3.5 h-3.5" /> }] : []),
     { id: 'profile', label: 'Profile', icon: <User className="w-3.5 h-3.5" /> },
     ...(isMainAdmin ? [{ id: 'settings', label: 'Settings', icon: <Settings className="w-3.5 h-3.5" /> }] : []),
   ];

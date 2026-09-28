@@ -1,5 +1,6 @@
 import React from 'react';
 import { useCRM } from '../../context/CRMContext';
+import { useAuth } from '../../context/AuthContext';
 import { StatCard } from './StatCard';
 import { AlertsBanner } from './AlertsBanner';
 import { EventOverviewCard } from './EventOverviewCard';
@@ -26,6 +27,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onOpenAddMember,
 }) => {
   const { stats, events, setActiveTab, setMemberFilter } = useCRM();
+  const { isMainAdmin } = useAuth();
 
   return (
     <div className="space-y-6">
@@ -41,16 +43,18 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
 
         <div className="flex items-center gap-2.5 flex-wrap">
-          <button
-            onClick={() => {
-              sounds.playClick();
-              onOpenCreateEvent();
-            }}
-            className="btn-kingshot-gold px-4 py-2 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 cursor-pointer"
-          >
-            <Swords className="w-4 h-4" />
-            <span>New Event</span>
-          </button>
+          {isMainAdmin && (
+            <button
+              onClick={() => {
+                sounds.playClick();
+                onOpenCreateEvent();
+              }}
+              className="btn-kingshot-gold px-4 py-2 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 cursor-pointer"
+            >
+              <Swords className="w-4 h-4" />
+              <span>New Event</span>
+            </button>
+          )}
 
           <button
             onClick={() => {

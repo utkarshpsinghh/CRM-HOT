@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useCRM } from '../../context/CRMContext';
+import { useAuth } from '../../context/AuthContext';
 import { GameButton } from '../common/GameButton';
 import { ProgressBar } from '../common/ProgressBar';
 import { calculateAllEventAverages } from '../../utils/participation';
@@ -13,6 +14,7 @@ interface EventsViewProps {
 
 export const EventsView: React.FC<EventsViewProps> = ({ onOpenCreateEvent }) => {
   const { events, attendance, setSelectedEventIdForAttendance, setActiveTab } = useCRM();
+  const { isMainAdmin } = useAuth();
 
   const [typeFilter, setTypeFilter] = useState<string>('ALL');
 
@@ -60,14 +62,16 @@ export const EventsView: React.FC<EventsViewProps> = ({ onOpenCreateEvent }) => 
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={onOpenCreateEvent}
-          className="btn-kingshot-gold px-4 py-2 text-xs font-fantasy font-black uppercase flex items-center justify-center gap-2 cursor-pointer shadow-md self-start sm:self-auto"
-        >
-          <PlusCircle className="w-4 h-4" />
-          <span>New Event</span>
-        </button>
+        {isMainAdmin && (
+          <button
+            type="button"
+            onClick={onOpenCreateEvent}
+            className="btn-kingshot-gold px-4 py-2 text-xs font-fantasy font-black uppercase flex items-center justify-center gap-2 cursor-pointer shadow-md self-start sm:self-auto"
+          >
+            <PlusCircle className="w-4 h-4" />
+            <span>New Event</span>
+          </button>
+        )}
       </div>
 
       {/* ALL-TIME AVERAGE ATTENDANCE BY EVENT TYPE (Requirement 3) */}

@@ -130,7 +130,7 @@ const MainAppContent: React.FC = () => {
 
         {activeTab === 'activity' && <InactivityTrackerView />}
 
-        {activeTab === 'contributions' && <ContributionsView />}
+        {activeTab === 'contributions' && isMainAdmin && <ContributionsView />}
 
         {activeTab === 'profile' && <AdminProfileView />}
 

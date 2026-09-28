@@ -117,9 +117,9 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [selectedMemberForProfile, setSelectedMemberForProfile] = useState<Member | null>(null);
   const [selectedEventIdForAttendance, setSelectedEventIdForAttendance] = useState<string | null>(null);
 
-  // Security guard: Non-MainAdmin cannot view Settings
+  // Security guard: Non-MainAdmin cannot view Settings or Contributions
   useEffect(() => {
-    if (admin && admin.role !== 'MainAdmin' && activeTab === 'settings') {
+    if (admin && admin.role !== 'MainAdmin' && (activeTab === 'settings' || activeTab === 'contributions')) {
       setActiveTab('dashboard');
     }
   }, [admin, activeTab]);
