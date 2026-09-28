@@ -190,35 +190,25 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             ]);
           }
 
+          // Single batch storage save to minimize disk I/O latency
+          storageService.saveAllData({
+            members: mList,
+            events: eList,
+            attendance: aList,
+            strikes: sList,
+            communications: cList,
+            admins: admList,
+            contributions: cntList,
+          });
+
           // Valid responses from Google Sheets are accepted (including clean empty roster)
-          if (Array.isArray(mList)) {
-            setMembers(mList);
-            storageService.setMembers(mList);
-          }
-          if (Array.isArray(eList)) {
-            setEvents(eList);
-            storageService.setEvents(eList);
-          }
-          if (Array.isArray(aList)) {
-            setAttendance(aList);
-            storageService.setAttendance(aList);
-          }
-          if (Array.isArray(sList)) {
-            setStrikes(sList);
-            storageService.setStrikes(sList);
-          }
-          if (Array.isArray(cList)) {
-            setCommunications(cList);
-            storageService.setCommunications(cList);
-          }
-          if (Array.isArray(admList) && admList.length > 0) {
-            setAdmins(admList);
-            storageService.setAdminAccounts(admList);
-          }
-          if (Array.isArray(cntList)) {
-            setContributions(cntList);
-            storageService.setContributions(cntList);
-          }
+          if (Array.isArray(mList)) setMembers(mList);
+          if (Array.isArray(eList)) setEvents(eList);
+          if (Array.isArray(aList)) setAttendance(aList);
+          if (Array.isArray(sList)) setStrikes(sList);
+          if (Array.isArray(cList)) setCommunications(cList);
+          if (Array.isArray(admList) && admList.length > 0) setAdmins(admList);
+          if (Array.isArray(cntList)) setContributions(cntList);
 
           setSyncStatus('connected');
           setSyncMessage('Google Sheets Live Connected');
@@ -264,7 +254,6 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     sounds.playClick();
-    setIsLoading(true);
     setIsSyncingSheets(true);
     try {
       await refreshData();
@@ -284,7 +273,6 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       });
       return false;
     } finally {
-      setIsLoading(false);
       setIsSyncingSheets(false);
     }
   }, [addToast, refreshData]);
@@ -308,20 +296,20 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const strikesTotal = members.filter(m => m.strikes > 0).length;
     const needsAttention = inactiveInsights.length;
 
-    // Calculate average attendance across completed events
-    const completedEvents = events.filter(e => e.status === 'Completed');
+    // Fast O(N) calculation across completed events using Set lookup
+    const completedEventIds = new Set(events.filter(e => e.status === 'Completed').map(e => e.id));
     let totalJoined = 0;
     let totalExpected = 0;
     let totalVotes = 0;
 
-    completedEvents.forEach(evt => {
-      const records = attendance.filter(a => a.eventId === evt.id);
-      records.forEach(r => {
+    for (let i = 0; i < attendance.length; i++) {
+      const r = attendance[i];
+      if (completedEventIds.has(r.eventId)) {
         totalExpected++;
         if (r.attendanceStatus === 'JOINED') totalJoined++;
         if (r.voteStatus === 'YES' || r.voteStatus === 'NO') totalVotes++;
-      });
-    });
+      }
+    }
 
     const avgAttendance = totalExpected > 0 ? (totalJoined / totalExpected) * 100 : 0;
     const avgVote = totalExpected > 0 ? (totalVotes / totalExpected) * 100 : 0;

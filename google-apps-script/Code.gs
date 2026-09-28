@@ -151,18 +151,10 @@ function doGet(e) {
     } else if (action === 'getContributions') {
       result = { status: 'success', data: fetchContributions() };
     } else if (action === 'getAllData') {
+      const ss = SpreadsheetApp.getActiveSpreadsheet();
       result = {
         status: 'success',
-        data: {
-          members: fetchMembers(),
-          events: fetchEvents(),
-          attendance: fetchAttendance(),
-          strikes: fetchStrikes(),
-          communications: fetchCommunications(),
-          admins: fetchAdmins(),
-          contributions: fetchContributions(),
-          settings: fetchSettings()
-        }
+        data: fetchAllData(ss)
       };
     } else if (action === 'getDashboard') {
       result = { status: 'success', data: getDashboardData() };
@@ -326,15 +318,6 @@ function handleLogin(username, password) {
             name: String(data[i][4] || data[i][1]).trim(),
             role: isLeader ? 'MainAdmin' : 'SubAdmin',
             token: Utilities.getUuid()
-          },
-          data: {
-            members: fetchMembers(),
-            events: fetchEvents(),
-            attendance: fetchAttendance(),
-            strikes: fetchStrikes(),
-            communications: fetchCommunications(),
-            admins: fetchAdmins(),
-            contributions: fetchContributions(),
           }
         };
       } else {
@@ -347,10 +330,27 @@ function handleLogin(username, password) {
 }
 
 // --------------------------------------------------------------------------
+// UNIFIED DATA FETCHER (Reuses active spreadsheet instance for maximum speed)
+// --------------------------------------------------------------------------
+function fetchAllData(ss) {
+  if (!ss) ss = SpreadsheetApp.getActiveSpreadsheet();
+  return {
+    members: fetchMembers(ss),
+    events: fetchEvents(ss),
+    attendance: fetchAttendance(undefined, ss),
+    strikes: fetchStrikes(ss),
+    communications: fetchCommunications(ss),
+    admins: fetchAdmins(ss),
+    contributions: fetchContributions(ss),
+    settings: fetchSettings(ss)
+  };
+}
+
+// --------------------------------------------------------------------------
 // MEMBERS OPERATIONS
 // --------------------------------------------------------------------------
-function fetchMembers() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+function fetchMembers(ss) {
+  if (!ss) ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName(SHEET_NAMES.MEMBERS);
   if (!sheet || sheet.getLastRow() <= 1) return [];
 
@@ -436,8 +436,8 @@ function handleArchiveMember(memberId) {
 // --------------------------------------------------------------------------
 // EVENTS OPERATIONS
 // --------------------------------------------------------------------------
-function fetchEvents() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+function fetchEvents(ss) {
+  if (!ss) ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName(SHEET_NAMES.EVENTS);
   if (!sheet || sheet.getLastRow() <= 1) return [];
 
@@ -509,8 +509,8 @@ function handleCreateEvent(event) {
 // --------------------------------------------------------------------------
 // ATTENDANCE OPERATIONS
 // --------------------------------------------------------------------------
-function fetchAttendance(eventId) {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+function fetchAttendance(eventId, ss) {
+  if (!ss) ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName(SHEET_NAMES.ATTENDANCE);
   if (!sheet || sheet.getLastRow() <= 1) return [];
 
@@ -628,8 +628,8 @@ function handleBulkUpdateAttendance(eventId, updates) {
 // --------------------------------------------------------------------------
 // STRIKES & COMMUNICATIONS
 // --------------------------------------------------------------------------
-function fetchStrikes() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+function fetchStrikes(ss) {
+  if (!ss) ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName(SHEET_NAMES.STRIKES);
   if (!sheet || sheet.getLastRow() <= 1) return [];
 
@@ -702,8 +702,8 @@ function handleRemoveStrike(strikeId, memberId) {
   return { status: 'success' };
 }
 
-function fetchCommunications() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+function fetchCommunications(ss) {
+  if (!ss) ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName(SHEET_NAMES.COMMUNICATION);
   if (!sheet || sheet.getLastRow() <= 1) return [];
 
@@ -750,8 +750,8 @@ function handleAddCommunication(memberId, status, note, addedBy) {
 // --------------------------------------------------------------------------
 // SETTINGS
 // --------------------------------------------------------------------------
-function fetchSettings() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+function fetchSettings(ss) {
+  if (!ss) ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName(SHEET_NAMES.SETTINGS);
   if (!sheet || sheet.getLastRow() <= 1) return {};
 
@@ -788,8 +788,8 @@ function handleUpdateSettings(newSettings) {
 // --------------------------------------------------------------------------
 // ADMINS
 // --------------------------------------------------------------------------
-function fetchAdmins() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+function fetchAdmins(ss) {
+  if (!ss) ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName(SHEET_NAMES.ADMINS);
   if (!sheet || sheet.getLastRow() <= 1) return [];
 
@@ -851,8 +851,8 @@ function handleDeleteAdmin(adminId) {
   return { status: 'error', message: 'Admin account not found in database.' };
 }
 
-function fetchContributions() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+function fetchContributions(ss) {
+  if (!ss) ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName(SHEET_NAMES.CONTRIBUTIONS);
   if (!sheet || sheet.getLastRow() <= 1) return [];
 

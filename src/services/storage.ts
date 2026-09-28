@@ -15,9 +15,12 @@ const STORAGE_KEYS = {
 };
 
 export const storageService = {
-  // Purge any legacy mock / demo data from localStorage
+  // Purge any legacy mock / demo data from localStorage (runs once per session for speed)
   purgeMockJunk() {
     try {
+      if (sessionStorage.getItem('crm_hot_purged')) return;
+      sessionStorage.setItem('crm_hot_purged', 'true');
+
       // 1. Purge old mock members (e.g. mem-001..mem-092 or names like HOT_Ares)
       const rawMem = localStorage.getItem(STORAGE_KEYS.MEMBERS);
       if (rawMem) {
@@ -145,6 +148,29 @@ export const storageService = {
     localStorage.setItem(STORAGE_KEYS.COMMUNICATION, JSON.stringify([]));
     localStorage.setItem(STORAGE_KEYS.CONTRIBUTIONS, JSON.stringify([]));
     localStorage.setItem(STORAGE_KEYS.INITIALIZED, 'true');
+  },
+
+  // Batch save all CRM entities to minimize disk I/O latency
+  saveAllData(bundle: {
+    members?: Member[];
+    events?: AllianceEvent[];
+    attendance?: AttendanceRecord[];
+    strikes?: StrikeRecord[];
+    communications?: CommunicationRecord[];
+    admins?: AdminAccount[];
+    contributions?: OfficerContribution[];
+  }) {
+    try {
+      if (Array.isArray(bundle.members)) localStorage.setItem(STORAGE_KEYS.MEMBERS, JSON.stringify(bundle.members));
+      if (Array.isArray(bundle.events)) localStorage.setItem(STORAGE_KEYS.EVENTS, JSON.stringify(bundle.events));
+      if (Array.isArray(bundle.attendance)) localStorage.setItem(STORAGE_KEYS.ATTENDANCE, JSON.stringify(bundle.attendance));
+      if (Array.isArray(bundle.strikes)) localStorage.setItem(STORAGE_KEYS.STRIKES, JSON.stringify(bundle.strikes));
+      if (Array.isArray(bundle.communications)) localStorage.setItem(STORAGE_KEYS.COMMUNICATION, JSON.stringify(bundle.communications));
+      if (Array.isArray(bundle.admins)) localStorage.setItem(STORAGE_KEYS.ADMIN_ACCOUNTS, JSON.stringify(bundle.admins));
+      if (Array.isArray(bundle.contributions)) localStorage.setItem(STORAGE_KEYS.CONTRIBUTIONS, JSON.stringify(bundle.contributions));
+    } catch (err) {
+      console.warn('saveAllData error:', err);
+    }
   },
 
   getMembers(): Member[] {

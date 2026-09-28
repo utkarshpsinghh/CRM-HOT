@@ -9,5 +9,17 @@ export default defineConfig({
   build: {
     // Disable source maps in production to prevent source code leaks or reverse engineering
     sourcemap: false,
+    rollupOptions: {
+      output: {
+        manualChunks(id: string) {
+          if (id.includes('node_modules/react/') || id.includes('node_modules/react-dom/')) {
+            return 'vendor-react';
+          }
+          if (id.includes('node_modules/lucide-react/')) {
+            return 'vendor-icons';
+          }
+        },
+      },
+    },
   },
 })
