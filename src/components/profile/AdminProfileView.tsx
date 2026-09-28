@@ -12,12 +12,13 @@ import {
   Flame,
   MessageSquare,
   Clock,
-  Sparkles,
   ShieldCheck,
   Edit2,
-  Save,
   AlertCircle,
   X,
+  UserPlus,
+  Users,
+  Eye,
 } from 'lucide-react';
 import { sounds } from '../../utils/sound';
 import { safeFormatDateTime } from '../../utils/date';
@@ -34,11 +35,13 @@ export const AdminProfileView: React.FC = () => {
     );
   }, [admin, contributions]);
 
-  // Compute this admin's personal metrics
+  // Compute personal metrics
   const myStats = useMemo(() => {
     let attendanceSum = 0;
     let eventsSum = 0;
     let strikesSum = 0;
+    let membersAdded = 0;
+    let membersUpdated = 0;
     let commsSum = 0;
 
     myContributions.forEach(c => {
@@ -48,7 +51,11 @@ export const AdminProfileView: React.FC = () => {
         eventsSum += 1;
       } else if (c.action === 'STRIKE_ADDED' || c.action === 'STRIKE_REMOVED') {
         strikesSum += 1;
-      } else if (c.action === 'COMMUNICATION_LOGGED' || c.action === 'MEMBER_ADDED' || c.action === 'MEMBER_UPDATED') {
+      } else if (c.action === 'MEMBER_ADDED') {
+        membersAdded += 1;
+      } else if (c.action === 'MEMBER_UPDATED') {
+        membersUpdated += 1;
+      } else if (c.action === 'COMMUNICATION_LOGGED') {
         commsSum += 1;
       }
     });
@@ -58,7 +65,10 @@ export const AdminProfileView: React.FC = () => {
       attendanceSum,
       eventsSum,
       strikesSum,
+      membersAdded,
+      membersUpdated,
       commsSum,
+      rosterTotal: membersAdded + membersUpdated + commsSum,
     };
   }, [myContributions]);
 
@@ -75,7 +85,6 @@ export const AdminProfileView: React.FC = () => {
   }, [admin?.name, admin?.username]);
 
   // Change Password State
-  const [currentPass, setCurrentPass] = useState('');
   const [newPass, setNewPass] = useState('');
   const [confirmPass, setConfirmPass] = useState('');
   const [passError, setPassError] = useState<string | null>(null);
@@ -90,14 +99,22 @@ export const AdminProfileView: React.FC = () => {
     );
   }
 
-  const getOfficerRankTitle = (actions: number) => {
-    if (actions >= 50) return { title: 'Master Scribe', badge: 'bg-amber-950 text-amber-300 border-amber-500' };
-    if (actions >= 25) return { title: 'War Chronicler', badge: 'bg-yellow-950 text-yellow-300 border-yellow-600' };
-    if (actions >= 10) return { title: 'Battle Scribe', badge: 'bg-emerald-950 text-emerald-300 border-emerald-600' };
-    return { title: 'Vanguard Scout', badge: 'bg-stone-900 text-stone-300 border-stone-600' };
+  // Tactical titles adapted for MainAdmin vs SubAdmin
+  const getRankTitle = (actions: number) => {
+    if (isMainAdmin) {
+      if (actions >= 50) return { title: 'Supreme Commander', badge: 'bg-amber-950 text-amber-300 border-amber-500' };
+      if (actions >= 25) return { title: 'Grand Marshal', badge: 'bg-yellow-950 text-yellow-300 border-yellow-600' };
+      if (actions >= 10) return { title: 'Alliance Leader', badge: 'bg-emerald-950 text-emerald-300 border-emerald-600' };
+      return { title: 'High Commander', badge: 'bg-stone-900 text-stone-300 border-stone-600' };
+    } else {
+      if (actions >= 40) return { title: 'High Inquisitor', badge: 'bg-amber-950 text-amber-300 border-amber-500' };
+      if (actions >= 20) return { title: 'Vanguard Enforcer', badge: 'bg-yellow-950 text-yellow-300 border-yellow-600' };
+      if (actions >= 8) return { title: 'Roster Warden', badge: 'bg-emerald-950 text-emerald-300 border-emerald-600' };
+      return { title: 'Vanguard Officer', badge: 'bg-stone-900 text-stone-300 border-stone-600' };
+    }
   };
 
-  const rankInfo = getOfficerRankTitle(myStats.totalActions);
+  const rankInfo = getRankTitle(myStats.totalActions);
 
   const handleSaveName = async () => {
     const clean = displayName.trim();
@@ -133,7 +150,6 @@ export const AdminProfileView: React.FC = () => {
 
     if (ok) {
       setPassSuccess('Your password has been securely updated!');
-      setCurrentPass('');
       setNewPass('');
       setConfirmPass('');
     } else {
@@ -228,7 +244,7 @@ export const AdminProfileView: React.FC = () => {
                         : 'bg-stone-800 text-stone-300 border-stone-600/70'
                     }`}
                   >
-                    {isMainAdmin ? '👑 Main Admin' : '⚔️ R4'}
+                    {isMainAdmin ? '👑 Main Admin' : '⚔️ R4 Officer'}
                   </span>
                 </div>
               )}
@@ -248,67 +264,170 @@ export const AdminProfileView: React.FC = () => {
               <div className="text-xl font-fantasy font-black text-amber-300">
                 {myStats.totalActions}
               </div>
-              <div className="text-[9px] uppercase font-bold text-stone-400">My Contributions</div>
+              <div className="text-[9px] uppercase font-bold text-stone-400">
+                {isMainAdmin ? 'My Contributions' : 'Officer Actions'}
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Personal Contributions Breakdown (ONLY Their Contributions) */}
+      {/* Sub-Admin Duties & Role Scope Ribbon */}
+      {!isMainAdmin && (
+        <div className="p-4 rounded-2xl bg-gradient-to-r from-[#1f140e] via-[#1a100a] to-[#1f140e] border border-[#4d2b14] space-y-2.5 shadow-sm">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div className="flex items-center gap-2">
+              <Shield className="w-4 h-4 text-amber-400" />
+              <h2 className="text-xs sm:text-sm font-fantasy font-black text-amber-300 uppercase tracking-wide">
+                R4 Officer Responsibilities & Access
+              </h2>
+            </div>
+            <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-950/80 text-amber-300 border border-amber-600/50 font-bold uppercase tracking-wider">
+              Operational Scope
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1 text-xs">
+            <div className="p-3 rounded-xl bg-[#140c08] border border-[#3d200e] flex items-start gap-2.5">
+              <UserPlus className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+              <div>
+                <div className="font-bold text-stone-200">Roster Management</div>
+                <div className="text-[11px] text-stone-400 mt-0.5 leading-snug">
+                  Recruit new members, update ranks, status, and communication logs.
+                </div>
+              </div>
+            </div>
+
+            <div className="p-3 rounded-xl bg-[#140c08] border border-[#3d200e] flex items-start gap-2.5">
+              <Flame className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+              <div>
+                <div className="font-bold text-stone-200">Discipline Enforcement</div>
+                <div className="text-[11px] text-stone-400 mt-0.5 leading-snug">
+                  Issue penalty strikes to members who voted YES but flaked battle attendance.
+                </div>
+              </div>
+            </div>
+
+            <div className="p-3 rounded-xl bg-[#140c08] border border-[#3d200e] flex items-start gap-2.5">
+              <Eye className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" />
+              <div>
+                <div className="font-bold text-stone-200">War Turnout Intel</div>
+                <div className="text-[11px] text-stone-400 mt-0.5 leading-snug">
+                  Search & monitor attendance turnout, polls, and inactivity alerts in view mode.
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Activity Statistics Cards (Tailored per Role) */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="text-base font-fantasy font-black text-[#fffbeb] uppercase tracking-wide flex items-center gap-2">
             <Award className="w-4 h-4 text-amber-400" />
-            <span>My Contribution Statistics</span>
+            <span>{isMainAdmin ? 'My Contribution Statistics' : 'Officer Activity Metrics'}</span>
           </h2>
-          <span className="text-xs text-stone-400 font-mono">Your Activity</span>
+          <span className="text-xs text-stone-400 font-mono">
+            {isMainAdmin ? 'Leadership Activity' : 'Your Actions'}
+          </span>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
-          <div className="p-4 rounded-xl bg-[#20150f] border border-[#4d2b14] space-y-1">
-            <div className="text-[10px] uppercase font-bold text-stone-400 flex items-center gap-1.5">
-              <CheckCircle2 className="w-3.5 h-3.5 text-amber-400" />
-              <span>Attendances Marked</span>
+        {isMainAdmin ? (
+          /* MainAdmin 4 Metrics Cards */
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
+            <div className="p-4 rounded-xl bg-[#20150f] border border-[#4d2b14] space-y-1">
+              <div className="text-[10px] uppercase font-bold text-stone-400 flex items-center gap-1.5">
+                <CheckCircle2 className="w-3.5 h-3.5 text-amber-400" />
+                <span>Attendances Marked</span>
+              </div>
+              <div className="text-2xl font-fantasy font-black text-amber-300">
+                {myStats.attendanceSum}
+              </div>
+              <div className="text-[10px] text-stone-400">Checks marked by you</div>
             </div>
-            <div className="text-2xl font-fantasy font-black text-amber-300">
-              {myStats.attendanceSum}
-            </div>
-            <div className="text-[10px] text-stone-400">Checks marked by you</div>
-          </div>
 
-          <div className="p-4 rounded-xl bg-[#20150f] border border-[#4d2b14] space-y-1">
-            <div className="text-[10px] uppercase font-bold text-stone-400 flex items-center gap-1.5">
-              <Swords className="w-3.5 h-3.5 text-blue-400" />
-              <span>Events Created</span>
+            <div className="p-4 rounded-xl bg-[#20150f] border border-[#4d2b14] space-y-1">
+              <div className="text-[10px] uppercase font-bold text-stone-400 flex items-center gap-1.5">
+                <Swords className="w-3.5 h-3.5 text-blue-400" />
+                <span>Events Created</span>
+              </div>
+              <div className="text-2xl font-fantasy font-black text-blue-300">
+                {myStats.eventsSum}
+              </div>
+              <div className="text-[10px] text-stone-400">Battles scheduled by you</div>
             </div>
-            <div className="text-2xl font-fantasy font-black text-blue-300">
-              {myStats.eventsSum}
-            </div>
-            <div className="text-[10px] text-stone-400">Battles scheduled by you</div>
-          </div>
 
-          <div className="p-4 rounded-xl bg-[#20150f] border border-[#4d2b14] space-y-1">
-            <div className="text-[10px] uppercase font-bold text-stone-400 flex items-center gap-1.5">
-              <Flame className="w-3.5 h-3.5 text-red-400" />
-              <span>Strikes Managed</span>
+            <div className="p-4 rounded-xl bg-[#20150f] border border-[#4d2b14] space-y-1">
+              <div className="text-[10px] uppercase font-bold text-stone-400 flex items-center gap-1.5">
+                <Flame className="w-3.5 h-3.5 text-red-400" />
+                <span>Strikes Managed</span>
+              </div>
+              <div className="text-2xl font-fantasy font-black text-red-300">
+                {myStats.strikesSum}
+              </div>
+              <div className="text-[10px] text-stone-400">Disciplines handled by you</div>
             </div>
-            <div className="text-2xl font-fantasy font-black text-red-300">
-              {myStats.strikesSum}
-            </div>
-            <div className="text-[10px] text-stone-400">Disciplines handled by you</div>
-          </div>
 
-          <div className="p-4 rounded-xl bg-[#20150f] border border-[#4d2b14] space-y-1">
-            <div className="text-[10px] uppercase font-bold text-stone-400 flex items-center gap-1.5">
-              <MessageSquare className="w-3.5 h-3.5 text-purple-400" />
-              <span>Notes & Roster</span>
+            <div className="p-4 rounded-xl bg-[#20150f] border border-[#4d2b14] space-y-1">
+              <div className="text-[10px] uppercase font-bold text-stone-400 flex items-center gap-1.5">
+                <MessageSquare className="w-3.5 h-3.5 text-purple-400" />
+                <span>Notes & Roster</span>
+              </div>
+              <div className="text-2xl font-fantasy font-black text-purple-300">
+                {myStats.commsSum + myStats.membersAdded + myStats.membersUpdated}
+              </div>
+              <div className="text-[10px] text-stone-400">Player notes logged</div>
             </div>
-            <div className="text-2xl font-fantasy font-black text-purple-300">
-              {myStats.commsSum}
-            </div>
-            <div className="text-[10px] text-stone-400">Player notes logged</div>
           </div>
-        </div>
+        ) : (
+          /* SubAdmin / R4 4 Metrics Cards */
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
+            <div className="p-4 rounded-xl bg-[#20150f] border border-[#4d2b14] space-y-1">
+              <div className="text-[10px] uppercase font-bold text-stone-400 flex items-center gap-1.5">
+                <Flame className="w-3.5 h-3.5 text-red-400" />
+                <span>Strikes Enforced</span>
+              </div>
+              <div className="text-2xl font-fantasy font-black text-red-300">
+                {myStats.strikesSum}
+              </div>
+              <div className="text-[10px] text-stone-400">Penalties issued by you</div>
+            </div>
+
+            <div className="p-4 rounded-xl bg-[#20150f] border border-[#4d2b14] space-y-1">
+              <div className="text-[10px] uppercase font-bold text-stone-400 flex items-center gap-1.5">
+                <UserPlus className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Recruits Added</span>
+              </div>
+              <div className="text-2xl font-fantasy font-black text-emerald-300">
+                {myStats.membersAdded}
+              </div>
+              <div className="text-[10px] text-stone-400">New warriors enrolled</div>
+            </div>
+
+            <div className="p-4 rounded-xl bg-[#20150f] border border-[#4d2b14] space-y-1">
+              <div className="text-[10px] uppercase font-bold text-stone-400 flex items-center gap-1.5">
+                <Users className="w-3.5 h-3.5 text-amber-400" />
+                <span>Roster Updates</span>
+              </div>
+              <div className="text-2xl font-fantasy font-black text-amber-300">
+                {myStats.membersUpdated}
+              </div>
+              <div className="text-[10px] text-stone-400">Rank & status edits</div>
+            </div>
+
+            <div className="p-4 rounded-xl bg-[#20150f] border border-[#4d2b14] space-y-1">
+              <div className="text-[10px] uppercase font-bold text-stone-400 flex items-center gap-1.5">
+                <MessageSquare className="w-3.5 h-3.5 text-purple-400" />
+                <span>Comms & Notes</span>
+              </div>
+              <div className="text-2xl font-fantasy font-black text-purple-300">
+                {myStats.commsSum}
+              </div>
+              <div className="text-[10px] text-stone-400">Activity notes logged</div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Grid: Left Column = My Activity Log, Right Column = Account & Security */}
@@ -327,8 +446,15 @@ export const AdminProfileView: React.FC = () => {
 
           <div className="space-y-2.5">
             {myContributions.length === 0 ? (
-              <div className="p-8 text-center text-stone-400 bg-[#20150f] rounded-2xl border border-[#4d2b14]">
-                You haven&apos;t recorded any tracking actions yet. Start by taking attendance or scheduling a war event!
+              <div className="p-8 text-center text-stone-400 bg-[#20150f] rounded-2xl border border-[#4d2b14] space-y-1.5">
+                <p className="font-semibold text-stone-300">
+                  No tracking actions recorded yet.
+                </p>
+                <p className="text-xs text-stone-400">
+                  {isMainAdmin
+                    ? 'Start by scheduling battle events, recording turnout, or logging notes!'
+                    : 'Your officer activity will be tracked when you recruit members, update roster records, or enforce battle strikes!'}
+                </p>
               </div>
             ) : (
               myContributions.map(c => (
@@ -338,7 +464,7 @@ export const AdminProfileView: React.FC = () => {
                 >
                   <div className="flex items-center justify-between gap-2">
                     <span className="font-bold text-amber-300 font-fantasy">
-                      {c.targetName || c.action.replace('_', ' ')}
+                      {c.targetName || c.action.replace(/_/g, ' ')}
                     </span>
                     <span className="text-[10px] text-stone-400 font-mono">
                       {safeFormatDateTime(c.timestamp)}
@@ -422,7 +548,15 @@ export const AdminProfileView: React.FC = () => {
             </div>
             <div className="flex items-center justify-between pt-1 border-t border-[#29150b]">
               <span>Officer Role:</span>
-              <span className="font-mono text-stone-200">{admin.role === 'MainAdmin' ? 'Main Admin' : 'R4'}</span>
+              <span className="font-mono text-stone-200">
+                {isMainAdmin ? 'Main Admin (R5)' : 'R4 Officer'}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span>Authority Level:</span>
+              <span className="font-mono text-amber-300">
+                {isMainAdmin ? 'Full Alliance Authority' : 'Operational Scope'}
+              </span>
             </div>
             <div className="flex items-center justify-between">
               <span>Login Status:</span>
