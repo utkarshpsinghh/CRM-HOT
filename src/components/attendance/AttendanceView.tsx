@@ -537,9 +537,24 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
                     </div>
 
                     {isFlaked && (
-                      <div className="p-2 rounded-xl bg-red-950/50 border border-red-700/60 text-xs text-red-200 flex items-center gap-1.5 font-bold">
-                        <AlertTriangle className="w-3.5 h-3.5 text-red-400 shrink-0" />
-                        <span>Member voted YES but missed battle</span>
+                      <div className="space-y-1.5 pt-0.5">
+                        <div className="p-2 rounded-xl bg-red-950/50 border border-red-700/60 text-xs text-red-200 flex items-center gap-1.5 font-bold">
+                          <AlertTriangle className="w-3.5 h-3.5 text-red-400 shrink-0" />
+                          <span>Member voted YES but missed battle</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            onOpenAddStrike(
+                              member,
+                              `Missed ${currentEvent.eventType} after voting YES`
+                            )
+                          }
+                          className="w-full py-1.5 rounded-xl bg-red-950/80 border border-red-600 text-red-200 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer shadow-sm hover:bg-red-900 transition-colors"
+                        >
+                          <Flame className="w-3.5 h-3.5 text-red-400" />
+                          <span>Issue Penalty Strike</span>
+                        </button>
                       </div>
                     )}
                   </div>
@@ -663,7 +678,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
               <th className="py-3 px-4">Vote Cast</th>
               <th className="py-3 px-4">Attendance Status</th>
               <th className="py-3 px-4 text-right">
-                {isMainAdmin ? 'Action' : 'Outcome'}
+                Action / Penalty
               </th>
             </tr>
           </thead>
@@ -845,39 +860,29 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
                       )}
                     </td>
 
-                    {/* Right Column: Strike Action for Admin, Outcome Status for SubAdmin */}
+                    {/* Right Column: Strike Action / Outcome Status */}
                     <td className="py-3 px-4 text-right">
-                      {isMainAdmin ? (
-                        isFlaked ? (
-                          <button
-                            type="button"
-                            onClick={() =>
-                              onOpenAddStrike(
-                                member,
-                                `Missed ${currentEvent.eventType} after voting YES`
-                              )
-                            }
-                            className="px-2 py-1 rounded bg-red-950/60 border border-red-700 text-red-300 hover:text-white text-xs font-bold inline-flex items-center gap-1 cursor-pointer"
-                          >
-                            <Flame className="w-3 h-3" />
-                            <span>Strike</span>
-                          </button>
-                        ) : (
-                          <span className="text-stone-500 text-xs">—</span>
-                        )
+                      {isFlaked ? (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            onOpenAddStrike(
+                              member,
+                              `Missed ${currentEvent.eventType} after voting YES`
+                            )
+                          }
+                          className="px-2.5 py-1 rounded-lg bg-red-950/70 border border-red-700 text-red-200 hover:bg-red-900 hover:text-white text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer transition-colors shadow-sm"
+                          title="Issue Penalty Strike"
+                        >
+                          <Flame className="w-3.5 h-3.5 text-red-400" />
+                          <span>Issue Strike</span>
+                        </button>
+                      ) : record.attendanceStatus === 'JOINED' ? (
+                        <span className="text-xs font-bold text-emerald-400/90">
+                          Attended Battle
+                        </span>
                       ) : (
-                        /* SubAdmin Outcome Column */
-                        isFlaked ? (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-950 text-red-200 border border-red-500 text-[11px] font-bold">
-                            ⚠️ Missed after YES
-                          </span>
-                        ) : record.attendanceStatus === 'JOINED' ? (
-                          <span className="text-xs font-bold text-emerald-400/90">
-                            Attended Battle
-                          </span>
-                        ) : (
-                          <span className="text-stone-500 text-xs">—</span>
-                        )
+                        <span className="text-stone-500 text-xs">—</span>
                       )}
                     </td>
                   </tr>
