@@ -34,7 +34,7 @@ const MainAppContent: React.FC = () => {
     toasts,
     removeToast,
     isLoading: crmLoading,
-    isSyncingSheets,
+    isSyncing,
     members,
     syncStatus,
   } = useCRM();
@@ -94,7 +94,7 @@ const MainAppContent: React.FC = () => {
       <Header onOpenCreateEvent={() => setIsCreateEventOpen(true)} />
 
       {/* Syncing live banner when fetching in background */}
-      {isSyncingSheets && (
+      {isSyncing && (
         <div className="bg-[#451a03] border-b border-[#78350f] px-3 sm:px-4 py-1.5 text-center text-xs text-[#fef08a] flex items-center justify-center gap-2">
           <RefreshCw className="w-3.5 h-3.5 animate-spin text-[#fbbf24]" />
           <span>Updating records...</span>

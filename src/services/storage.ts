@@ -1,5 +1,5 @@
 import { Member, AllianceEvent, AttendanceRecord, StrikeRecord, CommunicationRecord, AllianceSettings, AdminAccount, OfficerContribution } from '../types/crm';
-import { initialMembers, initialEvents, generateInitialAttendance, initialStrikes, initialCommunications, initialSettings, initialAdmins, initialContributions, DEFAULT_GAS_URL } from './mockData';
+import { initialMembers, initialEvents, generateInitialAttendance, initialStrikes, initialCommunications, initialSettings, initialAdmins, initialContributions } from './mockData';
 
 const STORAGE_KEYS = {
   MEMBERS: 'crm_hot_members_v1',
@@ -107,39 +107,23 @@ export const storageService = {
       }
       localStorage.setItem(STORAGE_KEYS.INITIALIZED, 'true');
     }
-
-    // Check if an environment variable or default configuration provides a Google Apps Script endpoint
-    if (DEFAULT_GAS_URL) {
-      const current = this.getSettings();
-      if (!current.gasWebAppUrl || !current.gasWebAppUrl.startsWith('http')) {
-        current.gasWebAppUrl = DEFAULT_GAS_URL;
-        current.demoMode = false;
-        this.setSettings(current);
-      }
-    }
   },
 
   resetToDefaults() {
-    const currentSettings = this.getSettings();
     localStorage.setItem(STORAGE_KEYS.MEMBERS, JSON.stringify([]));
     localStorage.setItem(STORAGE_KEYS.EVENTS, JSON.stringify([]));
     localStorage.setItem(STORAGE_KEYS.ATTENDANCE, JSON.stringify([]));
     localStorage.setItem(STORAGE_KEYS.STRIKES, JSON.stringify([]));
     localStorage.setItem(STORAGE_KEYS.COMMUNICATION, JSON.stringify([]));
     localStorage.setItem(STORAGE_KEYS.CONTRIBUTIONS, JSON.stringify([]));
-    // Preserve existing sheet URL if user has one configured
-    localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify({
-      ...initialSettings,
-      gasWebAppUrl: currentSettings.gasWebAppUrl || DEFAULT_GAS_URL || '',
-      demoMode: !currentSettings.gasWebAppUrl && !DEFAULT_GAS_URL,
-    }));
+    localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(initialSettings));
     if (!localStorage.getItem(STORAGE_KEYS.ADMIN_ACCOUNTS)) {
       localStorage.setItem(STORAGE_KEYS.ADMIN_ACCOUNTS, JSON.stringify(initialAdmins));
     }
     localStorage.setItem(STORAGE_KEYS.INITIALIZED, 'true');
   },
 
-  // Clear all local mock/demo data so only pure Google Sheets data is retained
+  // Clear all local mock/demo data so only live cloud database data is retained
   clearLocalMockData() {
     localStorage.setItem(STORAGE_KEYS.MEMBERS, JSON.stringify([]));
     localStorage.setItem(STORAGE_KEYS.EVENTS, JSON.stringify([]));
@@ -223,26 +207,21 @@ export const storageService = {
     if (!raw) return initialSettings;
     try {
       const parsed: AllianceSettings = JSON.parse(raw);
-      // Auto-detect: if a Google Apps Script URL is saved, live mode should be active
-      if (parsed.gasWebAppUrl && parsed.gasWebAppUrl.trim().startsWith('http')) {
-        parsed.demoMode = false;
-      } else if (DEFAULT_GAS_URL && DEFAULT_GAS_URL.startsWith('http')) {
-        parsed.gasWebAppUrl = DEFAULT_GAS_URL;
-        parsed.demoMode = false;
-      }
-      return parsed;
+      return {
+        ...initialSettings,
+        ...parsed,
+        dbProvider: 'supabase',
+      };
     } catch {
       return initialSettings;
     }
   },
 
   setSettings(settings: AllianceSettings) {
-    const url = (settings.gasWebAppUrl || '').trim();
-    const hasUrl = Boolean(url.startsWith('http'));
     const updated: AllianceSettings = {
       ...settings,
-      gasWebAppUrl: url,
-      demoMode: hasUrl ? false : Boolean(settings.demoMode),
+      dbProvider: 'supabase',
+      demoMode: false,
     };
     localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(updated));
   },

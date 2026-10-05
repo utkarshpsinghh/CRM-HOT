@@ -17,8 +17,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCreateEvent }) => {
     updateSettings,
     activeDbProvider,
     refreshData,
-    syncWithGoogleSheets,
-    isSyncingSheets,
+    isSyncing,
     inactiveInsights,
     stats,
   } = useCRM();
@@ -121,12 +120,12 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCreateEvent }) => {
 
           {/* Sync Cloud Database Button */}
           <button
-            onClick={() => (activeDbProvider === 'supabase' ? refreshData() : syncWithGoogleSheets())}
-            disabled={isSyncingSheets}
+            onClick={() => refreshData()}
+            disabled={isSyncing}
             className="p-1.5 sm:p-2 rounded-xl bg-[#29160a] border border-[#42220d] text-amber-300 hover:text-white hover:border-[#b45309] transition-colors cursor-pointer disabled:opacity-50"
-            title={activeDbProvider === 'supabase' ? 'Sync with Supabase PostgreSQL' : 'Sync with Google Sheets'}
+            title={activeDbProvider === 'supabase' ? 'Refresh from Supabase PostgreSQL' : 'Refresh Database'}
           >
-            <RefreshCw className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${isSyncingSheets ? 'animate-spin text-amber-400' : ''}`} />
+            <RefreshCw className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${isSyncing ? 'animate-spin text-amber-400' : ''}`} />
           </button>
 
           {/* Profile Quick Button */}

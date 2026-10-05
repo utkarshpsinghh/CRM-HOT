@@ -17,22 +17,20 @@ import {
   VolumeX,
   UserPlus,
   ShieldCheck,
-  ShieldAlert,
   Trash2,
-  Lock,
-  User,
   Server,
   Zap,
   Copy,
   Check,
+  Users,
+  Crown,
+  FileText,
 } from 'lucide-react';
 
 export const SettingsView: React.FC = () => {
   const {
     settings,
     updateSettings,
-    connectGoogleSheets,
-    disconnectGoogleSheets,
     connectSupabase,
     disconnectSupabase,
     testSupabaseConnection,
@@ -40,9 +38,9 @@ export const SettingsView: React.FC = () => {
     activeDbProvider,
     refreshData,
     clearLocalData,
-    syncWithGoogleSheets,
+    syncKingshotRoster,
+    isSyncing,
     lastSyncTime,
-    testSheetsConnection,
     resetDatabase,
     exportDatabase,
     importDatabase,
@@ -53,21 +51,13 @@ export const SettingsView: React.FC = () => {
     deleteAdminUser,
   } = useCRM();
 
-  const [activeEngineTab, setActiveEngineTab] = useState<'supabase' | 'sheets'>(
-    settings.dbProvider === 'sheets' ? 'sheets' : 'supabase'
-  );
-
-  const [gasUrl, setGasUrl] = useState(settings.gasWebAppUrl || '');
   const [supaUrl, setSupaUrl] = useState(settings.supabaseUrl || '');
   const [supaKey, setSupaKey] = useState(settings.supabaseAnonKey || '');
+  const [kingdomId, setKingdomId] = useState(settings.kingdomId || '1391');
+  const [allianceTag, setAllianceTag] = useState(settings.allianceTag || 'HOT');
   const [warningDays, setWarningDays] = useState(settings.inactivityWarningDays);
   const [inactiveDays, setInactiveDays] = useState(settings.inactivityInactiveDays);
   const [criticalDays, setCriticalDays] = useState(settings.inactivityCriticalDays);
-  const [demoMode, setDemoMode] = useState(settings.demoMode);
-
-  const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
-  const [isTesting, setIsTesting] = useState(false);
-  const [isConnecting, setIsConnecting] = useState(false);
 
   const [supaTestResult, setSupaTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const [isConnectingSupa, setIsConnectingSupa] = useState(false);
@@ -76,6 +66,11 @@ export const SettingsView: React.FC = () => {
   const [migrationStatusText, setMigrationStatusText] = useState('');
   const [migrationResult, setMigrationResult] = useState<{ success: boolean; message: string; counts?: Record<string, number> } | null>(null);
   const [schemaCopied, setSchemaCopied] = useState(false);
+
+  // Kingshot roster parser state
+  const [rosterInputText, setRosterInputText] = useState('');
+  const [isSyncingKingshot, setIsSyncingKingshot] = useState(false);
+  const [kingshotResult, setKingshotResult] = useState<{ success: boolean; message: string; added?: number; updated?: number } | null>(null);
 
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
@@ -92,14 +87,14 @@ export const SettingsView: React.FC = () => {
     e.preventDefault();
     await updateSettings({
       ...settings,
-      gasWebAppUrl: gasUrl.trim(),
       supabaseUrl: supaUrl.trim(),
       supabaseAnonKey: supaKey.trim(),
-      dbProvider: activeEngineTab,
+      kingdomId: kingdomId.trim() || '1391',
+      allianceTag: allianceTag.trim() || 'HOT',
+      dbProvider: supaUrl.trim() ? 'supabase' : 'local',
       inactivityWarningDays: Number(warningDays),
       inactivityInactiveDays: Number(inactiveDays),
       inactivityCriticalDays: Number(criticalDays),
-      demoMode: Boolean(demoMode),
     });
     setSavedSuccess(true);
     setTimeout(() => setSavedSuccess(false), 3000);
@@ -140,7 +135,6 @@ export const SettingsView: React.FC = () => {
   };
 
   const handleMigrateToSupabase = async () => {
-    // If supaUrl and supaKey are filled in the inputs but not saved yet, connect first
     if (supaUrl.trim() && supaKey.trim() && (!settings.supabaseUrl || !settings.supabaseAnonKey)) {
       setMigrationStatusText('Connecting to Supabase...');
       const conn = await connectSupabase(supaUrl.trim(), supaKey.trim());
@@ -153,7 +147,7 @@ export const SettingsView: React.FC = () => {
 
     setIsMigratingSupa(true);
     setMigrationResult(null);
-    setMigrationStatusText('Starting migration pipeline...');
+    setMigrationStatusText('Starting PostgreSQL upload...');
     const result = await migrateToSupabase((msg) => {
       setMigrationStatusText(msg);
     });
@@ -162,34 +156,24 @@ export const SettingsView: React.FC = () => {
     setMigrationResult(result);
   };
 
+  const handleKingshotSync = async (useText: boolean = false) => {
+    setIsSyncingKingshot(true);
+    setKingshotResult(null);
+    try {
+      const res = await syncKingshotRoster(useText ? rosterInputText : undefined);
+      setKingshotResult(res);
+      if (res.success && useText) {
+        setRosterInputText('');
+      }
+    } finally {
+      setIsSyncingKingshot(false);
+    }
+  };
+
   const handleCopySchemaPath = () => {
     navigator.clipboard.writeText('supabase/schema.sql');
     setSchemaCopied(true);
     setTimeout(() => setSchemaCopied(false), 2500);
-  };
-
-  const handleConnectSheet = async () => {
-    if (!gasUrl.trim()) {
-      setTestResult({ success: false, message: 'Please enter a Google Apps Script Web App URL first.' });
-      return;
-    }
-    setIsConnecting(true);
-    setTestResult(null);
-    const result = await connectGoogleSheets(gasUrl.trim());
-    setIsConnecting(false);
-    setTestResult(result);
-  };
-
-  const handleTestConnection = async () => {
-    if (!gasUrl.trim()) {
-      setTestResult({ success: false, message: 'Please enter a Google Apps Script URL first.' });
-      return;
-    }
-    setIsTesting(true);
-    setTestResult(null);
-    const result = await testSheetsConnection(gasUrl.trim());
-    setIsTesting(false);
-    setTestResult(result);
   };
 
   const handleCreateAdmin = async (e: React.FormEvent) => {
@@ -251,7 +235,7 @@ export const SettingsView: React.FC = () => {
           </h1>
         </div>
         <p className="text-xs text-stone-400 mt-0.5">
-          Manage officer admin accounts, Google Sheets database, and alliance parameters.
+          Configure Supabase PostgreSQL database, Kingdom #1391 HOT alliance roster sync, and officer accounts.
         </p>
       </div>
 
@@ -391,9 +375,131 @@ export const SettingsView: React.FC = () => {
         </form>
       </div>
 
-      {/* Main Settings Form */}
+      {/* SECTION 2: KINGSHOT ALLIANCE MEMBERS DATA (#1391 Kingdom [HOT] Alliance) */}
+      <div className="p-4 sm:p-5 rounded-2xl bg-[#1a1410] border-2 border-amber-600/40 shadow-md space-y-4">
+        <div className="flex items-start justify-between gap-3 flex-wrap">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-300 shrink-0">
+              <Crown className="w-5 h-5 text-amber-400" />
+            </div>
+            <div>
+              <h2 className="font-fantasy font-bold text-base text-[#fef08a] flex items-center gap-2">
+                <span>Kingshot Roster Sync</span>
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-950/80 text-amber-300 border border-amber-500 font-sans font-bold">
+                  Kingdom #{kingdomId} [{allianceTag}]
+                </span>
+              </h2>
+              <p className="text-xs text-stone-400">
+                Synchronize member roster and ranks for Kingdom #1391 [HOT] Alliance directly into your Supabase database.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => handleKingshotSync(false)}
+              disabled={isSyncingKingshot || isSyncing}
+              className="btn-kingshot-gold px-3.5 py-1.5 text-xs font-fantasy font-black uppercase flex items-center gap-1.5 cursor-pointer shadow-md disabled:opacity-50"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isSyncingKingshot ? 'animate-spin' : ''}`} />
+              <span>{isSyncingKingshot ? 'Syncing...' : '1-Click Roster Sync'}</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Alliance Identification Configuration */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3.5 rounded-xl bg-[#120c08] border border-[#3e2716]">
+          <div>
+            <label className="block text-[11px] font-bold text-stone-400 uppercase mb-1">
+              Kingdom ID
+            </label>
+            <input
+              type="text"
+              value={kingdomId}
+              onChange={e => setKingdomId(e.target.value)}
+              placeholder="1391"
+              className="w-full px-3 py-1.5 rounded-lg bg-[#1a1410] border border-[#3e2716] text-amber-300 font-mono font-bold text-xs focus:outline-none focus:border-[#ca8a04]"
+            />
+          </div>
+          <div>
+            <label className="block text-[11px] font-bold text-stone-400 uppercase mb-1">
+              Alliance Tag
+            </label>
+            <input
+              type="text"
+              value={allianceTag}
+              onChange={e => setAllianceTag(e.target.value)}
+              placeholder="HOT"
+              className="w-full px-3 py-1.5 rounded-lg bg-[#1a1410] border border-[#3e2716] text-amber-300 font-mono font-bold text-xs focus:outline-none focus:border-[#ca8a04]"
+            />
+          </div>
+        </div>
+
+        {/* Smart In-Game Roster Parser & Importer */}
+        <div className="p-3.5 rounded-xl bg-[#120c08] border border-[#3e2716] space-y-2.5">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-fantasy font-bold text-[#fef08a] uppercase flex items-center gap-1.5">
+              <FileText className="w-3.5 h-3.5 text-amber-400" />
+              <span>Smart Roster Parser (In-Game Roster Copy-Paste)</span>
+            </span>
+            <span className="text-[11px] text-stone-400 font-mono">
+              Auto-detects R5, R4, R3, R2, R1 &amp; Power
+            </span>
+          </div>
+
+          <textarea
+            value={rosterInputText}
+            onChange={e => setRosterInputText(e.target.value)}
+            rows={4}
+            placeholder={`Paste in-game roster export, OCR text, or player list here...\nExample:\n[HOT] LordVader - R4 (Power: 45,200,000)\n[HOT] Valkyrie - R4 (Power: 38,900,000)\n[HOT] ShadowBlade - R3 (Power: 22,400,000)`}
+            className="w-full px-3 py-2 rounded-xl bg-[#1a1410] border border-[#3e2716] text-stone-200 text-xs font-mono focus:outline-none focus:border-[#ca8a04] placeholder:text-stone-600"
+          />
+
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <p className="text-[11px] text-stone-500">
+              Parses player names, rank levels (R1–R5), and battle power directly into member records.
+            </p>
+            <button
+              type="button"
+              onClick={() => handleKingshotSync(true)}
+              disabled={isSyncingKingshot || !rosterInputText.trim()}
+              className="px-3.5 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-black text-xs font-fantasy font-black uppercase cursor-pointer transition-colors flex items-center gap-1.5 shadow disabled:opacity-50"
+            >
+              <Users className="w-3.5 h-3.5" />
+              <span>Parse &amp; Sync Members</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Kingshot Sync Result Feedback */}
+        {kingshotResult && (
+          <div
+            className={`p-3 rounded-xl border text-xs flex items-start gap-2 ${
+              kingshotResult.success
+                ? 'bg-emerald-950/60 border-emerald-600 text-emerald-300'
+                : 'bg-red-950/60 border-red-600 text-red-300'
+            }`}
+          >
+            {kingshotResult.success ? (
+              <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400 mt-0.5" />
+            ) : (
+              <AlertCircle className="w-4 h-4 shrink-0 text-red-400 mt-0.5" />
+            )}
+            <div>
+              <p className="font-bold">{kingshotResult.message}</p>
+              {kingshotResult.success && (
+                <p className="text-[11px] text-stone-300 mt-0.5">
+                  Added: {kingshotResult.added || 0} new players | Updated: {kingshotResult.updated || 0} existing players.
+                </p>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* SECTION 3: SUPABASE POSTGRESQL DATABASE */}
       <form onSubmit={handleSaveSettings} className="space-y-6">
-        {/* SECTION 2: DATABASE ENGINE & CLOUD SYNC */}
         <div className="p-4 sm:p-5 rounded-2xl bg-[#1a1410] border-2 border-[#3e2716] shadow-md space-y-4">
           <div className="flex items-start justify-between gap-3 flex-wrap">
             <div className="flex items-center gap-2.5">
@@ -402,20 +508,15 @@ export const SettingsView: React.FC = () => {
               </div>
               <div>
                 <h2 className="font-fantasy font-bold text-base text-[#fef08a] flex items-center gap-2">
-                  <span>Database Engine &amp; Cloud Sync</span>
+                  <span>Supabase PostgreSQL Database</span>
                   {activeDbProvider === 'supabase' && (
                     <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-950/80 text-emerald-300 border border-emerald-500 font-sans font-bold flex items-center gap-1">
                       <Zap className="w-3 h-3 text-emerald-400" /> PostgreSQL Active
                     </span>
                   )}
-                  {activeDbProvider === 'sheets' && (
-                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-950/80 text-amber-300 border border-amber-500 font-sans font-bold">
-                      Google Sheets Active
-                    </span>
-                  )}
                 </h2>
                 <p className="text-xs text-stone-400">
-                  Select your primary cloud database. Supabase PostgreSQL delivers sub-20ms reads/writes and infinite scalability.
+                  Primary cloud database for events, attendance checks, strikes, communications, officer logs, and admin accounts.
                 </p>
               </div>
             </div>
@@ -440,352 +541,204 @@ export const SettingsView: React.FC = () => {
             </div>
           </div>
 
-          {/* Engine Selector Tabs */}
-          <div className="flex rounded-xl bg-[#120c08] p-1 border border-[#3e2716] gap-1">
+          {/* Active Supabase Banner */}
+          {activeDbProvider === 'supabase' && syncStatus === 'connected' && (
+            <div className="p-3.5 rounded-xl bg-emerald-950/40 border border-emerald-700/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-2 text-xs text-emerald-300">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span>
+                  <strong>Supabase Live Connected:</strong> Operating directly on PostgreSQL database with ultra-low latency (&lt;25ms).
+                </span>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => refreshData()}
+                  className="px-3 py-1.5 rounded-lg bg-emerald-800 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                >
+                  <RefreshCw className="w-3 h-3" />
+                  <span>Refresh</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={disconnectSupabase}
+                  className="px-3 py-1.5 rounded-lg bg-stone-800 hover:bg-stone-700 text-stone-300 text-xs font-bold cursor-pointer transition-colors"
+                >
+                  Disconnect
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Supabase URL and Anon Key Inputs */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <label className="block text-xs font-fantasy font-bold text-stone-300 uppercase">
+                Supabase Project URL
+              </label>
+              <input
+                type="url"
+                value={supaUrl}
+                onChange={e => setSupaUrl(e.target.value)}
+                placeholder="https://nlnrfoolpcdgvgwgpklx.supabase.co"
+                className="w-full px-3 py-2 rounded-xl bg-[#120c08] border border-[#3e2716] text-stone-200 text-xs sm:text-sm focus:outline-none focus:border-[#ca8a04] font-mono"
+              />
+              <p className="text-[11px] text-stone-500">
+                From Supabase Dashboard &gt; Project Settings &gt; API
+              </p>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="block text-xs font-fantasy font-bold text-stone-300 uppercase">
+                Supabase Anon Public API Key
+              </label>
+              <input
+                type="password"
+                value={supaKey}
+                onChange={e => setSupaKey(e.target.value)}
+                placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                className="w-full px-3 py-2 rounded-xl bg-[#120c08] border border-[#3e2716] text-stone-200 text-xs sm:text-sm focus:outline-none focus:border-[#ca8a04] font-mono"
+              />
+              <p className="text-[11px] text-stone-500">
+                Anon Public Key (<code className="text-amber-400">anon</code> / <code className="text-amber-400">public</code>)
+              </p>
+            </div>
+          </div>
+
+          {/* Supabase Connect & Test Buttons */}
+          <div className="flex flex-wrap gap-2">
             <button
               type="button"
-              onClick={() => setActiveEngineTab('supabase')}
-              className={`flex-1 py-2 px-3 rounded-lg text-xs font-fantasy font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
-                activeEngineTab === 'supabase'
-                  ? 'bg-gradient-to-r from-[#ca8a04] to-[#eab308] text-black shadow-md font-black'
-                  : 'text-stone-400 hover:text-stone-200 hover:bg-[#1f140e]'
-              }`}
+              onClick={handleConnectSupabase}
+              disabled={isConnectingSupa || !supaUrl.trim() || !supaKey.trim()}
+              className="btn-kingshot-gold px-4 py-2 text-xs font-fantasy font-black uppercase flex items-center justify-center gap-1.5 cursor-pointer shadow-md disabled:opacity-50"
             >
-              <Server className="w-4 h-4" />
-              <span>PostgreSQL &amp; Supabase (High Scale)</span>
-              <span className="text-[9px] px-1.5 py-0.2 rounded uppercase font-sans font-black bg-black/30">Fast</span>
+              <CheckCircle2 className={`w-3.5 h-3.5 ${isConnectingSupa ? 'animate-spin' : ''}`} />
+              <span>{isConnectingSupa ? 'Verifying & Saving...' : 'Connect & Save Supabase'}</span>
             </button>
-            <button
+            <GameButton
               type="button"
-              onClick={() => setActiveEngineTab('sheets')}
-              className={`flex-1 py-2 px-3 rounded-lg text-xs font-fantasy font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
-                activeEngineTab === 'sheets'
-                  ? 'bg-gradient-to-r from-[#ca8a04] to-[#eab308] text-black shadow-md font-black'
-                  : 'text-stone-400 hover:text-stone-200 hover:bg-[#1f140e]'
+              variant="slate"
+              size="sm"
+              onClick={handleTestSupabase}
+              disabled={isTestingSupa || !supaUrl.trim() || !supaKey.trim()}
+              icon={<RefreshCw className={`w-3.5 h-3.5 ${isTestingSupa ? 'animate-spin' : ''}`} />}
+            >
+              {isTestingSupa ? 'Testing...' : 'Test Connection'}
+            </GameButton>
+          </div>
+
+          {/* Supabase Test Feedback */}
+          {supaTestResult && (
+            <div
+              className={`p-3 rounded-xl border text-xs flex items-start gap-2 ${
+                supaTestResult.success
+                  ? 'bg-emerald-950/60 border-emerald-600 text-emerald-300'
+                  : 'bg-red-950/60 border-red-600 text-red-300'
               }`}
             >
-              <Database className="w-4 h-4" />
-              <span>Google Sheets (Legacy)</span>
+              {supaTestResult.success ? (
+                <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400 mt-0.5" />
+              ) : (
+                <AlertCircle className="w-4 h-4 shrink-0 text-red-400 mt-0.5" />
+              )}
+              <span>{supaTestResult.message}</span>
+            </div>
+          )}
+
+          {/* Upload Local Data to PostgreSQL */}
+          <div className="p-3.5 rounded-xl bg-[#120c08] border border-[#3e2716] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="space-y-0.5">
+              <div className="text-xs font-fantasy font-bold text-amber-300 uppercase flex items-center gap-1.5">
+                <Upload className="w-3.5 h-3.5" />
+                <span>Upload Local Records to PostgreSQL</span>
+              </div>
+              <div className="text-[11px] text-stone-400">
+                Upload all currently loaded members, battle events, attendance, strikes, and logs into your Supabase database in bulk.
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={handleMigrateToSupabase}
+              disabled={isMigratingSupa}
+              className="px-3.5 py-2 rounded-lg bg-gradient-to-r from-amber-600 to-yellow-600 hover:from-amber-500 hover:to-yellow-500 text-black text-xs font-fantasy font-black uppercase cursor-pointer shrink-0 transition-all flex items-center justify-center gap-1.5 shadow-md disabled:opacity-50"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isMigratingSupa ? 'animate-spin' : ''}`} />
+              <span>{isMigratingSupa ? 'Uploading...' : 'Upload All'}</span>
             </button>
           </div>
 
-          {/* TAB 1: SUPABASE POSTGRESQL */}
-          {activeEngineTab === 'supabase' && (
-            <div className="space-y-4 pt-1">
-              {/* Active Supabase Card */}
-              {activeDbProvider === 'supabase' && syncStatus === 'connected' && (
-                <div className="p-3.5 rounded-xl bg-emerald-950/40 border border-emerald-700/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div className="flex items-center gap-2 text-xs text-emerald-300">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                    <span>
-                      <strong>Supabase Live Connected:</strong> Operating directly on PostgreSQL database with ultra-low latency (&lt;25ms).
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <button
-                      type="button"
-                      onClick={() => refreshData()}
-                      className="px-3 py-1.5 rounded-lg bg-emerald-800 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors"
-                    >
-                      <RefreshCw className="w-3 h-3" />
-                      <span>Refresh</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={disconnectSupabase}
-                      className="px-3 py-1.5 rounded-lg bg-stone-800 hover:bg-stone-700 text-stone-300 text-xs font-bold cursor-pointer transition-colors"
-                    >
-                      Disconnect
-                    </button>
-                  </div>
-                </div>
-              )}
+          {/* Progress Banner */}
+          {isMigratingSupa && migrationStatusText && (
+            <div className="p-3 rounded-xl border border-amber-600/60 bg-amber-950/40 text-amber-300 text-xs flex items-center gap-2.5 animate-pulse">
+              <RefreshCw className="w-4 h-4 animate-spin text-amber-400 shrink-0" />
+              <span className="font-semibold">{migrationStatusText}</span>
+            </div>
+          )}
 
-              {/* Supabase URL and Anon Key Inputs */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-fantasy font-bold text-stone-300 uppercase">
-                    Supabase Project URL
-                  </label>
-                  <input
-                    type="url"
-                    value={supaUrl}
-                    onChange={e => setSupaUrl(e.target.value)}
-                    placeholder="https://xyzabcdefghijklmn.supabase.co"
-                    className="w-full px-3 py-2 rounded-xl bg-[#120c08] border border-[#3e2716] text-stone-200 text-xs sm:text-sm focus:outline-none focus:border-[#ca8a04] font-mono"
-                  />
-                  <p className="text-[11px] text-stone-500">
-                    From Supabase Dashboard &gt; Project Settings &gt; API
+          {/* Migration Result Banner */}
+          {migrationResult && (
+            <div
+              className={`p-3 rounded-xl border text-xs flex items-start gap-2 ${
+                migrationResult.success
+                  ? 'bg-emerald-950/60 border-emerald-600 text-emerald-300'
+                  : 'bg-red-950/60 border-red-600 text-red-300'
+              }`}
+            >
+              {migrationResult.success ? (
+                <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400 mt-0.5" />
+              ) : (
+                <AlertCircle className="w-4 h-4 shrink-0 text-red-400 mt-0.5" />
+              )}
+              <div>
+                <p className="font-bold">{migrationResult.message}</p>
+                {migrationResult.counts && (
+                  <p className="text-[11px] text-stone-300 mt-0.5">
+                    Uploaded: {migrationResult.counts.members || 0} members, {migrationResult.counts.events || 0} events, {migrationResult.counts.attendance || 0} attendance records, {migrationResult.counts.strikes || 0} strikes, {migrationResult.counts.communications || 0} comm logs.
                   </p>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-fantasy font-bold text-stone-300 uppercase">
-                    Supabase Anon Public API Key
-                  </label>
-                  <input
-                    type="password"
-                    value={supaKey}
-                    onChange={e => setSupaKey(e.target.value)}
-                    placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-                    className="w-full px-3 py-2 rounded-xl bg-[#120c08] border border-[#3e2716] text-stone-200 text-xs sm:text-sm focus:outline-none focus:border-[#ca8a04] font-mono"
-                  />
-                  <p className="text-[11px] text-stone-500">
-                    Anon Public Key (<code className="text-amber-400">anon</code> / <code className="text-amber-400">public</code>)
-                  </p>
-                </div>
-              </div>
-
-              {/* Supabase Connect & Test Buttons */}
-              <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={handleConnectSupabase}
-                  disabled={isConnectingSupa || !supaUrl.trim() || !supaKey.trim()}
-                  className="btn-kingshot-gold px-4 py-2 text-xs font-fantasy font-black uppercase flex items-center justify-center gap-1.5 cursor-pointer shadow-md disabled:opacity-50"
-                >
-                  <CheckCircle2 className={`w-3.5 h-3.5 ${isConnectingSupa ? 'animate-spin' : ''}`} />
-                  <span>{isConnectingSupa ? 'Verifying & Saving...' : 'Connect & Save Supabase'}</span>
-                </button>
-                <GameButton
-                  type="button"
-                  variant="slate"
-                  size="sm"
-                  onClick={handleTestSupabase}
-                  disabled={isTestingSupa || !supaUrl.trim() || !supaKey.trim()}
-                  icon={<RefreshCw className={`w-3.5 h-3.5 ${isTestingSupa ? 'animate-spin' : ''}`} />}
-                >
-                  {isTestingSupa ? 'Testing...' : 'Test Connection'}
-                </GameButton>
-              </div>
-
-              {/* Supabase Test Feedback */}
-              {supaTestResult && (
-                <div
-                  className={`p-3 rounded-xl border text-xs flex items-start gap-2 ${
-                    supaTestResult.success
-                      ? 'bg-emerald-950/60 border-emerald-600 text-emerald-300'
-                      : 'bg-red-950/60 border-red-600 text-red-300'
-                  }`}
-                >
-                  {supaTestResult.success ? (
-                    <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400 mt-0.5" />
-                  ) : (
-                    <AlertCircle className="w-4 h-4 shrink-0 text-red-400 mt-0.5" />
-                  )}
-                  <span>{supaTestResult.message}</span>
-                </div>
-              )}
-
-              {/* Migration Box: 1-Click Upload to Supabase */}
-              <div className="p-3.5 rounded-xl bg-[#120c08] border border-[#3e2716] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="space-y-0.5">
-                  <div className="text-xs font-fantasy font-bold text-amber-300 uppercase flex items-center gap-1.5">
-                    <Upload className="w-3.5 h-3.5" />
-                    <span>Migrate Local / Sheet Data to PostgreSQL</span>
-                  </div>
-                  <div className="text-[11px] text-stone-400">
-                    Upload all currently loaded members, battle events, attendance, strikes, and logs into your Supabase database in bulk.
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={handleMigrateToSupabase}
-                  disabled={isMigratingSupa}
-                  className="px-3.5 py-2 rounded-lg bg-gradient-to-r from-amber-600 to-yellow-600 hover:from-amber-500 hover:to-yellow-500 text-black text-xs font-fantasy font-black uppercase cursor-pointer shrink-0 transition-all flex items-center justify-center gap-1.5 shadow-md disabled:opacity-50"
-                >
-                  <RefreshCw className={`w-3.5 h-3.5 ${isMigratingSupa ? 'animate-spin' : ''}`} />
-                  <span>{isMigratingSupa ? 'Migrating...' : 'Migrate Now'}</span>
-                </button>
-              </div>
-
-              {/* In-Flight Migration Progress Banner */}
-              {isMigratingSupa && migrationStatusText && (
-                <div className="p-3 rounded-xl border border-amber-600/60 bg-amber-950/40 text-amber-300 text-xs flex items-center gap-2.5 animate-pulse">
-                  <RefreshCw className="w-4 h-4 animate-spin text-amber-400 shrink-0" />
-                  <span className="font-semibold">{migrationStatusText}</span>
-                </div>
-              )}
-
-              {/* Migration Result Banner */}
-              {migrationResult && (
-                <div
-                  className={`p-3 rounded-xl border text-xs flex items-start gap-2 ${
-                    migrationResult.success
-                      ? 'bg-emerald-950/60 border-emerald-600 text-emerald-300'
-                      : 'bg-red-950/60 border-red-600 text-red-300'
-                  }`}
-                >
-                  {migrationResult.success ? (
-                    <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400 mt-0.5" />
-                  ) : (
-                    <AlertCircle className="w-4 h-4 shrink-0 text-red-400 mt-0.5" />
-                  )}
-                  <div>
-                    <p className="font-bold">{migrationResult.message}</p>
-                    {migrationResult.counts && (
-                      <p className="text-[11px] text-stone-300 mt-0.5">
-                        Uploaded: {migrationResult.counts.members || 0} members, {migrationResult.counts.events || 0} events, {migrationResult.counts.attendance || 0} attendance records, {migrationResult.counts.strikes || 0} strikes, {migrationResult.counts.communications || 0} comm logs.
-                      </p>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Quick Schema Setup Instructions */}
-              <div className="p-3.5 rounded-xl bg-[#120c08]/80 border border-[#3e2716] text-xs space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="font-fantasy font-bold text-[#fef08a] uppercase flex items-center gap-1.5">
-                    <Server className="w-3.5 h-3.5 text-amber-400" />
-                    <span>First-Time Supabase Setup (2 Minutes)</span>
-                  </span>
-                  <a
-                    href="https://supabase.com/dashboard"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-[#ca8a04] hover:text-[#fef08a] flex items-center gap-1 text-[11px] font-bold"
-                  >
-                    <span>Supabase Dashboard</span>
-                    <ExternalLink className="w-3 h-3" />
-                  </a>
-                </div>
-
-                <ol className="list-decimal list-inside space-y-1 text-stone-300 text-xs leading-relaxed">
-                  <li>Create a free project at <strong>supabase.com</strong>.</li>
-                  <li>In your Supabase project, click on <strong>SQL Editor</strong> &gt; <strong>New Query</strong>.</li>
-                  <li>
-                    Run the schema script provided in <code className="text-[#fef08a] font-mono">supabase/schema.sql</code> to create all tables and performance indexes.
-                  </li>
-                  <li>In Supabase, go to <strong>Project Settings &gt; API</strong> and copy your Project URL &amp; <code className="text-amber-400">anon public</code> key into the fields above.</li>
-                </ol>
-
-                <div className="pt-1">
-                  <button
-                    type="button"
-                    onClick={handleCopySchemaPath}
-                    className="px-2.5 py-1 rounded bg-[#1e130c] hover:bg-[#2e1d13] border border-[#522d14] text-stone-300 hover:text-white text-[11px] font-mono flex items-center gap-1.5 cursor-pointer transition-colors"
-                  >
-                    {schemaCopied ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3 text-amber-400" />}
-                    <span>{schemaCopied ? 'Schema Path Copied!' : 'Copy Schema File Path (supabase/schema.sql)'}</span>
-                  </button>
-                </div>
+                )}
               </div>
             </div>
           )}
 
-          {/* TAB 2: GOOGLE SHEETS */}
-          {activeEngineTab === 'sheets' && (
-            <div className="space-y-4 pt-1">
-              {/* Connected Active Card */}
-              {activeDbProvider === 'sheets' && syncStatus === 'connected' && (
-                <div className="p-3.5 rounded-xl bg-emerald-950/40 border border-emerald-700/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div className="flex items-center gap-2 text-xs text-emerald-300">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                    <span>
-                      <strong>Google Sheet Connected:</strong> Changes synchronize with your Google Spreadsheet backend.
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <button
-                      type="button"
-                      onClick={() => syncWithGoogleSheets()}
-                      className="px-3 py-1.5 rounded-lg bg-emerald-800 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors"
-                    >
-                      <RefreshCw className="w-3 h-3" />
-                      <span>Sync Now</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={disconnectGoogleSheets}
-                      className="px-3 py-1.5 rounded-lg bg-stone-800 hover:bg-stone-700 text-stone-300 text-xs font-bold cursor-pointer transition-colors"
-                    >
-                      Disconnect
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* Google Apps Script Web App URL Input */}
-              <div className="space-y-2">
-                <label className="block text-xs font-fantasy font-bold text-stone-300 uppercase">
-                  Google Apps Script Web App URL
-                </label>
-                <div className="flex flex-col sm:flex-row gap-2">
-                  <input
-                    type="url"
-                    value={gasUrl}
-                    onChange={e => setGasUrl(e.target.value)}
-                    placeholder="https://script.google.com/macros/s/AKfycb.../exec"
-                    className="flex-1 px-3 py-2 rounded-xl bg-[#120c08] border border-[#3e2716] text-stone-200 text-xs sm:text-sm focus:outline-none focus:border-[#ca8a04] font-mono"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleConnectSheet}
-                    disabled={isConnecting || !gasUrl.trim()}
-                    className="btn-kingshot-gold px-4 py-2 text-xs font-fantasy font-black uppercase flex items-center justify-center gap-1.5 cursor-pointer shadow-md shrink-0 disabled:opacity-50"
-                  >
-                    <CheckCircle2 className={`w-3.5 h-3.5 ${isConnecting ? 'animate-spin' : ''}`} />
-                    <span>{isConnecting ? 'Connecting...' : 'Connect & Save Sheet'}</span>
-                  </button>
-                  <GameButton
-                    type="button"
-                    variant="slate"
-                    size="sm"
-                    onClick={handleTestConnection}
-                    disabled={isTesting || !gasUrl.trim()}
-                    icon={<RefreshCw className={`w-3.5 h-3.5 ${isTesting ? 'animate-spin' : ''}`} />}
-                  >
-                    {isTesting ? 'Testing...' : 'Test Only'}
-                  </GameButton>
-                </div>
-                <p className="text-[11px] text-stone-400">
-                  Paste the deployed Web App URL (starts with <code className="text-[#fef08a] font-mono">https://script.google.com/macros/s/.../exec</code>).
-                </p>
-              </div>
-
-              {/* Connection Test Result */}
-              {testResult && (
-                <div
-                  className={`p-3 rounded-xl border text-xs flex items-start gap-2 ${
-                    testResult.success
-                      ? 'bg-emerald-950/60 border-emerald-600 text-emerald-300'
-                      : 'bg-red-950/60 border-red-600 text-red-300'
-                  }`}
-                >
-                  {testResult.success ? (
-                    <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400 mt-0.5" />
-                  ) : (
-                    <AlertCircle className="w-4 h-4 shrink-0 text-red-400 mt-0.5" />
-                  )}
-                  <span>{testResult.message}</span>
-                </div>
-              )}
-
-              {/* Quick Setup Instructions */}
-              <div className="p-3.5 rounded-xl bg-[#120c08]/80 border border-[#3e2716] text-xs space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="font-fantasy font-bold text-[#fef08a] uppercase">
-                    Quick Google Sheet Setup (3 Steps)
-                  </span>
-                  <a
-                    href="https://sheets.new"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-[#ca8a04] hover:text-[#fef08a] flex items-center gap-1 text-[11px] font-bold"
-                  >
-                    <span>New Sheet</span>
-                    <ExternalLink className="w-3 h-3" />
-                  </a>
-                </div>
-
-                <ol className="list-decimal list-inside space-y-1 text-stone-300 text-xs leading-relaxed">
-                  <li>Open your Google Sheet &gt; Click <strong>Extensions &gt; Apps Script</strong>.</li>
-                  <li>Paste the code from <code className="text-[#fef08a]">google-apps-script/Code.gs</code> and run <strong>`setupDatabase`</strong>.</li>
-                  <li>Click <strong>Deploy &gt; New deployment &gt; Web app</strong> (Access: Anyone) &gt; Paste the URL above.</li>
-                </ol>
-              </div>
+          {/* Quick Schema Setup Instructions */}
+          <div className="p-3.5 rounded-xl bg-[#120c08]/80 border border-[#3e2716] text-xs space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="font-fantasy font-bold text-[#fef08a] uppercase flex items-center gap-1.5">
+                <Server className="w-3.5 h-3.5 text-amber-400" />
+                <span>Supabase PostgreSQL Schema Setup</span>
+              </span>
+              <a
+                href="https://supabase.com/dashboard"
+                target="_blank"
+                rel="noreferrer"
+                className="text-[#ca8a04] hover:text-[#fef08a] flex items-center gap-1 text-[11px] font-bold"
+              >
+                <span>Supabase Dashboard</span>
+                <ExternalLink className="w-3 h-3" />
+              </a>
             </div>
-          )}
+
+            <ol className="list-decimal list-inside space-y-1 text-stone-300 text-xs leading-relaxed">
+              <li>Open your project at <strong>supabase.com</strong>.</li>
+              <li>Go to <strong>SQL Editor</strong> &gt; <strong>New Query</strong>.</li>
+              <li>
+                Run the schema script provided in <code className="text-[#fef08a] font-mono">supabase/schema.sql</code> to create all tables and indexes.
+              </li>
+              <li>In <strong>Project Settings &gt; API</strong>, copy your Project URL &amp; <code className="text-amber-400">anon public</code> key into the fields above.</li>
+            </ol>
+
+            <div className="pt-1">
+              <button
+                type="button"
+                onClick={handleCopySchemaPath}
+                className="px-2.5 py-1 rounded bg-[#1e130c] hover:bg-[#2e1d13] border border-[#522d14] text-stone-300 hover:text-white text-[11px] font-mono flex items-center gap-1.5 cursor-pointer transition-colors"
+              >
+                {schemaCopied ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3 text-amber-400" />}
+                <span>{schemaCopied ? 'Schema Path Copied!' : 'Copy Schema File Path (supabase/schema.sql)'}</span>
+              </button>
+            </div>
+          </div>
 
           {/* Cleanliness Option */}
           <div className="p-3.5 rounded-xl bg-[#120c08] border border-[#3e2716] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -794,7 +747,7 @@ export const SettingsView: React.FC = () => {
                 Clean Slate Mode (Remove Local Demo Data)
               </div>
               <div className="text-xs text-stone-400 mt-0.5">
-                Remove all starter demo members, fake events, and dates so the CRM exclusively displays records from your connected cloud database.
+                Remove all starter demo members, fake events, and dates so the CRM exclusively displays live records from Supabase.
               </div>
             </div>
             <button
@@ -808,7 +761,7 @@ export const SettingsView: React.FC = () => {
           </div>
         </div>
 
-        {/* SECTION 3: INACTIVITY THRESHOLDS */}
+        {/* SECTION 4: INACTIVITY THRESHOLDS */}
         <div className="p-4 sm:p-5 rounded-2xl bg-[#1a1410] border-2 border-[#3e2716] shadow-md space-y-4">
           <div>
             <h2 className="font-fantasy font-bold text-base text-[#fef08a]">
@@ -870,7 +823,7 @@ export const SettingsView: React.FC = () => {
           </div>
         </div>
 
-        {/* SECTION 4: SOUND & AUDIO */}
+        {/* SECTION 5: SOUND & AUDIO */}
         <div className="p-4 rounded-2xl bg-[#1a1410] border-2 border-[#3e2716] flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             {settings.soundEnabled ? (
@@ -912,7 +865,7 @@ export const SettingsView: React.FC = () => {
         </div>
       </form>
 
-      {/* SECTION 5: BACKUP & RECOVERY */}
+      {/* SECTION 6: BACKUP & RECOVERY */}
       <div className="p-4 sm:p-5 rounded-2xl bg-[#1a1410] border-2 border-[#3e2716] shadow-md space-y-4">
         <div>
           <h2 className="font-fantasy font-bold text-base text-[#fef08a]">
@@ -964,7 +917,7 @@ export const SettingsView: React.FC = () => {
         onClose={() => setShowResetConfirm(false)}
         onConfirm={resetDatabase}
         title="⚠️ Reset Alliance Database"
-        message="Are you sure you want to reset to the default 92-member HOT Alliance roster and event ledger? Any unsaved edits will be replaced with fresh starter data."
+        message="Are you sure you want to reset to the default HOT Alliance roster and event ledger? Any unsaved edits will be replaced with fresh starter data."
         confirmLabel="Confirm Reset"
         variant="crimson"
       />
@@ -975,7 +928,7 @@ export const SettingsView: React.FC = () => {
         onClose={() => setShowClearConfirm(false)}
         onConfirm={clearLocalData}
         title="⚠️ Remove Local Demo Data"
-        message="This will wipe all 92 starter demo members, fake events, and dates from local storage. The CRM will only contain and display records from your connected Google Sheet. Continue?"
+        message="This will wipe all starter demo members, fake events, and dates from local storage. The CRM will only contain and display records from your connected Supabase database. Continue?"
         confirmLabel="Wipe Demo Data"
         variant="crimson"
       />

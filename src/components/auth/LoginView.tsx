@@ -110,8 +110,6 @@ export const LoginView: React.FC = () => {
                 <span>
                   {activeDbProvider === 'supabase'
                     ? 'PostgreSQL Cloud Gateway'
-                    : activeDbProvider === 'sheets'
-                    ? 'Cloud Sheets Gateway'
                     : 'Secure Alliance Gateway'}
                 </span>
               </span>

@@ -76,10 +76,11 @@ export interface AllianceSettings {
   inactivityWarningDays: number;   // default 3
   inactivityInactiveDays: number;  // default 7
   inactivityCriticalDays: number;  // default 14
-  gasWebAppUrl: string;
+  kingdomId?: string;              // Kingdom #1391
+  allianceTag?: string;            // HOT
   supabaseUrl?: string;
   supabaseAnonKey?: string;
-  dbProvider?: 'supabase' | 'sheets' | 'local';
+  dbProvider?: 'supabase' | 'local';
   soundEnabled: boolean;
   demoMode: boolean;
 }

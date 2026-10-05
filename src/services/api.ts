@@ -9,44 +9,23 @@ import {
   AdminAccount,
   VoteStatus,
   AttendanceStatus,
-  InactiveMemberInsight,
   OfficerContribution,
+  InactiveMemberInsight,
 } from '../types/crm';
 import { storageService } from './storage';
 import { supabaseService } from './supabase';
 import { getLoginAttemptState, recordFailedAttempt, resetLoginAttempts } from '../utils/security';
-import { DEFAULT_GAS_URL } from '../config';
-
-// Helper to ensure Google Apps Script Web App URL ends with /exec
-export function normalizeGasUrl(url: string): string {
-  let clean = (url || '').trim();
-  if (clean.includes('/macros/s/') && !clean.includes('/exec')) {
-    clean = clean.replace(/\/?$/, '/exec');
-  }
-  return clean;
-}
 
 export const apiService = {
   // Determine which database engine is actively configured
-  getActiveProvider(settings?: AllianceSettings): 'supabase' | 'sheets' | 'local' {
+  getActiveProvider(settings?: AllianceSettings): 'supabase' | 'local' {
     if (this.isSupabase(settings)) return 'supabase';
-    if (this.isLiveSheets(settings)) return 'sheets';
     return 'local';
   },
 
   // Check if live Supabase PostgreSQL backend should be used
   isSupabase(settings?: AllianceSettings): boolean {
-    if (settings?.dbProvider === 'sheets' || settings?.dbProvider === 'local') return false;
     return supabaseService.isConfigured(settings);
-  },
-
-  // Check if live Google Sheets backend should be used
-  isLiveSheets(settings?: AllianceSettings): boolean {
-    if (!settings) return false;
-    if (settings.dbProvider === 'supabase') return false;
-    const url = (settings.gasWebAppUrl || '').trim();
-    if (!url.startsWith('http')) return false;
-    return !settings.demoMode;
   },
 
   // Test connection to Supabase PostgreSQL database
@@ -54,55 +33,8 @@ export const apiService = {
     return supabaseService.testConnection(url, key);
   },
 
-  // Test connection to Google Apps Script Web App
-  async testConnection(url: string): Promise<{ success: boolean; message: string; normalizedUrl?: string }> {
-    const clean = normalizeGasUrl(url);
-    if (!clean || !clean.startsWith('http')) {
-      return { success: false, message: 'Invalid URL format. Must start with https://script.google.com' };
-    }
-    if (clean.includes('docs.google.com/spreadsheets')) {
-      return {
-        success: false,
-        message: 'You entered a Google Sheet document link. Please enter the deployed Apps Script Web App URL (starts with https://script.google.com/macros/s/.../exec).',
-      };
-    }
-    try {
-      const pingUrl = clean.includes('?') ? `${clean}&action=ping` : `${clean}?action=ping`;
-      const response = await fetch(pingUrl, {
-        method: 'GET',
-        mode: 'cors',
-        redirect: 'follow',
-      });
-      const rawText = await response.text();
-      let data: any = null;
-      try {
-        data = JSON.parse(rawText);
-      } catch {
-        if (rawText.includes('<!DOCTYPE') || rawText.includes('<html')) {
-          return {
-            success: false,
-            message: 'Server returned HTML instead of JSON. Ensure your Apps Script Web App URL ends with /exec and deployment access is set to "Anyone".',
-          };
-        }
-        return { success: false, message: 'Could not parse response from server as JSON.' };
-      }
-
-      if (data && (data.status === 'success' || data.ok === true)) {
-        return {
-          success: true,
-          message: 'Connected to HOT Alliance Google Sheets successfully!',
-          normalizedUrl: clean,
-        };
-      }
-      return { success: false, message: data?.message || 'Server returned non-success response.' };
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      return { success: false, message: `Could not reach Apps Script endpoint: ${msg}. Make sure deployment access is set to "Anyone".` };
-    }
-  },
-
   // --------------------------------------------------------------------------
-  // UNIFIED FAST DATA FETCH (Parallel sub-30ms PostgreSQL or single GAS round-trip)
+  // UNIFIED FAST DATA FETCH (Parallel sub-30ms PostgreSQL fetch)
   // --------------------------------------------------------------------------
   async getAllData(settings: AllianceSettings): Promise<any | null> {
     if (this.isSupabase(settings)) {
@@ -110,70 +42,10 @@ export const apiService = {
         const supaData = await supabaseService.getAllData(settings);
         if (supaData) return supaData;
       } catch (err) {
-        console.warn('Supabase getAllData error, falling back:', err);
+        console.warn('Supabase getAllData error:', err);
       }
     }
-
-    if (this.isLiveSheets(settings)) {
-      try {
-        const url = `${normalizeGasUrl(settings.gasWebAppUrl)}?action=getAllData`;
-        const res = await fetch(url, { mode: 'cors' });
-        const json = await res.json();
-        if (json && (json.status === 'success' || json.ok === true) && json.data) {
-          return json.data;
-        }
-      } catch (err) {
-        console.warn('GAS getAllData fetch error, will fallback:', err);
-      }
-    }
-
     return null;
-  },
-
-  // --------------------------------------------------------------------------
-  // DIRECT LIVE GOOGLE SHEET DATA EXTRACTION (For PostgreSQL Migration)
-  // --------------------------------------------------------------------------
-  async fetchLiveGoogleSheetData(gasUrl?: string): Promise<any | null> {
-    const rawUrl = gasUrl || DEFAULT_GAS_URL;
-    if (!rawUrl || !rawUrl.startsWith('http')) return null;
-    const cleanUrl = normalizeGasUrl(rawUrl);
-
-    try {
-      const url = `${cleanUrl}${cleanUrl.includes('?') ? '&' : '?'}action=getAllData`;
-      const res = await fetch(url, { method: 'GET', mode: 'cors' });
-      const json = await res.json();
-      if (json && (json.status === 'success' || json.ok === true) && json.data) {
-        return json.data;
-      }
-    } catch (err) {
-      console.warn('Direct fetchLiveGoogleSheetData getAllData error, trying fallback:', err);
-    }
-
-    // Fallback: try individual endpoints in parallel
-    try {
-      const fakeSettings: AllianceSettings = {
-        inactivityWarningDays: 3,
-        inactivityInactiveDays: 7,
-        inactivityCriticalDays: 14,
-        gasWebAppUrl: cleanUrl,
-        soundEnabled: true,
-        demoMode: false,
-        dbProvider: 'sheets',
-      };
-      const [members, events, attendance, strikes, communications, admins, contributions] = await Promise.all([
-        this.getMembers(fakeSettings),
-        this.getEvents(fakeSettings),
-        this.getAttendance(undefined, fakeSettings),
-        this.getStrikes(fakeSettings),
-        this.getCommunications(fakeSettings),
-        this.getAdmins(fakeSettings),
-        this.getContributions(fakeSettings),
-      ]);
-      return { members, events, attendance, strikes, communications, admins, contributions };
-    } catch (fallbackErr) {
-      console.error('All Google Sheets direct fetch methods failed:', fallbackErr);
-      return null;
-    }
   },
 
   // --------------------------------------------------------------------------
@@ -195,135 +67,59 @@ export const apiService = {
       const formatted = `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
       return {
         success: false,
-        error: `Account temporarily locked due to repeated failed attempts. Please wait ${formatted} before trying again.`,
+        error: `Account temporarily locked due to excessive failed attempts. Try again in ${formatted}.`,
       };
     }
 
-    // ------------------------------------------------------------------------
-    // CASE 1: Supabase PostgreSQL Connected
-    // ------------------------------------------------------------------------
-    if (this.isSupabase(settings)) {
-      const supaResult = await supabaseService.login(cleanUser, cleanPass, settings);
-      if (supaResult.success && supaResult.user) {
-        resetLoginAttempts(cleanUser);
-        return { success: true, user: supaResult.user };
-      }
-
-      // If user is seoyoon/masterlogin and table hasn't been seeded yet, allow emergency initial login
-      if (cleanUser.toLowerCase() === 'seoyoon' && cleanPass === 'masterlogin') {
-        resetLoginAttempts('seoyoon');
-        const emergencyUser: AdminUser = {
-          id: 'adm-seoyoon',
-          username: 'seoyoon',
-          role: 'MainAdmin',
-          name: 'Seoyoon',
-          token: 'supa-master-token-' + Date.now(),
-        };
-        return { success: true, user: emergencyUser };
-      }
-
-      recordFailedAttempt(cleanUser);
-      return {
-        success: false,
-        error: supaResult.error || 'Invalid credentials in Supabase PostgreSQL database.',
-      };
-    }
-
-    // ------------------------------------------------------------------------
-    // CASE 2: Live Google Sheet Connected
-    // ------------------------------------------------------------------------
-    if (this.isLiveSheets(settings)) {
-      try {
-        const gasUrl = normalizeGasUrl(settings.gasWebAppUrl);
-        const response = await fetch(gasUrl, {
-          method: 'POST',
-          mode: 'cors',
-          headers: {
-            'Content-Type': 'text/plain;charset=utf-8',
-          },
-          body: JSON.stringify({ action: 'login', username: cleanUser, password: cleanPass }),
-        });
-
-        const rawText = await response.text();
-        let data: any = null;
-        try {
-          data = JSON.parse(rawText);
-        } catch {
-          recordFailedAttempt(cleanUser);
-          return {
-            success: false,
-            error: 'Invalid response from Google Sheets server. Verify Apps Script Web App deployment.',
-          };
-        }
-
-        if (data && (data.status === 'success' || data.success === true) && data.user) {
-          resetLoginAttempts(cleanUser);
-          const rawRole = String(data.user.role || '').trim().toLowerCase();
-          const isLeaderRole = (rawRole === 'leader' || rawRole === 'mainadmin' || rawRole === 'r5');
-          const role: 'MainAdmin' | 'SubAdmin' = isLeaderRole ? 'MainAdmin' : 'SubAdmin';
-
-          const user: AdminUser = {
-            id: String(data.user.id || 'adm-' + Date.now()),
-            username: String(data.user.username || cleanUser),
-            name: String(data.user.name || cleanUser),
-            role,
-            token: String(data.user.token || 'live-token-' + Date.now()),
-          };
-
-          return { success: true, user, initialData: data.data };
-        }
-
-        recordFailedAttempt(cleanUser);
-        return {
-          success: false,
-          error: data?.message || 'Invalid username or password in alliance database.',
-        };
-      } catch (err: unknown) {
-        recordFailedAttempt(cleanUser);
-        const msg = err instanceof Error ? err.message : String(err);
-        return {
-          success: false,
-          error: `Could not reach Google Sheets server: ${msg}. Check network or sheet deployment.`,
-        };
-      }
-    }
-
-    // ------------------------------------------------------------------------
-    // CASE 3: Local Offline Mode
-    // ------------------------------------------------------------------------
+    // Master login fallback for leader 'seoyoon'
     if (cleanUser.toLowerCase() === 'seoyoon' && cleanPass === 'masterlogin') {
-      resetLoginAttempts('seoyoon');
+      resetLoginAttempts();
       const user: AdminUser = {
         id: 'adm-seoyoon',
         username: 'seoyoon',
         role: 'MainAdmin',
+        token: `master-token-${Date.now()}`,
         name: 'Seoyoon',
-        token: 'hot-master-token-' + Date.now(),
       };
       return { success: true, user };
     }
 
-    // Check local admin accounts in storage
+    // Authenticate via Supabase PostgreSQL
+    if (this.isSupabase(settings)) {
+      try {
+        const result = await supabaseService.login(cleanUser, cleanPass, settings);
+        if (result.success && result.user) {
+          resetLoginAttempts();
+          return result;
+        } else {
+          recordFailedAttempt(cleanUser);
+          return { success: false, error: result.error || 'Invalid officer credentials.' };
+        }
+      } catch (err) {
+        console.warn('Supabase authentication error:', err);
+      }
+    }
+
+    // Fallback: Check local officer accounts
     const localAdmins = storageService.getAdminAccounts();
-    const matched = localAdmins.find(a => a.username.toLowerCase() === cleanUser.toLowerCase() && a.password === cleanPass);
+    const matched = localAdmins.find(
+      a => a.username.toLowerCase() === cleanUser.toLowerCase() && a.password === cleanPass
+    );
+
     if (matched) {
-      resetLoginAttempts(cleanUser);
+      resetLoginAttempts();
       const user: AdminUser = {
         id: matched.id,
         username: matched.username,
         role: matched.role,
+        token: `local-token-${Date.now()}`,
         name: matched.name || matched.username,
-        token: 'hot-local-token-' + Date.now(),
       };
       return { success: true, user };
     }
 
-    // Reject all other credentials
     recordFailedAttempt(cleanUser);
-    return {
-      success: false,
-      error: 'Access Denied. Invalid credentials.',
-    };
+    return { success: false, error: 'Invalid officer username or password.' };
   },
 
   // --------------------------------------------------------------------------
@@ -331,101 +127,37 @@ export const apiService = {
   // --------------------------------------------------------------------------
   async getMembers(settings: AllianceSettings): Promise<Member[]> {
     if (this.isSupabase(settings)) {
-      try {
-        const data = await supabaseService.getMembers(settings);
-        if (data.length > 0 || !storageService.getMembers().length) {
-          storageService.setMembers(data);
-          return data;
-        }
-      } catch (err) {
-        console.warn('Supabase getMembers error:', err);
-      }
-    } else if (this.isLiveSheets(settings)) {
-      try {
-        const res = await fetch(`${settings.gasWebAppUrl.trim()}?action=getMembers`, { mode: 'cors' });
-        const json = await res.json();
-        if (json.status === 'success' && Array.isArray(json.data)) {
-          storageService.setMembers(json.data);
-          return json.data;
-        }
-      } catch (err) {
-        console.warn('Google Sheets getMembers error:', err);
-      }
+      const members = await supabaseService.getMembers(settings);
+      if (members && members.length > 0) return members;
     }
     return storageService.getMembers();
   },
 
-  async createMember(newMember: Omit<Member, 'id' | 'createdAt' | 'updatedAt' | 'strikes'>, settings: AllianceSettings): Promise<Member> {
-    const now = new Date().toISOString();
-    const id = `mem-${Date.now().toString().slice(-6)}`;
-    const fullMember: Member = {
-      ...newMember,
-      id,
-      strikes: 0,
-      status: 'Active',
-      createdAt: now,
-      updatedAt: now,
-    };
-
+  async createMember(member: Member, settings: AllianceSettings): Promise<boolean> {
+    const list = storageService.getMembers();
+    storageService.setMembers([member, ...list.filter(m => m.id !== member.id)]);
     if (this.isSupabase(settings)) {
-      await supabaseService.createMember(fullMember, settings);
-    } else if (this.isLiveSheets(settings)) {
-      try {
-        await fetch(settings.gasWebAppUrl, {
-          method: 'POST',
-          mode: 'cors',
-          body: JSON.stringify({ action: 'createMember', member: fullMember }),
-        });
-      } catch {
-        // Fallback
-      }
+      return await supabaseService.createMember(member, settings);
     }
-
-    // Always update local cache
-    const current = storageService.getMembers();
-    storageService.setMembers([fullMember, ...current]);
-    return fullMember;
+    return true;
   },
 
-  async updateMember(member: Member, settings: AllianceSettings): Promise<void> {
-    const updated = { ...member, updatedAt: new Date().toISOString() };
+  async updateMember(member: Member, settings: AllianceSettings): Promise<boolean> {
+    const list = storageService.getMembers();
+    storageService.setMembers(list.map(m => (m.id === member.id ? member : m)));
     if (this.isSupabase(settings)) {
-      await supabaseService.updateMember(updated, settings);
-    } else if (this.isLiveSheets(settings)) {
-      try {
-        await fetch(settings.gasWebAppUrl, {
-          method: 'POST',
-          mode: 'cors',
-          body: JSON.stringify({ action: 'updateMember', member: updated }),
-        });
-      } catch {
-        // Fallback
-      }
+      return await supabaseService.updateMember(member, settings);
     }
-
-    const current = storageService.getMembers();
-    const list = current.map(m => (m.id === member.id ? updated : m));
-    storageService.setMembers(list);
+    return true;
   },
 
-  async archiveMember(memberId: string, settings: AllianceSettings): Promise<void> {
+  async archiveMember(memberId: string, settings: AllianceSettings): Promise<boolean> {
+    const list = storageService.getMembers();
+    storageService.setMembers(list.map(m => (m.id === memberId ? { ...m, status: 'Archived' as const } : m)));
     if (this.isSupabase(settings)) {
-      await supabaseService.archiveMember(memberId, settings);
-    } else if (this.isLiveSheets(settings)) {
-      try {
-        await fetch(settings.gasWebAppUrl, {
-          method: 'POST',
-          mode: 'cors',
-          body: JSON.stringify({ action: 'archiveMember', memberId }),
-        });
-      } catch {
-        // Fallback
-      }
+      return await supabaseService.archiveMember(memberId, settings);
     }
-
-    const current = storageService.getMembers();
-    const list = current.map(m => (m.id === memberId ? { ...m, status: 'Archived' as const, updatedAt: new Date().toISOString() } : m));
-    storageService.setMembers(list);
+    return true;
   },
 
   // --------------------------------------------------------------------------
@@ -433,241 +165,87 @@ export const apiService = {
   // --------------------------------------------------------------------------
   async getEvents(settings: AllianceSettings): Promise<AllianceEvent[]> {
     if (this.isSupabase(settings)) {
-      try {
-        const data = await supabaseService.getEvents(settings);
-        if (data.length > 0 || !storageService.getEvents().length) {
-          storageService.setEvents(data);
-          return data;
-        }
-      } catch (err) {
-        console.warn('Supabase getEvents error:', err);
-      }
-    } else if (this.isLiveSheets(settings)) {
-      try {
-        const res = await fetch(`${settings.gasWebAppUrl.trim()}?action=getEvents`, { mode: 'cors' });
-        const json = await res.json();
-        if (json.status === 'success' && Array.isArray(json.data)) {
-          storageService.setEvents(json.data);
-          return json.data;
-        }
-      } catch (err) {
-        console.warn('Google Sheets getEvents error:', err);
-      }
+      const events = await supabaseService.getEvents(settings);
+      if (events && events.length > 0) return events;
     }
     return storageService.getEvents();
   },
 
-  async createEvent(eventInput: Omit<AllianceEvent, 'id' | 'createdAt'>, members: Member[], settings: AllianceSettings): Promise<AllianceEvent> {
-    const eventId = `evt-${Date.now().toString().slice(-6)}`;
+  async createEvent(event: AllianceEvent, members: Member[], settings: AllianceSettings): Promise<boolean> {
+    const list = storageService.getEvents();
+    storageService.setEvents([event, ...list.filter(e => e.id !== event.id)]);
     const now = new Date().toISOString();
-    const newEvent: AllianceEvent = {
-      ...eventInput,
-      id: eventId,
-      createdAt: now,
-    };
-
-    // Auto-generate attendance rows for ALL active members
-    const activeMembers = members.filter(m => m.status !== 'Archived');
-    const newAttendanceRows: AttendanceRecord[] = activeMembers.map(m => ({
-      id: `att-${eventId}-${m.id}`,
-      eventId: eventId,
+    const attendanceRecords: AttendanceRecord[] = members.map(m => ({
+      id: `att-${event.id}-${m.id}`,
+      eventId: event.id,
       memberId: m.id,
-      voteStatus: 'NO RESPONSE',
-      attendanceStatus: 'NOT_APPLICABLE',
+      voteStatus: 'NO RESPONSE' as const,
+      attendanceStatus: 'NOT_APPLICABLE' as const,
       updatedAt: now,
     }));
-
+    const curAtt = storageService.getAttendance();
+    storageService.setAttendance([...attendanceRecords, ...curAtt]);
     if (this.isSupabase(settings)) {
-      await supabaseService.createEvent(newEvent, newAttendanceRows, settings);
-    } else if (this.isLiveSheets(settings)) {
-      try {
-        await fetch(settings.gasWebAppUrl.trim(), {
-          method: 'POST',
-          mode: 'cors',
-          body: JSON.stringify({ action: 'createEvent', event: newEvent }),
-        });
-      } catch {
-        // Fallback
-      }
+      return await supabaseService.createEvent(event, attendanceRecords, settings);
     }
-
-    // Save locally
-    const currentEvents = storageService.getEvents();
-    storageService.setEvents([newEvent, ...currentEvents]);
-
-    const currentAttendance = storageService.getAttendance();
-    storageService.setAttendance([...newAttendanceRows, ...currentAttendance]);
-
-    return newEvent;
+    return true;
   },
 
   // --------------------------------------------------------------------------
-  // ATTENDANCE
+  // ATTENDANCE & VOTES
   // --------------------------------------------------------------------------
   async getAttendance(eventId: string | undefined, settings: AllianceSettings): Promise<AttendanceRecord[]> {
     if (this.isSupabase(settings)) {
-      try {
-        const data = await supabaseService.getAttendance(eventId, settings);
-        if (!eventId && data.length > 0) {
-          storageService.setAttendance(data);
-        }
-        return data;
-      } catch (err) {
-        console.warn('Supabase getAttendance error:', err);
-      }
-    } else if (this.isLiveSheets(settings)) {
-      try {
-        const url = eventId
-          ? `${settings.gasWebAppUrl.trim()}?action=getAttendance&eventId=${eventId}`
-          : `${settings.gasWebAppUrl.trim()}?action=getAttendance`;
-        const res = await fetch(url, { mode: 'cors' });
-        const json = await res.json();
-        if (json.status === 'success' && Array.isArray(json.data)) {
-          if (!eventId) {
-            storageService.setAttendance(json.data);
-          }
-          return json.data;
-        }
-      } catch (err) {
-        console.warn('Google Sheets getAttendance error:', err);
-      }
+      const records = await supabaseService.getAttendance(eventId, settings);
+      if (records && records.length > 0) return records;
     }
     const all = storageService.getAttendance();
     return eventId ? all.filter(a => a.eventId === eventId) : all;
   },
 
-  async updateVote(eventId: string, memberId: string, voteStatus: VoteStatus, settings: AllianceSettings): Promise<void> {
-    if (this.isSupabase(settings)) {
-      await supabaseService.updateVote(eventId, memberId, voteStatus, settings);
-    } else if (this.isLiveSheets(settings)) {
-      try {
-        await fetch(settings.gasWebAppUrl, {
-          method: 'POST',
-          mode: 'cors',
-          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify({ action: 'updateVote', eventId, memberId, voteStatus }),
-        });
-      } catch {
-        // Fallback
-      }
-    }
-
-    const all = storageService.getAttendance();
-    let matched = false;
-    const now = new Date().toISOString();
-    const updated = all.map(r => {
-      if (r.eventId === eventId && r.memberId === memberId) {
-        matched = true;
-        return { ...r, voteStatus, updatedAt: now };
-      }
-      return r;
-    });
-
-    if (!matched) {
-      updated.push({
-        id: `att-${eventId}-${memberId}`,
-        eventId,
-        memberId,
-        voteStatus,
-        attendanceStatus: 'NOT_APPLICABLE',
-        updatedAt: now,
-      });
-    }
+  async updateVote(eventId: string, memberId: string, voteStatus: VoteStatus, settings: AllianceSettings): Promise<boolean> {
+    const current = storageService.getAttendance();
+    const updated = current.map(a => (a.eventId === eventId && a.memberId === memberId ? { ...a, voteStatus } : a));
     storageService.setAttendance(updated);
+    if (this.isSupabase(settings)) {
+      return await supabaseService.updateVote(eventId, memberId, voteStatus, settings);
+    }
+    return true;
   },
 
-  async updateAttendance(eventId: string, memberId: string, attendanceStatus: AttendanceStatus, settings: AllianceSettings): Promise<void> {
-    if (this.isSupabase(settings)) {
-      await supabaseService.updateAttendance(eventId, memberId, attendanceStatus, settings);
-    } else if (this.isLiveSheets(settings)) {
-      try {
-        await fetch(settings.gasWebAppUrl, {
-          method: 'POST',
-          mode: 'cors',
-          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify({ action: 'updateAttendance', eventId, memberId, attendanceStatus }),
-        });
-      } catch {
-        // Fallback
-      }
-    }
-
-    const all = storageService.getAttendance();
-    let matched = false;
-    const now = new Date().toISOString();
-    const updated = all.map(r => {
-      if (r.eventId === eventId && r.memberId === memberId) {
-        matched = true;
-        return { ...r, attendanceStatus, updatedAt: now };
-      }
-      return r;
-    });
-
-    if (!matched) {
-      updated.push({
-        id: `att-${eventId}-${memberId}`,
-        eventId,
-        memberId,
-        voteStatus: 'NO RESPONSE',
-        attendanceStatus,
-        updatedAt: now,
-      });
-    }
+  async updateAttendance(eventId: string, memberId: string, attendanceStatus: AttendanceStatus, settings: AllianceSettings): Promise<boolean> {
+    const current = storageService.getAttendance();
+    const updated = current.map(a => (a.eventId === eventId && a.memberId === memberId ? { ...a, attendanceStatus } : a));
     storageService.setAttendance(updated);
+    if (this.isSupabase(settings)) {
+      return await supabaseService.updateAttendance(eventId, memberId, attendanceStatus, settings);
+    }
+    return true;
   },
 
   async bulkUpdateAttendance(
     eventId: string,
     updates: Array<{ memberId: string; voteStatus?: VoteStatus; attendanceStatus?: AttendanceStatus }>,
     settings: AllianceSettings
-  ): Promise<void> {
-    if (this.isSupabase(settings)) {
-      await supabaseService.bulkUpdateAttendance(eventId, updates, settings);
-    } else if (this.isLiveSheets(settings)) {
-      try {
-        await fetch(settings.gasWebAppUrl, {
-          method: 'POST',
-          mode: 'cors',
-          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify({ action: 'bulkUpdateAttendance', eventId, updates }),
-        });
-      } catch {
-        // Fallback
-      }
-    }
-
-    const all = storageService.getAttendance();
-    const map = new Map(updates.map(u => [u.memberId, u]));
-    const matchedMembers = new Set<string>();
-    const now = new Date().toISOString();
-
-    const updated = all.map(r => {
-      if (r.eventId === eventId && map.has(r.memberId)) {
-        matchedMembers.add(r.memberId);
-        const u = map.get(r.memberId)!;
+  ): Promise<boolean> {
+    const current = storageService.getAttendance();
+    const updateMap = new Map(updates.map(u => [u.memberId, u]));
+    const updated = current.map(a => {
+      if (a.eventId === eventId && updateMap.has(a.memberId)) {
+        const u = updateMap.get(a.memberId)!;
         return {
-          ...r,
-          voteStatus: u.voteStatus !== undefined ? u.voteStatus : r.voteStatus,
-          attendanceStatus: u.attendanceStatus !== undefined ? u.attendanceStatus : r.attendanceStatus,
-          updatedAt: now,
+          ...a,
+          ...(u.voteStatus ? { voteStatus: u.voteStatus } : {}),
+          ...(u.attendanceStatus ? { attendanceStatus: u.attendanceStatus } : {}),
         };
       }
-      return r;
-    });
-
-    updates.forEach(u => {
-      if (!matchedMembers.has(u.memberId)) {
-        updated.push({
-          id: `att-${eventId}-${u.memberId}`,
-          eventId,
-          memberId: u.memberId,
-          voteStatus: u.voteStatus || 'NO RESPONSE',
-          attendanceStatus: u.attendanceStatus || 'NOT_APPLICABLE',
-          updatedAt: now,
-        });
-      }
+      return a;
     });
     storageService.setAttendance(updated);
+    if (this.isSupabase(settings)) {
+      return await supabaseService.bulkUpdateAttendance(eventId, updates, settings);
+    }
+    return true;
   },
 
   // --------------------------------------------------------------------------
@@ -675,98 +253,35 @@ export const apiService = {
   // --------------------------------------------------------------------------
   async getStrikes(settings: AllianceSettings): Promise<StrikeRecord[]> {
     if (this.isSupabase(settings)) {
-      try {
-        const data = await supabaseService.getStrikes(settings);
-        if (data.length > 0 || !storageService.getStrikes().length) {
-          storageService.setStrikes(data);
-          return data;
-        }
-      } catch (err) {
-        console.warn('Supabase getStrikes error:', err);
-      }
-    } else if (this.isLiveSheets(settings)) {
-      try {
-        const res = await fetch(`${settings.gasWebAppUrl.trim()}?action=getStrikes`, { mode: 'cors' });
-        const json = await res.json();
-        if (json.status === 'success' && Array.isArray(json.data)) {
-          storageService.setStrikes(json.data);
-          return json.data;
-        }
-      } catch (err) {
-        console.warn('Google Sheets getStrikes error:', err);
-      }
+      const strikes = await supabaseService.getStrikes(settings);
+      if (strikes && strikes.length > 0) return strikes;
     }
     return storageService.getStrikes();
   },
 
-  async addStrike(memberId: string, reason: string, addedBy: string, settings: AllianceSettings): Promise<StrikeRecord> {
-    const strikeId = `strk-${Date.now().toString().slice(-6)}`;
-    const date = new Date().toISOString().split('T')[0];
-    const newStrike: StrikeRecord = {
-      id: strikeId,
+  async addStrike(memberId: string, reason: string, adminName: string, settings: AllianceSettings): Promise<boolean> {
+    const strike: StrikeRecord = {
+      id: `str-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
       memberId,
-      date,
+      date: new Date().toISOString(),
       reason,
-      addedBy,
+      addedBy: adminName,
     };
-
+    const current = storageService.getStrikes();
+    storageService.setStrikes([strike, ...current]);
     if (this.isSupabase(settings)) {
-      await supabaseService.addStrike(newStrike, settings);
-    } else if (this.isLiveSheets(settings)) {
-      try {
-        await fetch(settings.gasWebAppUrl, {
-          method: 'POST',
-          mode: 'cors',
-          body: JSON.stringify({ action: 'addStrike', memberId, reason, addedBy }),
-        });
-      } catch {
-        // Fallback
-      }
+      return await supabaseService.addStrike(strike, settings);
     }
-
-    // Save strike record
-    const strikes = storageService.getStrikes();
-    storageService.setStrikes([newStrike, ...strikes]);
-
-    // Update member strike counter
-    const members = storageService.getMembers();
-    const updatedMembers = members.map(m => {
-      if (m.id === memberId) {
-        return { ...m, strikes: m.strikes + 1, updatedAt: new Date().toISOString() };
-      }
-      return m;
-    });
-    storageService.setMembers(updatedMembers);
-
-    return newStrike;
+    return true;
   },
 
-  async removeStrike(strikeId: string, memberId: string, settings: AllianceSettings): Promise<void> {
+  async removeStrike(strikeId: string, memberId: string, settings: AllianceSettings): Promise<boolean> {
+    const current = storageService.getStrikes();
+    storageService.setStrikes(current.filter(s => s.id !== strikeId));
     if (this.isSupabase(settings)) {
-      await supabaseService.removeStrike(strikeId, memberId, settings);
-    } else if (this.isLiveSheets(settings)) {
-      try {
-        await fetch(settings.gasWebAppUrl, {
-          method: 'POST',
-          mode: 'cors',
-          body: JSON.stringify({ action: 'removeStrike', strikeId, memberId }),
-        });
-      } catch {
-        // Fallback
-      }
+      return await supabaseService.removeStrike(strikeId, memberId, settings);
     }
-
-    const strikes = storageService.getStrikes();
-    storageService.setStrikes(strikes.filter(s => s.id !== strikeId));
-
-    const members = storageService.getMembers();
-    const updatedMembers = members.map(m => {
-      if (m.id === memberId) {
-        return { ...m, strikes: Math.max(0, m.strikes - 1), updatedAt: new Date().toISOString() };
-      }
-      return m;
-    });
-    storageService.setMembers(updatedMembers);
+    return true;
   },
 
   // --------------------------------------------------------------------------
@@ -774,74 +289,92 @@ export const apiService = {
   // --------------------------------------------------------------------------
   async getCommunications(settings: AllianceSettings): Promise<CommunicationRecord[]> {
     if (this.isSupabase(settings)) {
-      try {
-        const data = await supabaseService.getCommunications(settings);
-        if (data.length > 0 || !storageService.getCommunications().length) {
-          storageService.setCommunications(data);
-          return data;
-        }
-      } catch (err) {
-        console.warn('Supabase getCommunications error:', err);
-      }
-    } else if (this.isLiveSheets(settings)) {
-      try {
-        const res = await fetch(`${settings.gasWebAppUrl.trim()}?action=getCommunications`, { mode: 'cors' });
-        const json = await res.json();
-        if (json.status === 'success' && Array.isArray(json.data)) {
-          storageService.setCommunications(json.data);
-          return json.data;
-        }
-      } catch (err) {
-        console.warn('Google Sheets getCommunications error:', err);
-      }
+      const comms = await supabaseService.getCommunications(settings);
+      if (comms && comms.length > 0) return comms;
     }
     return storageService.getCommunications();
   },
 
-  async addCommunication(memberId: string, status: Member['communication'], note: string, addedBy: string, settings: AllianceSettings): Promise<CommunicationRecord> {
-    const id = `comm-${Date.now().toString().slice(-6)}`;
-    const date = new Date().toISOString().split('T')[0];
-    const newComm: CommunicationRecord = {
-      id,
+  async addCommunication(memberId: string, status: Member['communication'], note: string, adminName: string, settings: AllianceSettings): Promise<boolean> {
+    const comm: CommunicationRecord = {
+      id: `com-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
       memberId,
+      date: new Date().toISOString(),
       status,
       note,
-      date,
-      addedBy,
+      addedBy: adminName,
     };
-
+    const current = storageService.getCommunications();
+    storageService.setCommunications([comm, ...current]);
     if (this.isSupabase(settings)) {
-      await supabaseService.addCommunication(newComm, settings);
-    } else if (this.isLiveSheets(settings)) {
-      try {
-        await fetch(settings.gasWebAppUrl, {
-          method: 'POST',
-          mode: 'cors',
-          body: JSON.stringify({ action: 'addCommunication', memberId, status, note, addedBy }),
-        });
-      } catch {
-        // Fallback
-      }
+      return await supabaseService.addCommunication(comm, settings);
     }
-
-    const comms = storageService.getCommunications();
-    storageService.setCommunications([newComm, ...comms]);
-
-    // Update member communication and note
-    const members = storageService.getMembers();
-    const updatedMembers = members.map(m => {
-      if (m.id === memberId) {
-        return { ...m, communication: status, communicationNote: note, updatedAt: new Date().toISOString() };
-      }
-      return m;
-    });
-    storageService.setMembers(updatedMembers);
-
-    return newComm;
+    return true;
   },
 
   // --------------------------------------------------------------------------
-  // INACTIVITY CALCULATION LOGIC
+  // ADMIN ACCOUNTS
+  // --------------------------------------------------------------------------
+  async getAdmins(settings: AllianceSettings): Promise<AdminAccount[]> {
+    if (this.isSupabase(settings)) {
+      const admins = await supabaseService.getAdmins(settings);
+      if (admins && admins.length > 0) return admins;
+    }
+    return storageService.getAdminAccounts();
+  },
+
+  async createAdmin(data: Omit<AdminAccount, 'id' | 'createdAt'>, settings: AllianceSettings): Promise<AdminAccount> {
+    const created = storageService.createAdminAccount(data);
+    if (this.isSupabase(settings)) {
+      await supabaseService.createAdmin(created, settings);
+    }
+    return created;
+  },
+
+  async deleteAdmin(adminId: string, settings: AllianceSettings): Promise<boolean> {
+    const success = storageService.deleteAdminAccount(adminId);
+    if (success && this.isSupabase(settings)) {
+      await supabaseService.deleteAdmin(adminId, settings);
+    }
+    return success;
+  },
+
+  async updateAdminPassword(adminId: string, newPass: string, settings: AllianceSettings): Promise<boolean> {
+    const ok = storageService.updateAdminPassword(adminId, newPass);
+    if (this.isSupabase(settings)) {
+      await supabaseService.updateAdminPassword(adminId, newPass, settings);
+    }
+    return ok;
+  },
+
+  async updateAdminProfile(adminId: string, name: string, settings: AllianceSettings, username?: string): Promise<boolean> {
+    const ok = storageService.updateAdminProfile(adminId, name, username);
+    if (this.isSupabase(settings)) {
+      await supabaseService.updateAdminProfile(adminId, name, settings, username);
+    }
+    return ok;
+  },
+
+  // --------------------------------------------------------------------------
+  // CONTRIBUTIONS
+  // --------------------------------------------------------------------------
+  async getContributions(settings: AllianceSettings): Promise<OfficerContribution[]> {
+    if (this.isSupabase(settings)) {
+      const contributions = await supabaseService.getContributions(settings);
+      if (contributions && contributions.length > 0) return contributions;
+    }
+    return storageService.getContributions();
+  },
+
+  async recordContribution(entry: OfficerContribution, settings: AllianceSettings): Promise<boolean> {
+    if (this.isSupabase(settings)) {
+      return await supabaseService.recordContribution(entry, settings);
+    }
+    return true;
+  },
+
+  // --------------------------------------------------------------------------
+  // INACTIVITY CALCULATION
   // --------------------------------------------------------------------------
   calculateInactivity(
     members: Member[],
@@ -853,14 +386,12 @@ export const apiService = {
     const eventMap = new Map(events.map(e => [e.id, e]));
 
     const insights: InactiveMemberInsight[] = [];
-
-    // Filter active and inactive members (exclude archived)
     const activeRoster = members.filter(m => m.status !== 'Archived');
 
     activeRoster.forEach(member => {
       const memberAtt = attendance.filter(a => a.memberId === member.id);
       let latestTimestamp = 0;
-      let activityDescription = 'No recent activity';
+      let activityDescription = 'No recorded activity';
 
       // 1. Check event attendance & votes
       memberAtt.forEach(rec => {
@@ -881,224 +412,37 @@ export const apiService = {
         }
       });
 
-      // 2. Check if member has explicit lastActivityDate
-      if (member.lastActivityDate) {
-        const actTime = new Date(member.lastActivityDate).getTime();
-        if (actTime > latestTimestamp) {
-          latestTimestamp = actTime;
-          activityDescription = member.lastActivitySource || 'Roster activity';
-        }
+      // 2. Check member manual update / creation timestamp if no events
+      if (latestTimestamp === 0) {
+        const memTime = new Date(member.updatedAt || member.createdAt).getTime();
+        latestTimestamp = memTime;
+        activityDescription = 'Roster enrollment';
       }
 
-      // 3. Compute baseline days inactive from timestamp if found
-      let daysInactive = 0;
-      if (latestTimestamp > 0) {
-        const diffMs = Math.max(0, now - latestTimestamp);
-        daysInactive = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-      }
-
-      // 4. Check communication note for explicit offline/inactive day counts
-      const note = member.communicationNote || '';
-      const dayMatch = note.match(/(\d+)\s+days/i);
-      const noteDays = dayMatch ? parseInt(dayMatch[1], 10) : 0;
-
-      if (noteDays > daysInactive) {
-        daysInactive = noteDays;
-        latestTimestamp = now - (noteDays * 24 * 60 * 60 * 1000);
-        activityDescription = note;
-      } else if (member.status === 'Inactive') {
-        if (daysInactive < (settings.inactivityInactiveDays || 7)) {
-          daysInactive = 10;
-          latestTimestamp = now - (10 * 24 * 60 * 60 * 1000);
-          activityDescription = note || 'Flagged as inactive in alliance roster';
-        }
-      } else if (member.communication === 'Warning' && daysInactive < (settings.inactivityWarningDays || 3)) {
-        daysInactive = 4;
-        latestTimestamp = now - (4 * 24 * 60 * 60 * 1000);
-        activityDescription = note || 'Warning: missed recent votes';
-      }
+      // Compute days inactive
+      const diffMs = Math.max(0, now - latestTimestamp);
+      const daysInactive = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 
       let tier: 'Warning' | 'Inactive' | 'Critical' | null = null;
-      if (daysInactive >= (settings.inactivityCriticalDays || 14)) {
+      if (daysInactive >= settings.inactivityCriticalDays) {
         tier = 'Critical';
-      } else if (daysInactive >= (settings.inactivityInactiveDays || 7)) {
+      } else if (daysInactive >= settings.inactivityInactiveDays) {
         tier = 'Inactive';
-      } else if (daysInactive >= (settings.inactivityWarningDays || 3)) {
+      } else if (daysInactive >= settings.inactivityWarningDays) {
         tier = 'Warning';
-      } else if (member.status === 'Inactive') {
-        tier = 'Inactive';
       }
 
       if (tier) {
-        const effectiveDate = latestTimestamp > 0
-          ? new Date(latestTimestamp).toISOString().split('T')[0]
-          : new Date(now - daysInactive * 86400000).toISOString().split('T')[0];
-
         insights.push({
           member,
-          daysInactive: Math.max(daysInactive, tier === 'Critical' ? 14 : tier === 'Inactive' ? 7 : 3),
+          daysInactive,
           tier,
           lastActivityDescription: activityDescription,
-          lastActivityDate: effectiveDate,
+          lastActivityDate: new Date(latestTimestamp).toISOString().split('T')[0],
         });
       }
     });
 
-    // Sort by highest days inactive
     return insights.sort((a, b) => b.daysInactive - a.daysInactive);
   },
-
-  // --------------------------------------------------------------------------
-  // ADMIN MANAGEMENT
-  // --------------------------------------------------------------------------
-  async getAdmins(settings: AllianceSettings): Promise<AdminAccount[]> {
-    if (this.isSupabase(settings)) {
-      try {
-        const supaAdmins = await supabaseService.getAdmins(settings);
-        if (supaAdmins.length > 0) {
-          storageService.setAdminAccounts(supaAdmins);
-          return supaAdmins;
-        }
-      } catch (err) {
-        console.warn('Supabase getAdmins error:', err);
-      }
-    } else if (this.isLiveSheets(settings)) {
-      try {
-        const res = await fetch(`${settings.gasWebAppUrl}?action=getAdmins`, { mode: 'cors' });
-        const json = await res.json();
-        if (json.status === 'success' && Array.isArray(json.data)) {
-          return json.data;
-        }
-      } catch {
-        // Fallback to local
-      }
-    }
-    return storageService.getAdminAccounts();
-  },
-
-  async createAdmin(
-    data: Omit<AdminAccount, 'id' | 'createdAt'>,
-    settings: AllianceSettings
-  ): Promise<AdminAccount> {
-    const newAdmin = storageService.createAdminAccount(data);
-    if (this.isSupabase(settings)) {
-      await supabaseService.createAdmin(newAdmin, settings);
-    } else if (this.isLiveSheets(settings)) {
-      try {
-        await fetch(settings.gasWebAppUrl, {
-          method: 'POST',
-          mode: 'cors',
-          body: JSON.stringify({ action: 'createAdmin', admin: data }),
-        });
-      } catch {
-        // Fallback
-      }
-    }
-    return newAdmin;
-  },
-
-  async deleteAdmin(adminId: string, settings: AllianceSettings): Promise<boolean> {
-    if (this.isSupabase(settings)) {
-      await supabaseService.deleteAdmin(adminId, settings);
-    } else if (this.isLiveSheets(settings)) {
-      try {
-        await fetch(settings.gasWebAppUrl, {
-          method: 'POST',
-          mode: 'cors',
-          body: JSON.stringify({ action: 'deleteAdmin', adminId }),
-        });
-      } catch {
-        // Fallback
-      }
-    }
-    return storageService.deleteAdminAccount(adminId);
-  },
-
-  // --------------------------------------------------------------------------
-  // CONTRIBUTIONS & AUDIT
-  // --------------------------------------------------------------------------
-  async getContributions(settings: AllianceSettings): Promise<OfficerContribution[]> {
-    if (this.isSupabase(settings)) {
-      try {
-        const data = await supabaseService.getContributions(settings);
-        if (data.length > 0) {
-          return data;
-        }
-      } catch (err) {
-        console.warn('Supabase getContributions error:', err);
-      }
-    } else if (this.isLiveSheets(settings)) {
-      try {
-        const res = await fetch(`${settings.gasWebAppUrl}?action=getContributions`, { mode: 'cors' });
-        const json = await res.json();
-        if (json.status === 'success' && Array.isArray(json.data)) {
-          return json.data;
-        }
-      } catch {
-        // Fallback
-      }
-    }
-    return storageService.getContributions();
-  },
-
-  async recordContribution(
-    data: Omit<OfficerContribution, 'id' | 'timestamp'>,
-    settings: AllianceSettings
-  ): Promise<OfficerContribution> {
-    const entry = storageService.recordContribution(data);
-    if (this.isSupabase(settings)) {
-      await supabaseService.recordContribution(entry, settings);
-    } else if (this.isLiveSheets(settings)) {
-      try {
-        await fetch(settings.gasWebAppUrl, {
-          method: 'POST',
-          mode: 'cors',
-          body: JSON.stringify({ action: 'recordContribution', contribution: entry }),
-        });
-      } catch {
-        // Logged locally
-      }
-    }
-    return entry;
-  },
-
-  async updateAdminPassword(adminId: string, newPass: string, settings: AllianceSettings): Promise<boolean> {
-    const success = storageService.updateAdminPassword(adminId, newPass);
-    if (this.isSupabase(settings)) {
-      await supabaseService.updateAdminPassword(adminId, newPass, settings);
-    } else if (success && this.isLiveSheets(settings)) {
-      try {
-        await fetch(settings.gasWebAppUrl, {
-          method: 'POST',
-          mode: 'cors',
-          body: JSON.stringify({ action: 'updatePassword', adminId, password: newPass }),
-        });
-      } catch {
-        // Local only
-      }
-    }
-    return success;
-  },
-
-  async updateAdminProfile(adminId: string, name: string, settings: AllianceSettings, username?: string): Promise<boolean> {
-    storageService.updateAdminProfile(adminId, name, username);
-    if (this.isSupabase(settings)) {
-      await supabaseService.updateAdminProfile(adminId, name, settings, username);
-    } else if (this.isLiveSheets(settings)) {
-      try {
-        const gasUrl = normalizeGasUrl(settings.gasWebAppUrl);
-        await fetch(gasUrl, {
-          method: 'POST',
-          mode: 'cors',
-          headers: {
-            'Content-Type': 'text/plain;charset=utf-8',
-          },
-          body: JSON.stringify({ action: 'updateProfile', adminId, username, name }),
-        });
-      } catch {
-        // Local fallback
-      }
-    }
-    return true;
-  }
 };

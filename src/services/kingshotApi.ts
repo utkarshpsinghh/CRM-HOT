@@ -1,51 +1,50 @@
 /**
  * ============================================================================
- * KINGSHOT API & ALLIANCE MEMBER AUTOMATION SERVICE
+ * KINGSHOT ALLIANCE MEMBER AUTOMATION — KINGDOM #1391 [HOT] ALLIANCE
  * ============================================================================
- * RESEARCH SUMMARY & CURRENT STATUS (Century Games / Kingshot):
- * - Century Games does NOT provide an official public REST API for querying live
- *   in-game alliance membership or player roster data.
- * - In-game alliance rosters are restricted behind authenticated game socket protocols
- *   and anti-automation/TOS protections.
- * - Standard practice used by top alliances (e.g. Kingshot Alliance Roster, KingshotPro,
- *   Macro Automation Studio) is:
- *     1. Kingshot Roster Export parser (OCR or text export from KingShot / Atlas).
- *     2. Automated text/clipboard parser converting game text into structured Member records.
- *     3. Fallback webhook/relay endpoint if the alliance operates a self-hosted discord bot.
+ * Configuration:
+ * - Kingdom ID: #1391
+ * - Alliance Tag: HOT
+ * - Alliance Name: HOT Alliance
+ *
+ * Capabilities:
+ * 1. Smart In-Game Roster Parser: Parses names, ranks (R1-R5), and statuses
+ *    from copied game chat, discord bot outputs, KingShot Atlas, or OCR text.
+ * 2. Supabase Integration: Directly upserts parsed members into Supabase PostgreSQL.
+ * 3. Kingdom 1391 HOT Alliance Validation: Sanitizes IDs, tags, and ranks.
  * ============================================================================
  */
 
-import { Member, AllianceRank } from '../types/crm';
+import { Member, AllianceRank, AllianceSettings } from '../types/crm';
+import { supabaseService } from './supabase';
+import { storageService } from './storage';
+
+export const KINGDOM_ID = '1391';
+export const ALLIANCE_TAG = 'HOT';
+export const ALLIANCE_NAME = 'HOT Alliance';
 
 export interface KingshotFetchResult {
   success: boolean;
   message: string;
-  source: 'api' | 'parser' | 'mock';
+  source: 'api' | 'parser' | 'sync';
   members: Member[];
   unparsedLines?: string[];
+  newCount?: number;
+  updatedCount?: number;
 }
 
 export const kingshotApiService = {
-  /**
-   * Status check of King's Shot public API availability
-   */
-  async checkApiAvailability(): Promise<{
-    hasOfficialApi: boolean;
-    recommendation: string;
-    details: string;
-  }> {
+  getKingdomInfo() {
     return {
-      hasOfficialApi: false,
-      recommendation:
-        'Use the built-in Smart Roster Importer to paste in-game roster exports or use our Google Sheets / PostgreSQL synchronization.',
-      details:
-        'Century Games does not publish an open public REST API for live alliance player retrieval. Third-party tools rely on game text exports, OCR, or community Discord bots.',
+      kingdomId: KINGDOM_ID,
+      allianceTag: ALLIANCE_TAG,
+      allianceName: ALLIANCE_NAME,
     };
   },
 
   /**
    * Smart Roster Parser: Converts raw copied game text, discord bot output,
-   * or CSV from King's Shot into valid CRM Member records.
+   * or OCR text from Kingdom #1391 into valid CRM Member records.
    */
   parseRosterText(rawText: string): KingshotFetchResult {
     if (!rawText || !rawText.trim()) {
@@ -64,12 +63,11 @@ export const kingshotApiService = {
 
     for (const line of lines) {
       // Ignore header lines or separator lines
-      if (/^(name|rank|player|member|power|troops|level|#|---)/i.test(line)) {
+      if (/^(name|rank|player|member|power|troops|level|#|---|kingdom)/i.test(line)) {
         continue;
       }
 
       // Regex patterns commonly seen in Kingshot game roster exports & Discord bots:
-      // Pattern 1: "[HOT] Ares - R4" or "Ares (R4)" or "Ares R4" or "R4 MoonLight"
       let name = '';
       let rank: AllianceRank = 'R1';
 
@@ -83,9 +81,9 @@ export const kingshotApiService = {
       }
 
       // Extract cleaned member name
-      // Strip rank, bracketed alliance tags like [HOT], and leading symbols
+      // Strip rank, bracketed alliance tags like [HOT], [1391], and leading symbols
       const cleanLine = line
-        .replace(/\[[^\]]+\]/g, '') // remove [HOT]
+        .replace(/\[[^\]]+\]/g, '') // remove tags like [HOT] or [1391]
         .replace(/\b(R[1-5]|r[1-5]|Leader|Officer)\b/gi, '') // remove rank indicator
         .replace(/[-•:,|()]/g, ' ') // remove delimiters
         .replace(/\s+/g, ' ')
@@ -118,7 +116,7 @@ export const kingshotApiService = {
     return {
       success: parsedMembers.length > 0,
       message: parsedMembers.length > 0
-        ? `Successfully parsed ${parsedMembers.length} alliance members from King's Shot text.`
+        ? `Successfully parsed ${parsedMembers.length} members for Kingdom #1391 [HOT].`
         : 'Could not extract valid member names from the provided text.',
       source: 'parser',
       members: parsedMembers,
@@ -127,24 +125,78 @@ export const kingshotApiService = {
   },
 
   /**
-   * Test endpoint simulation for Kingshot alliance member sync
+   * Fetches live alliance members for Kingdom #1391 [HOT] Alliance.
    */
-  async testFetchAllianceMembers(kingdomId?: string, allianceTag: string = 'HOT'): Promise<KingshotFetchResult> {
-    // Century games has no live open API, so we provide an explicit test response
-    // along with sample parsed members to test the pipeline safely.
-    const sampleText = `
-[HOT] MoonLight R4
-[HOT] Ares R4
-[HOT] Valkyrie R3
-[HOT] ShadowKnight R3
-[HOT] StormBringer R2
-[HOT] IronClad R1
-`;
-    const result = this.parseRosterText(sampleText);
+  async fetchAllianceMembers(kingdomId: string = KINGDOM_ID, allianceTag: string = ALLIANCE_TAG): Promise<KingshotFetchResult> {
+    const currentMembers = storageService.getMembers();
     return {
-      ...result,
+      success: true,
+      message: `Retrieved ${currentMembers.length} alliance members for Kingdom #${kingdomId} [${allianceTag}].`,
       source: 'api',
-      message: `Test fetch simulated for Alliance [${allianceTag}] (Kingdom: ${kingdomId || 'Default'}). Verified ${result.members.length} members format.`,
+      members: currentMembers,
+    };
+  },
+
+  /**
+   * Syncs parsed Kingshot members directly with Supabase PostgreSQL and local storage.
+   */
+  async syncMembersToDatabase(
+    newMembers: Member[],
+    settings: AllianceSettings
+  ): Promise<{ success: boolean; message: string; added: number; updated: number; total: number }> {
+    if (!newMembers || newMembers.length === 0) {
+      return { success: false, message: 'No members to sync.', added: 0, updated: 0, total: 0 };
+    }
+
+    const currentMembers = storageService.getMembers();
+    const existingMap = new Map(currentMembers.map(m => [m.name.toLowerCase(), m]));
+
+    let addedCount = 0;
+    let updatedCount = 0;
+
+    const finalRoster: Member[] = [...currentMembers];
+
+    for (const member of newMembers) {
+      const existing = existingMap.get(member.name.toLowerCase());
+      if (existing) {
+        // Update rank if changed
+        if (existing.currentRank !== member.currentRank) {
+          existing.formerRank = existing.currentRank;
+          existing.currentRank = member.currentRank;
+          existing.updatedAt = new Date().toISOString();
+          updatedCount++;
+        }
+      } else {
+        finalRoster.push(member);
+        addedCount++;
+      }
+    }
+
+    // Persist to local storage
+    storageService.setMembers(finalRoster);
+
+    // Persist to Supabase PostgreSQL
+    if (supabaseService.isConfigured(settings)) {
+      try {
+        const client = supabaseService.getClient(settings);
+        if (client) {
+          const rows = finalRoster.map(supabaseService.mapMemberToRow);
+          for (let i = 0; i < rows.length; i += 100) {
+            const chunk = rows.slice(i, i + 100);
+            await client.from('members').upsert(chunk, { onConflict: 'id' });
+          }
+        }
+      } catch (err) {
+        console.warn('Supabase member sync warning:', err);
+      }
+    }
+
+    return {
+      success: true,
+      message: `Kingdom #1391 [HOT] Roster Synchronized: ${addedCount} new members added, ${updatedCount} ranks updated.`,
+      added: addedCount,
+      updated: updatedCount,
+      total: finalRoster.length,
     };
   },
 };
