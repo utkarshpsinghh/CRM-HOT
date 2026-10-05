@@ -73,6 +73,7 @@ export const SettingsView: React.FC = () => {
   const [isConnectingSupa, setIsConnectingSupa] = useState(false);
   const [isTestingSupa, setIsTestingSupa] = useState(false);
   const [isMigratingSupa, setIsMigratingSupa] = useState(false);
+  const [migrationStatusText, setMigrationStatusText] = useState('');
   const [migrationResult, setMigrationResult] = useState<{ success: boolean; message: string; counts?: Record<string, number> } | null>(null);
   const [schemaCopied, setSchemaCopied] = useState(false);
 
@@ -139,10 +140,25 @@ export const SettingsView: React.FC = () => {
   };
 
   const handleMigrateToSupabase = async () => {
+    // If supaUrl and supaKey are filled in the inputs but not saved yet, connect first
+    if (supaUrl.trim() && supaKey.trim() && (!settings.supabaseUrl || !settings.supabaseAnonKey)) {
+      setMigrationStatusText('Connecting to Supabase...');
+      const conn = await connectSupabase(supaUrl.trim(), supaKey.trim());
+      if (!conn.success) {
+        setMigrationResult({ success: false, message: `Could not connect to Supabase: ${conn.message}` });
+        setMigrationStatusText('');
+        return;
+      }
+    }
+
     setIsMigratingSupa(true);
     setMigrationResult(null);
-    const result = await migrateToSupabase();
+    setMigrationStatusText('Starting migration pipeline...');
+    const result = await migrateToSupabase((msg) => {
+      setMigrationStatusText(msg);
+    });
     setIsMigratingSupa(false);
+    setMigrationStatusText('');
     setMigrationResult(result);
   };
 
@@ -582,6 +598,14 @@ export const SettingsView: React.FC = () => {
                   <span>{isMigratingSupa ? 'Migrating...' : 'Migrate Now'}</span>
                 </button>
               </div>
+
+              {/* In-Flight Migration Progress Banner */}
+              {isMigratingSupa && migrationStatusText && (
+                <div className="p-3 rounded-xl border border-amber-600/60 bg-amber-950/40 text-amber-300 text-xs flex items-center gap-2.5 animate-pulse">
+                  <RefreshCw className="w-4 h-4 animate-spin text-amber-400 shrink-0" />
+                  <span className="font-semibold">{migrationStatusText}</span>
+                </div>
+              )}
 
               {/* Migration Result Banner */}
               {migrationResult && (

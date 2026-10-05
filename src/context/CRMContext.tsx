@@ -19,6 +19,7 @@ import { apiService } from '../services/api';
 import { supabaseService, normalizeSupabaseUrl } from '../services/supabase';
 import { sounds } from '../utils/sound';
 import { useAuth } from './AuthContext';
+import { DEFAULT_GAS_URL } from '../config';
 
 export interface ToastNotice {
   id: string;
@@ -87,7 +88,7 @@ interface CRMContextType {
   connectSupabase: (url: string, key: string) => Promise<{ success: boolean; message: string }>;
   disconnectSupabase: () => void;
   testSupabaseConnection: (url: string, key: string) => Promise<{ success: boolean; message: string }>;
-  migrateToSupabase: () => Promise<{ success: boolean; message: string; counts?: Record<string, number> }>;
+  migrateToSupabase: (onProgress?: (status: string) => void) => Promise<{ success: boolean; message: string; counts?: Record<string, number> }>;
   clearLocalData: () => void;
   createAdminUser: (username: string, pass: string, name?: string) => Promise<boolean>;
   deleteAdminUser: (adminId: string) => Promise<boolean>;
@@ -175,19 +176,33 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         try {
           const allData = await apiService.getAllData(currentSettings);
           if (allData && typeof allData === 'object') {
-            storageService.saveAllData(allData);
+            const hasRemoteData = (Array.isArray(allData.members) && allData.members.length > 0) ||
+                                  (Array.isArray(allData.events) && allData.events.length > 0);
 
-            if (Array.isArray(allData.members)) setMembers(allData.members);
-            if (Array.isArray(allData.events)) setEvents(allData.events);
-            if (Array.isArray(allData.attendance)) setAttendance(allData.attendance);
-            if (Array.isArray(allData.strikes)) setStrikes(allData.strikes);
-            if (Array.isArray(allData.communications)) setCommunications(allData.communications);
-            if (Array.isArray(allData.admins) && allData.admins.length > 0) setAdmins(allData.admins);
-            if (Array.isArray(allData.contributions)) setContributions(allData.contributions);
+            if (hasRemoteData) {
+              storageService.saveAllData(allData);
 
-            setSyncStatus('connected');
-            setSyncMessage('Supabase PostgreSQL Live Connected');
-            setLastSyncTime(new Date().toLocaleTimeString());
+              if (Array.isArray(allData.members)) setMembers(allData.members);
+              if (Array.isArray(allData.events)) setEvents(allData.events);
+              if (Array.isArray(allData.attendance)) setAttendance(allData.attendance);
+              if (Array.isArray(allData.strikes)) setStrikes(allData.strikes);
+              if (Array.isArray(allData.communications)) setCommunications(allData.communications);
+              if (Array.isArray(allData.admins) && allData.admins.length > 0) setAdmins(allData.admins);
+              if (Array.isArray(allData.contributions)) setContributions(allData.contributions);
+
+              setSyncStatus('connected');
+              setSyncMessage('Supabase PostgreSQL Live Connected');
+              setLastSyncTime(new Date().toLocaleTimeString());
+            } else {
+              // Supabase connected, but empty (migration required)
+              const cachedCount = storageService.getMembers().length;
+              setSyncStatus('connected');
+              setSyncMessage(cachedCount > 0
+                ? `Supabase Connected (Empty DB — ${cachedCount} cached members ready to migrate)`
+                : 'Supabase Connected (Awaiting Data Migration)'
+              );
+              setLastSyncTime(new Date().toLocaleTimeString());
+            }
           }
         } catch (err) {
           console.warn('Supabase sync warning:', err);
@@ -1138,7 +1153,9 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return await apiService.testSupabaseConnection(url, key);
   };
 
-  const migrateToSupabase = async (): Promise<{ success: boolean; message: string; counts?: Record<string, number> }> => {
+  const migrateToSupabase = async (
+    onProgress?: (status: string) => void
+  ): Promise<{ success: boolean; message: string; counts?: Record<string, number> }> => {
     if (!supabaseService.isConfigured(settings)) {
       addToast({
         type: 'error',
@@ -1151,25 +1168,102 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     sounds.playClick();
     setIsLoading(true);
     try {
+      onProgress?.('Checking data sources for migration...');
+
+      let membersToMigrate = storageService.getMembers();
+      let eventsToMigrate = storageService.getEvents();
+      let attendanceToMigrate = storageService.getAttendance();
+      let strikesToMigrate = storageService.getStrikes();
+      let commsToMigrate = storageService.getCommunications();
+      let adminsToMigrate = storageService.getAdminAccounts();
+      let contributionsToMigrate = storageService.getContributions();
+
+      // Check if we can pull the live dataset directly from Google Sheets
+      const gasUrl = settings.gasWebAppUrl || DEFAULT_GAS_URL;
+      if (gasUrl) {
+        onProgress?.('Pulling live roster and events from Google Sheets...');
+        try {
+          const liveData = await apiService.fetchLiveGoogleSheetData(gasUrl);
+          if (liveData && typeof liveData === 'object') {
+            if (Array.isArray(liveData.members) && liveData.members.length > 0) {
+              console.log(`Fetched ${liveData.members.length} members directly from Google Sheets for migration.`);
+              membersToMigrate = liveData.members;
+            }
+            if (Array.isArray(liveData.events) && liveData.events.length > 0) {
+              eventsToMigrate = liveData.events;
+            }
+            if (Array.isArray(liveData.attendance) && liveData.attendance.length > 0) {
+              attendanceToMigrate = liveData.attendance;
+            }
+            if (Array.isArray(liveData.strikes) && liveData.strikes.length > 0) {
+              strikesToMigrate = liveData.strikes;
+            }
+            if (Array.isArray(liveData.communications) && liveData.communications.length > 0) {
+              commsToMigrate = liveData.communications;
+            }
+            if (Array.isArray(liveData.admins) && liveData.admins.length > 0) {
+              const mergedAdmins = [...liveData.admins];
+              for (const adm of adminsToMigrate) {
+                if (!mergedAdmins.some(a => a.username.toLowerCase() === adm.username.toLowerCase())) {
+                  mergedAdmins.push(adm);
+                }
+              }
+              adminsToMigrate = mergedAdmins;
+            }
+            if (Array.isArray(liveData.contributions) && liveData.contributions.length > 0) {
+              contributionsToMigrate = liveData.contributions;
+            }
+          }
+        } catch (fetchErr) {
+          console.warn('Could not fetch from Google Sheets during migration, proceeding with local data:', fetchErr);
+        }
+      }
+
+      if (membersToMigrate.length === 0 && eventsToMigrate.length === 0) {
+        addToast({
+          type: 'warning',
+          title: 'No Data Found',
+          message: 'No member roster or events found to migrate. Please verify your Google Apps Script Web App URL.',
+        });
+        return { success: false, message: 'No data found in Google Sheets or local storage to migrate.' };
+      }
+
+      onProgress?.(`Found ${membersToMigrate.length} members & ${eventsToMigrate.length} events. Uploading to PostgreSQL...`);
+
       const bundle = {
-        members: storageService.getMembers(),
-        events: storageService.getEvents(),
-        attendance: storageService.getAttendance(),
-        strikes: storageService.getStrikes(),
-        communications: storageService.getCommunications(),
-        admins: storageService.getAdminAccounts(),
-        contributions: storageService.getContributions(),
+        members: membersToMigrate,
+        events: eventsToMigrate,
+        attendance: attendanceToMigrate,
+        strikes: strikesToMigrate,
+        communications: commsToMigrate,
+        admins: adminsToMigrate,
+        contributions: contributionsToMigrate,
       };
 
-      const result = await supabaseService.migrateAllToSupabase(bundle, settings);
+      const result = await supabaseService.migrateAllToSupabase(bundle, settings, onProgress);
       if (result.success) {
+        // Save permanently to local storage
+        storageService.saveAllData(bundle);
+
+        // Update React states immediately so all views reflect the migrated data instantly
+        setMembers(membersToMigrate);
+        setEvents(eventsToMigrate);
+        setAttendance(attendanceToMigrate);
+        setStrikes(strikesToMigrate);
+        setCommunications(commsToMigrate);
+        if (adminsToMigrate.length > 0) setAdmins(adminsToMigrate);
+        if (contributionsToMigrate.length > 0) setContributions(contributionsToMigrate);
+
+        setSyncStatus('connected');
+        setSyncMessage('Supabase PostgreSQL Live Connected');
+        setLastSyncTime(new Date().toLocaleTimeString());
+
         sounds.playSuccess();
         addToast({
           type: 'success',
           title: 'PostgreSQL Migration Complete',
-          message: `Uploaded ${result.counts.members || 0} members, ${result.counts.events || 0} events to Supabase!`,
+          message: `Successfully migrated ${result.counts.members || 0} members and ${result.counts.events || 0} events to Supabase!`,
         });
-        await refreshData();
       } else {
         sounds.playAlert();
         addToast({

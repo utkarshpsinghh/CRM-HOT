@@ -15,6 +15,7 @@ import {
 import { storageService } from './storage';
 import { supabaseService } from './supabase';
 import { getLoginAttemptState, recordFailedAttempt, resetLoginAttempts } from '../utils/security';
+import { DEFAULT_GAS_URL } from '../config';
 
 // Helper to ensure Google Apps Script Web App URL ends with /exec
 export function normalizeGasUrl(url: string): string {
@@ -127,6 +128,52 @@ export const apiService = {
     }
 
     return null;
+  },
+
+  // --------------------------------------------------------------------------
+  // DIRECT LIVE GOOGLE SHEET DATA EXTRACTION (For PostgreSQL Migration)
+  // --------------------------------------------------------------------------
+  async fetchLiveGoogleSheetData(gasUrl?: string): Promise<any | null> {
+    const rawUrl = gasUrl || DEFAULT_GAS_URL;
+    if (!rawUrl || !rawUrl.startsWith('http')) return null;
+    const cleanUrl = normalizeGasUrl(rawUrl);
+
+    try {
+      const url = `${cleanUrl}${cleanUrl.includes('?') ? '&' : '?'}action=getAllData`;
+      const res = await fetch(url, { method: 'GET', mode: 'cors' });
+      const json = await res.json();
+      if (json && (json.status === 'success' || json.ok === true) && json.data) {
+        return json.data;
+      }
+    } catch (err) {
+      console.warn('Direct fetchLiveGoogleSheetData getAllData error, trying fallback:', err);
+    }
+
+    // Fallback: try individual endpoints in parallel
+    try {
+      const fakeSettings: AllianceSettings = {
+        inactivityWarningDays: 3,
+        inactivityInactiveDays: 7,
+        inactivityCriticalDays: 14,
+        gasWebAppUrl: cleanUrl,
+        soundEnabled: true,
+        demoMode: false,
+        dbProvider: 'sheets',
+      };
+      const [members, events, attendance, strikes, communications, admins, contributions] = await Promise.all([
+        this.getMembers(fakeSettings),
+        this.getEvents(fakeSettings),
+        this.getAttendance(undefined, fakeSettings),
+        this.getStrikes(fakeSettings),
+        this.getCommunications(fakeSettings),
+        this.getAdmins(fakeSettings),
+        this.getContributions(fakeSettings),
+      ]);
+      return { members, events, attendance, strikes, communications, admins, contributions };
+    } catch (fallbackErr) {
+      console.error('All Google Sheets direct fetch methods failed:', fallbackErr);
+      return null;
+    }
   },
 
   // --------------------------------------------------------------------------

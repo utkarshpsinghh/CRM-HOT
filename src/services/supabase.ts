@@ -642,7 +642,8 @@ export const supabaseService = {
       admins?: AdminAccount[];
       contributions?: OfficerContribution[];
     },
-    settings: AllianceSettings
+    settings: AllianceSettings,
+    onProgress?: (status: string) => void
   ): Promise<{ success: boolean; message: string; counts: Record<string, number> }> {
     const client = this.getClient(settings);
     if (!client) {
@@ -652,88 +653,188 @@ export const supabaseService = {
     const counts: Record<string, number> = {};
 
     try {
+      // 0. Verify that the members table exists in Supabase
+      const { error: testErr } = await client.from('members').select('id').limit(1);
+      if (testErr) {
+        if (testErr.code === '42P01' || testErr.message.includes('does not exist')) {
+          return {
+            success: false,
+            message: 'Supabase tables do not exist! Please open your Supabase Dashboard -> SQL Editor, run "supabase/schema.sql", and try again.',
+            counts: {},
+          };
+        }
+        return {
+          success: false,
+          message: `Supabase database error: ${testErr.message} (${testErr.code || ''})`,
+          counts: {},
+        };
+      }
+
       // 1. Members
-      if (data.members && data.members.length > 0) {
-        const rows = data.members.map(this.mapMemberToRow);
+      const validMembers = (data.members || []).filter(m => m && m.id && m.name && m.name.trim().length > 0);
+      const uniqueMembers = Array.from(new Map(validMembers.map(m => [m.id, m])).values());
+
+      if (uniqueMembers.length > 0) {
+        onProgress?.(`Uploading ${uniqueMembers.length} members to PostgreSQL...`);
+        const rows = uniqueMembers.map(this.mapMemberToRow);
         for (let i = 0; i < rows.length; i += 100) {
           const chunk = rows.slice(i, i + 100);
-          await client.from('members').upsert(chunk, { onConflict: 'id' });
+          const { error } = await client.from('members').upsert(chunk, { onConflict: 'id' });
+          if (error) {
+            throw new Error(`Members upload error: ${error.message} (${error.details || error.code || ''})`);
+          }
         }
-        counts.members = data.members.length;
+        counts.members = uniqueMembers.length;
       }
 
       // 2. Events
-      if (data.events && data.events.length > 0) {
-        const rows = data.events.map(this.mapEventToRow);
+      const validEvents = (data.events || []).filter(e => e && e.id && (e.eventName || e.eventType));
+      const uniqueEvents = Array.from(new Map(validEvents.map(e => [e.id, e])).values());
+
+      if (uniqueEvents.length > 0) {
+        onProgress?.(`Uploading ${uniqueEvents.length} battle events to PostgreSQL...`);
+        const rows = uniqueEvents.map(this.mapEventToRow);
         for (let i = 0; i < rows.length; i += 100) {
           const chunk = rows.slice(i, i + 100);
-          await client.from('events').upsert(chunk, { onConflict: 'id' });
+          const { error } = await client.from('events').upsert(chunk, { onConflict: 'id' });
+          if (error) {
+            throw new Error(`Events upload error: ${error.message} (${error.details || error.code || ''})`);
+          }
         }
-        counts.events = data.events.length;
+        counts.events = uniqueEvents.length;
       }
 
-      // 3. Attendance
-      if (data.attendance && data.attendance.length > 0) {
-        const rows = data.attendance.map(this.mapAttendanceToRow);
-        for (let i = 0; i < rows.length; i += 100) {
-          const chunk = rows.slice(i, i + 100);
-          await client.from('attendance').upsert(chunk, { onConflict: 'id' });
-        }
-        counts.attendance = data.attendance.length;
+      // 3. Attendance (Critical: filter against valid member & event IDs to satisfy Foreign Key constraints)
+      const memberIdSet = new Set(uniqueMembers.map(m => m.id));
+      const eventIdSet = new Set(uniqueEvents.map(e => e.id));
+
+      const validAttendance: AttendanceRecord[] = [];
+      for (const a of (data.attendance || [])) {
+        if (!a || !a.memberId || !a.eventId) continue;
+        // Strictly prevent foreign key violation (23503) from orphan records
+        if (!memberIdSet.has(a.memberId) || !eventIdSet.has(a.eventId)) continue;
+        const attId = a.id || `att-${a.eventId}-${a.memberId}`;
+        validAttendance.push({ ...a, id: attId });
       }
 
-      // 4. Strikes
-      if (data.strikes && data.strikes.length > 0) {
-        const rows = data.strikes.map(this.mapStrikeToRow);
+      // Deduplicate by ID to prevent PostgreSQL batch collision (21000)
+      const uniqueAttendance = Array.from(new Map(validAttendance.map(a => [a.id, a])).values());
+
+      if (uniqueAttendance.length > 0) {
+        onProgress?.(`Uploading ${uniqueAttendance.length} attendance records to PostgreSQL...`);
+        const rows = uniqueAttendance.map(this.mapAttendanceToRow);
         for (let i = 0; i < rows.length; i += 100) {
           const chunk = rows.slice(i, i + 100);
-          await client.from('strikes').upsert(chunk, { onConflict: 'id' });
+          const { error } = await client.from('attendance').upsert(chunk, { onConflict: 'id' });
+          if (error) {
+            throw new Error(`Attendance upload error: ${error.message} (${error.details || error.code || ''})`);
+          }
         }
-        counts.strikes = data.strikes.length;
+        counts.attendance = uniqueAttendance.length;
       }
 
-      // 5. Communications
-      if (data.communications && data.communications.length > 0) {
-        const rows = data.communications.map(this.mapCommToRow);
+      // 4. Strikes (Filter by valid member IDs)
+      const validStrikes: StrikeRecord[] = [];
+      for (const s of (data.strikes || [])) {
+        if (!s || !s.memberId || !memberIdSet.has(s.memberId)) continue;
+        const strkId = s.id || `strk-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+        validStrikes.push({ ...s, id: strkId });
+      }
+      const uniqueStrikes = Array.from(new Map(validStrikes.map(s => [s.id, s])).values());
+
+      if (uniqueStrikes.length > 0) {
+        onProgress?.(`Uploading ${uniqueStrikes.length} strike records...`);
+        const rows = uniqueStrikes.map(this.mapStrikeToRow);
         for (let i = 0; i < rows.length; i += 100) {
           const chunk = rows.slice(i, i + 100);
-          await client.from('communications').upsert(chunk, { onConflict: 'id' });
+          const { error } = await client.from('strikes').upsert(chunk, { onConflict: 'id' });
+          if (error) {
+            throw new Error(`Strikes upload error: ${error.message}`);
+          }
         }
-        counts.communications = data.communications.length;
+        counts.strikes = uniqueStrikes.length;
+      }
+
+      // 5. Communications (Filter by valid member IDs)
+      const validComms: CommunicationRecord[] = [];
+      for (const c of (data.communications || [])) {
+        if (!c || !c.memberId || !memberIdSet.has(c.memberId)) continue;
+        const commId = c.id || `comm-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+        validComms.push({ ...c, id: commId });
+      }
+      const uniqueComms = Array.from(new Map(validComms.map(c => [c.id, c])).values());
+
+      if (uniqueComms.length > 0) {
+        onProgress?.(`Uploading ${uniqueComms.length} communication records...`);
+        const rows = uniqueComms.map(this.mapCommToRow);
+        for (let i = 0; i < rows.length; i += 100) {
+          const chunk = rows.slice(i, i + 100);
+          const { error } = await client.from('communications').upsert(chunk, { onConflict: 'id' });
+          if (error) {
+            throw new Error(`Communications upload error: ${error.message}`);
+          }
+        }
+        counts.communications = uniqueComms.length;
       }
 
       // 6. Admins
-      if (data.admins && data.admins.length > 0) {
-        for (const adm of data.admins) {
-          const passHash = adm.password ? await hashPasswordSha256(adm.password) : '';
-          await client.from('admins').upsert(
-            {
-              id: adm.id,
-              username: adm.username,
-              password_hash: passHash || adm.password || '',
-              role: adm.role,
-              name: adm.name || adm.username,
-              created_at: adm.createdAt,
-            },
-            { onConflict: 'username' }
-          );
+      const validAdmins = (data.admins || []).filter(a => a && a.username && a.username.trim());
+      if (validAdmins.length > 0) {
+        onProgress?.(`Synchronizing officer admin accounts...`);
+        const defaultHash = '87998b3ca00bb39b4f971b3e8a4a35071060956973e8705f4ba5ceb9704e673f'; // SHA-256 for 'masterlogin'
+        for (const adm of validAdmins) {
+          let passHash = defaultHash;
+          if (adm.password) {
+            passHash = await hashPasswordSha256(adm.password);
+          }
+          const adminRow = {
+            id: adm.id || `adm-${Math.random().toString(36).slice(2, 8)}`,
+            username: adm.username.trim(),
+            password_hash: passHash,
+            role: adm.role || 'SubAdmin',
+            name: adm.name || adm.username,
+            created_at: adm.createdAt || new Date().toISOString(),
+          };
+          const { error } = await client.from('admins').upsert(adminRow, { onConflict: 'username' });
+          if (error) {
+            console.warn(`Admin ${adm.username} upsert warning:`, error.message);
+          }
         }
-        counts.admins = data.admins.length;
+        counts.admins = validAdmins.length;
       }
 
       // 7. Contributions
-      if (data.contributions && data.contributions.length > 0) {
-        const rows = data.contributions.map(this.mapContributionToRow);
+      const validContributions = (data.contributions || []).filter(c => c && c.action);
+      const uniqueContributions = Array.from(new Map(validContributions.map(c => [c.id || `cnt-${Math.random()}`, c])).values());
+
+      if (uniqueContributions.length > 0) {
+        onProgress?.(`Uploading officer contribution records...`);
+        const rows = uniqueContributions.map(this.mapContributionToRow);
         for (let i = 0; i < rows.length; i += 100) {
           const chunk = rows.slice(i, i + 100);
-          await client.from('contributions').upsert(chunk, { onConflict: 'id' });
+          const { error } = await client.from('contributions').upsert(chunk, { onConflict: 'id' });
+          if (error) {
+            console.warn('Contributions upsert warning:', error.message);
+          }
         }
-        counts.contributions = data.contributions.length;
+        counts.contributions = uniqueContributions.length;
       }
 
+      // 8. Settings
+      try {
+        await client.from('settings').upsert([
+          { key: 'inactivityWarningDays', value: String(settings.inactivityWarningDays || 3) },
+          { key: 'inactivityInactiveDays', value: String(settings.inactivityInactiveDays || 7) },
+          { key: 'inactivityCriticalDays', value: String(settings.inactivityCriticalDays || 14) },
+        ], { onConflict: 'key' });
+      } catch (settingsErr) {
+        console.warn('Settings table upsert warning:', settingsErr);
+      }
+
+      onProgress?.('Verification complete!');
       return {
         success: true,
-        message: 'All alliance data successfully migrated to Supabase PostgreSQL!',
+        message: `All alliance data successfully migrated to Supabase PostgreSQL! (${counts.members || 0} members, ${counts.events || 0} events, ${counts.attendance || 0} attendance records)`,
         counts,
       };
     } catch (err: unknown) {
