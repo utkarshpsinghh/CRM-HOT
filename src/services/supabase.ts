@@ -14,6 +14,14 @@ import {
 } from '../types/crm';
 import { hashPasswordSha256 } from '../utils/security';
 
+// Helper to strip any trailing slashes or /rest/v1 paths from Supabase Project URL
+export function normalizeSupabaseUrl(url: string): string {
+  let clean = (url || '').trim();
+  clean = clean.replace(/\/rest\/v1\/?$/i, '');
+  clean = clean.replace(/\/+$/, '');
+  return clean;
+}
+
 // Global cache for client instance so we don't recreate on every call
 let cachedClient: SupabaseClient | null = null;
 let cachedConfigKey = '';
@@ -21,14 +29,14 @@ let cachedConfigKey = '';
 export const supabaseService = {
   // Check if Supabase credentials are configured in settings or environment
   isConfigured(settings?: AllianceSettings): boolean {
-    const url = (settings?.supabaseUrl || import.meta.env.VITE_SUPABASE_URL || '').trim();
+    const url = normalizeSupabaseUrl(settings?.supabaseUrl || import.meta.env.VITE_SUPABASE_URL || '');
     const key = (settings?.supabaseAnonKey || import.meta.env.VITE_SUPABASE_ANON_KEY || '').trim();
     return Boolean(url && key && url.startsWith('http'));
   },
 
   // Get or initialize Supabase client instance
   getClient(settings?: AllianceSettings): SupabaseClient | null {
-    const url = (settings?.supabaseUrl || import.meta.env.VITE_SUPABASE_URL || '').trim();
+    const url = normalizeSupabaseUrl(settings?.supabaseUrl || import.meta.env.VITE_SUPABASE_URL || '');
     const key = (settings?.supabaseAnonKey || import.meta.env.VITE_SUPABASE_ANON_KEY || '').trim();
 
     if (!url || !key || !url.startsWith('http')) {
@@ -51,8 +59,8 @@ export const supabaseService = {
   },
 
   // Test Supabase connection
-  async testConnection(url: string, key: string): Promise<{ success: boolean; message: string }> {
-    const cleanUrl = (url || '').trim();
+  async testConnection(url: string, key: string): Promise<{ success: boolean; message: string; normalizedUrl?: string }> {
+    const cleanUrl = normalizeSupabaseUrl(url);
     const cleanKey = (key || '').trim();
 
     if (!cleanUrl.startsWith('http')) {
@@ -82,6 +90,7 @@ export const supabaseService = {
       return {
         success: true,
         message: 'Connected to Supabase PostgreSQL database successfully! Tables verified.',
+        normalizedUrl: cleanUrl,
       };
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);

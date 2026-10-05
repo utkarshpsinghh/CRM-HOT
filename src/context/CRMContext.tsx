@@ -16,7 +16,7 @@ import {
 } from '../types/crm';
 import { storageService } from '../services/storage';
 import { apiService } from '../services/api';
-import { supabaseService } from '../services/supabase';
+import { supabaseService, normalizeSupabaseUrl } from '../services/supabase';
 import { sounds } from '../utils/sound';
 import { useAuth } from './AuthContext';
 
@@ -1081,9 +1081,10 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
 
       // Save permanently to storage
+      const normalized = normalizeSupabaseUrl(cleanUrl);
       const newSettings: AllianceSettings = {
         ...settings,
-        supabaseUrl: cleanUrl,
+        supabaseUrl: testRes.normalizedUrl || normalized,
         supabaseAnonKey: cleanKey,
         dbProvider: 'supabase',
         demoMode: false,

@@ -3,6 +3,7 @@ import { useCRM } from '../../context/CRMContext';
 import { GameButton } from '../common/GameButton';
 import { ConfirmModal } from '../common/ConfirmModal';
 import { AdminAccount } from '../../types/crm';
+import { normalizeSupabaseUrl } from '../../services/supabase';
 import {
   Settings,
   Database,
@@ -104,7 +105,10 @@ export const SettingsView: React.FC = () => {
   };
 
   const handleConnectSupabase = async () => {
-    if (!supaUrl.trim()) {
+    const cleanUrl = normalizeSupabaseUrl(supaUrl);
+    setSupaUrl(cleanUrl);
+
+    if (!cleanUrl) {
       setSupaTestResult({ success: false, message: 'Please enter your Supabase Project URL.' });
       return;
     }
@@ -114,19 +118,22 @@ export const SettingsView: React.FC = () => {
     }
     setIsConnectingSupa(true);
     setSupaTestResult(null);
-    const result = await connectSupabase(supaUrl.trim(), supaKey.trim());
+    const result = await connectSupabase(cleanUrl, supaKey.trim());
     setIsConnectingSupa(false);
     setSupaTestResult(result);
   };
 
   const handleTestSupabase = async () => {
-    if (!supaUrl.trim() || !supaKey.trim()) {
+    const cleanUrl = normalizeSupabaseUrl(supaUrl);
+    setSupaUrl(cleanUrl);
+
+    if (!cleanUrl || !supaKey.trim()) {
       setSupaTestResult({ success: false, message: 'Both Supabase Project URL and Anon API Key are required to test.' });
       return;
     }
     setIsTestingSupa(true);
     setSupaTestResult(null);
-    const result = await testSupabaseConnection(supaUrl.trim(), supaKey.trim());
+    const result = await testSupabaseConnection(cleanUrl, supaKey.trim());
     setIsTestingSupa(false);
     setSupaTestResult(result);
   };

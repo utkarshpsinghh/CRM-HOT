@@ -49,7 +49,7 @@ export const apiService = {
   },
 
   // Test connection to Supabase PostgreSQL database
-  async testSupabaseConnection(url: string, key: string): Promise<{ success: boolean; message: string }> {
+  async testSupabaseConnection(url: string, key: string): Promise<{ success: boolean; message: string; normalizedUrl?: string }> {
     return supabaseService.testConnection(url, key);
   },
 
