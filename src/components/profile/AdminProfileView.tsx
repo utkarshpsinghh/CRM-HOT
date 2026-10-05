@@ -99,23 +99,6 @@ export const AdminProfileView: React.FC = () => {
     );
   }
 
-  // Tactical titles adapted for MainAdmin vs SubAdmin
-  const getRankTitle = (actions: number) => {
-    if (isMainAdmin) {
-      if (actions >= 50) return { title: 'Supreme Commander', badge: 'bg-amber-950 text-amber-300 border-amber-500' };
-      if (actions >= 25) return { title: 'Grand Marshal', badge: 'bg-yellow-950 text-yellow-300 border-yellow-600' };
-      if (actions >= 10) return { title: 'Alliance Leader', badge: 'bg-emerald-950 text-emerald-300 border-emerald-600' };
-      return { title: 'High Commander', badge: 'bg-stone-900 text-stone-300 border-stone-600' };
-    } else {
-      if (actions >= 40) return { title: 'High Inquisitor', badge: 'bg-amber-950 text-amber-300 border-amber-500' };
-      if (actions >= 20) return { title: 'Vanguard Enforcer', badge: 'bg-yellow-950 text-yellow-300 border-yellow-600' };
-      if (actions >= 8) return { title: 'Roster Warden', badge: 'bg-emerald-950 text-emerald-300 border-emerald-600' };
-      return { title: 'Vanguard Officer', badge: 'bg-stone-900 text-stone-300 border-stone-600' };
-    }
-  };
-
-  const rankInfo = getRankTitle(myStats.totalActions);
-
   const handleSaveName = async () => {
     const clean = displayName.trim();
     if (!clean) return;
@@ -251,10 +234,6 @@ export const AdminProfileView: React.FC = () => {
 
               <div className="text-xs text-stone-400 font-mono mt-1 flex items-center gap-2 flex-wrap">
                 <span>@{admin.username}</span>
-                <span>•</span>
-                <span className={`text-[10px] px-2 py-0.2 rounded font-bold border ${rankInfo.badge}`}>
-                  {rankInfo.title}
-                </span>
               </div>
             </div>
           </div>

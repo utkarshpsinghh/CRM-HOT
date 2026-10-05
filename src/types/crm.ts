@@ -77,6 +77,9 @@ export interface AllianceSettings {
   inactivityInactiveDays: number;  // default 7
   inactivityCriticalDays: number;  // default 14
   gasWebAppUrl: string;
+  supabaseUrl?: string;
+  supabaseAnonKey?: string;
+  dbProvider?: 'supabase' | 'sheets' | 'local';
   soundEnabled: boolean;
   demoMode: boolean;
 }

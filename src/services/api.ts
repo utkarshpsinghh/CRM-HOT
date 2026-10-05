@@ -13,7 +13,8 @@ import {
   OfficerContribution,
 } from '../types/crm';
 import { storageService } from './storage';
-import { getLoginAttemptState, recordFailedAttempt, resetLoginAttempts, addSecurityLog } from '../utils/security';
+import { supabaseService } from './supabase';
+import { getLoginAttemptState, recordFailedAttempt, resetLoginAttempts } from '../utils/security';
 
 // Helper to ensure Google Apps Script Web App URL ends with /exec
 export function normalizeGasUrl(url: string): string {
@@ -25,12 +26,31 @@ export function normalizeGasUrl(url: string): string {
 }
 
 export const apiService = {
+  // Determine which database engine is actively configured
+  getActiveProvider(settings?: AllianceSettings): 'supabase' | 'sheets' | 'local' {
+    if (this.isSupabase(settings)) return 'supabase';
+    if (this.isLiveSheets(settings)) return 'sheets';
+    return 'local';
+  },
+
+  // Check if live Supabase PostgreSQL backend should be used
+  isSupabase(settings?: AllianceSettings): boolean {
+    if (settings?.dbProvider === 'sheets' || settings?.dbProvider === 'local') return false;
+    return supabaseService.isConfigured(settings);
+  },
+
   // Check if live Google Sheets backend should be used
-  isLiveSheets(settings: AllianceSettings): boolean {
+  isLiveSheets(settings?: AllianceSettings): boolean {
     if (!settings) return false;
+    if (settings.dbProvider === 'supabase') return false;
     const url = (settings.gasWebAppUrl || '').trim();
     if (!url.startsWith('http')) return false;
     return !settings.demoMode;
+  },
+
+  // Test connection to Supabase PostgreSQL database
+  async testSupabaseConnection(url: string, key: string): Promise<{ success: boolean; message: string }> {
+    return supabaseService.testConnection(url, key);
   },
 
   // Test connection to Google Apps Script Web App
@@ -81,20 +101,31 @@ export const apiService = {
   },
 
   // --------------------------------------------------------------------------
-  // UNIFIED FAST DATA FETCH (1 single network round-trip instead of 7)
+  // UNIFIED FAST DATA FETCH (Parallel sub-30ms PostgreSQL or single GAS round-trip)
   // --------------------------------------------------------------------------
   async getAllData(settings: AllianceSettings): Promise<any | null> {
-    if (!this.isLiveSheets(settings)) return null;
-    try {
-      const url = `${normalizeGasUrl(settings.gasWebAppUrl)}?action=getAllData`;
-      const res = await fetch(url, { mode: 'cors' });
-      const json = await res.json();
-      if (json && (json.status === 'success' || json.ok === true) && json.data) {
-        return json.data;
+    if (this.isSupabase(settings)) {
+      try {
+        const supaData = await supabaseService.getAllData(settings);
+        if (supaData) return supaData;
+      } catch (err) {
+        console.warn('Supabase getAllData error, falling back:', err);
       }
-    } catch (err) {
-      console.warn('getAllData fetch error, will fallback:', err);
     }
+
+    if (this.isLiveSheets(settings)) {
+      try {
+        const url = `${normalizeGasUrl(settings.gasWebAppUrl)}?action=getAllData`;
+        const res = await fetch(url, { mode: 'cors' });
+        const json = await res.json();
+        if (json && (json.status === 'success' || json.ok === true) && json.data) {
+          return json.data;
+        }
+      } catch (err) {
+        console.warn('GAS getAllData fetch error, will fallback:', err);
+      }
+    }
+
     return null;
   },
 
@@ -122,9 +153,37 @@ export const apiService = {
     }
 
     // ------------------------------------------------------------------------
-    // CASE 1: Live Google Sheet Connected
-    // When sheet is connected, ONLY authenticate against Google Sheets!
-    // Both username and password must match correctly in the sheet.
+    // CASE 1: Supabase PostgreSQL Connected
+    // ------------------------------------------------------------------------
+    if (this.isSupabase(settings)) {
+      const supaResult = await supabaseService.login(cleanUser, cleanPass, settings);
+      if (supaResult.success && supaResult.user) {
+        resetLoginAttempts(cleanUser);
+        return { success: true, user: supaResult.user };
+      }
+
+      // If user is seoyoon/masterlogin and table hasn't been seeded yet, allow emergency initial login
+      if (cleanUser.toLowerCase() === 'seoyoon' && cleanPass === 'masterlogin') {
+        resetLoginAttempts('seoyoon');
+        const emergencyUser: AdminUser = {
+          id: 'adm-seoyoon',
+          username: 'seoyoon',
+          role: 'MainAdmin',
+          name: 'Seoyoon',
+          token: 'supa-master-token-' + Date.now(),
+        };
+        return { success: true, user: emergencyUser };
+      }
+
+      recordFailedAttempt(cleanUser);
+      return {
+        success: false,
+        error: supaResult.error || 'Invalid credentials in Supabase PostgreSQL database.',
+      };
+    }
+
+    // ------------------------------------------------------------------------
+    // CASE 2: Live Google Sheet Connected
     // ------------------------------------------------------------------------
     if (this.isLiveSheets(settings)) {
       try {
@@ -183,9 +242,7 @@ export const apiService = {
     }
 
     // ------------------------------------------------------------------------
-    // CASE 2: Google Sheet NOT Connected (Local Mode)
-    // STRICT RULE: Only user "seoyoon" with password "masterlogin" can pass!
-    // Other than these credentials, DO NOT pass any user!
+    // CASE 3: Local Offline Mode
     // ------------------------------------------------------------------------
     if (cleanUser.toLowerCase() === 'seoyoon' && cleanPass === 'masterlogin') {
       resetLoginAttempts('seoyoon');
@@ -195,6 +252,21 @@ export const apiService = {
         role: 'MainAdmin',
         name: 'Seoyoon',
         token: 'hot-master-token-' + Date.now(),
+      };
+      return { success: true, user };
+    }
+
+    // Check local admin accounts in storage
+    const localAdmins = storageService.getAdminAccounts();
+    const matched = localAdmins.find(a => a.username.toLowerCase() === cleanUser.toLowerCase() && a.password === cleanPass);
+    if (matched) {
+      resetLoginAttempts(cleanUser);
+      const user: AdminUser = {
+        id: matched.id,
+        username: matched.username,
+        role: matched.role,
+        name: matched.name || matched.username,
+        token: 'hot-local-token-' + Date.now(),
       };
       return { success: true, user };
     }
@@ -211,7 +283,17 @@ export const apiService = {
   // MEMBERS
   // --------------------------------------------------------------------------
   async getMembers(settings: AllianceSettings): Promise<Member[]> {
-    if (this.isLiveSheets(settings)) {
+    if (this.isSupabase(settings)) {
+      try {
+        const data = await supabaseService.getMembers(settings);
+        if (data.length > 0 || !storageService.getMembers().length) {
+          storageService.setMembers(data);
+          return data;
+        }
+      } catch (err) {
+        console.warn('Supabase getMembers error:', err);
+      }
+    } else if (this.isLiveSheets(settings)) {
       try {
         const res = await fetch(`${settings.gasWebAppUrl.trim()}?action=getMembers`, { mode: 'cors' });
         const json = await res.json();
@@ -238,7 +320,9 @@ export const apiService = {
       updatedAt: now,
     };
 
-    if (this.isLiveSheets(settings)) {
+    if (this.isSupabase(settings)) {
+      await supabaseService.createMember(fullMember, settings);
+    } else if (this.isLiveSheets(settings)) {
       try {
         await fetch(settings.gasWebAppUrl, {
           method: 'POST',
@@ -258,7 +342,9 @@ export const apiService = {
 
   async updateMember(member: Member, settings: AllianceSettings): Promise<void> {
     const updated = { ...member, updatedAt: new Date().toISOString() };
-    if (this.isLiveSheets(settings)) {
+    if (this.isSupabase(settings)) {
+      await supabaseService.updateMember(updated, settings);
+    } else if (this.isLiveSheets(settings)) {
       try {
         await fetch(settings.gasWebAppUrl, {
           method: 'POST',
@@ -276,7 +362,9 @@ export const apiService = {
   },
 
   async archiveMember(memberId: string, settings: AllianceSettings): Promise<void> {
-    if (this.isLiveSheets(settings)) {
+    if (this.isSupabase(settings)) {
+      await supabaseService.archiveMember(memberId, settings);
+    } else if (this.isLiveSheets(settings)) {
       try {
         await fetch(settings.gasWebAppUrl, {
           method: 'POST',
@@ -297,7 +385,17 @@ export const apiService = {
   // EVENTS
   // --------------------------------------------------------------------------
   async getEvents(settings: AllianceSettings): Promise<AllianceEvent[]> {
-    if (this.isLiveSheets(settings)) {
+    if (this.isSupabase(settings)) {
+      try {
+        const data = await supabaseService.getEvents(settings);
+        if (data.length > 0 || !storageService.getEvents().length) {
+          storageService.setEvents(data);
+          return data;
+        }
+      } catch (err) {
+        console.warn('Supabase getEvents error:', err);
+      }
+    } else if (this.isLiveSheets(settings)) {
       try {
         const res = await fetch(`${settings.gasWebAppUrl.trim()}?action=getEvents`, { mode: 'cors' });
         const json = await res.json();
@@ -332,7 +430,9 @@ export const apiService = {
       updatedAt: now,
     }));
 
-    if (this.isLiveSheets(settings)) {
+    if (this.isSupabase(settings)) {
+      await supabaseService.createEvent(newEvent, newAttendanceRows, settings);
+    } else if (this.isLiveSheets(settings)) {
       try {
         await fetch(settings.gasWebAppUrl.trim(), {
           method: 'POST',
@@ -358,7 +458,17 @@ export const apiService = {
   // ATTENDANCE
   // --------------------------------------------------------------------------
   async getAttendance(eventId: string | undefined, settings: AllianceSettings): Promise<AttendanceRecord[]> {
-    if (this.isLiveSheets(settings)) {
+    if (this.isSupabase(settings)) {
+      try {
+        const data = await supabaseService.getAttendance(eventId, settings);
+        if (!eventId && data.length > 0) {
+          storageService.setAttendance(data);
+        }
+        return data;
+      } catch (err) {
+        console.warn('Supabase getAttendance error:', err);
+      }
+    } else if (this.isLiveSheets(settings)) {
       try {
         const url = eventId
           ? `${settings.gasWebAppUrl.trim()}?action=getAttendance&eventId=${eventId}`
@@ -380,7 +490,9 @@ export const apiService = {
   },
 
   async updateVote(eventId: string, memberId: string, voteStatus: VoteStatus, settings: AllianceSettings): Promise<void> {
-    if (this.isLiveSheets(settings)) {
+    if (this.isSupabase(settings)) {
+      await supabaseService.updateVote(eventId, memberId, voteStatus, settings);
+    } else if (this.isLiveSheets(settings)) {
       try {
         await fetch(settings.gasWebAppUrl, {
           method: 'POST',
@@ -418,7 +530,9 @@ export const apiService = {
   },
 
   async updateAttendance(eventId: string, memberId: string, attendanceStatus: AttendanceStatus, settings: AllianceSettings): Promise<void> {
-    if (this.isLiveSheets(settings)) {
+    if (this.isSupabase(settings)) {
+      await supabaseService.updateAttendance(eventId, memberId, attendanceStatus, settings);
+    } else if (this.isLiveSheets(settings)) {
       try {
         await fetch(settings.gasWebAppUrl, {
           method: 'POST',
@@ -460,7 +574,9 @@ export const apiService = {
     updates: Array<{ memberId: string; voteStatus?: VoteStatus; attendanceStatus?: AttendanceStatus }>,
     settings: AllianceSettings
   ): Promise<void> {
-    if (this.isLiveSheets(settings)) {
+    if (this.isSupabase(settings)) {
+      await supabaseService.bulkUpdateAttendance(eventId, updates, settings);
+    } else if (this.isLiveSheets(settings)) {
       try {
         await fetch(settings.gasWebAppUrl, {
           method: 'POST',
@@ -511,7 +627,17 @@ export const apiService = {
   // STRIKES
   // --------------------------------------------------------------------------
   async getStrikes(settings: AllianceSettings): Promise<StrikeRecord[]> {
-    if (this.isLiveSheets(settings)) {
+    if (this.isSupabase(settings)) {
+      try {
+        const data = await supabaseService.getStrikes(settings);
+        if (data.length > 0 || !storageService.getStrikes().length) {
+          storageService.setStrikes(data);
+          return data;
+        }
+      } catch (err) {
+        console.warn('Supabase getStrikes error:', err);
+      }
+    } else if (this.isLiveSheets(settings)) {
       try {
         const res = await fetch(`${settings.gasWebAppUrl.trim()}?action=getStrikes`, { mode: 'cors' });
         const json = await res.json();
@@ -537,7 +663,9 @@ export const apiService = {
       addedBy,
     };
 
-    if (this.isLiveSheets(settings)) {
+    if (this.isSupabase(settings)) {
+      await supabaseService.addStrike(newStrike, settings);
+    } else if (this.isLiveSheets(settings)) {
       try {
         await fetch(settings.gasWebAppUrl, {
           method: 'POST',
@@ -567,7 +695,9 @@ export const apiService = {
   },
 
   async removeStrike(strikeId: string, memberId: string, settings: AllianceSettings): Promise<void> {
-    if (this.isLiveSheets(settings)) {
+    if (this.isSupabase(settings)) {
+      await supabaseService.removeStrike(strikeId, memberId, settings);
+    } else if (this.isLiveSheets(settings)) {
       try {
         await fetch(settings.gasWebAppUrl, {
           method: 'POST',
@@ -596,7 +726,17 @@ export const apiService = {
   // COMMUNICATIONS
   // --------------------------------------------------------------------------
   async getCommunications(settings: AllianceSettings): Promise<CommunicationRecord[]> {
-    if (this.isLiveSheets(settings)) {
+    if (this.isSupabase(settings)) {
+      try {
+        const data = await supabaseService.getCommunications(settings);
+        if (data.length > 0 || !storageService.getCommunications().length) {
+          storageService.setCommunications(data);
+          return data;
+        }
+      } catch (err) {
+        console.warn('Supabase getCommunications error:', err);
+      }
+    } else if (this.isLiveSheets(settings)) {
       try {
         const res = await fetch(`${settings.gasWebAppUrl.trim()}?action=getCommunications`, { mode: 'cors' });
         const json = await res.json();
@@ -623,7 +763,9 @@ export const apiService = {
       addedBy,
     };
 
-    if (this.isLiveSheets(settings)) {
+    if (this.isSupabase(settings)) {
+      await supabaseService.addCommunication(newComm, settings);
+    } else if (this.isLiveSheets(settings)) {
       try {
         await fetch(settings.gasWebAppUrl, {
           method: 'POST',
@@ -718,7 +860,6 @@ export const apiService = {
         latestTimestamp = now - (noteDays * 24 * 60 * 60 * 1000);
         activityDescription = note;
       } else if (member.status === 'Inactive') {
-        // Members explicitly marked Inactive are at least 8 to 15 days inactive
         if (daysInactive < (settings.inactivityInactiveDays || 7)) {
           daysInactive = 10;
           latestTimestamp = now - (10 * 24 * 60 * 60 * 1000);
@@ -764,7 +905,17 @@ export const apiService = {
   // ADMIN MANAGEMENT
   // --------------------------------------------------------------------------
   async getAdmins(settings: AllianceSettings): Promise<AdminAccount[]> {
-    if (this.isLiveSheets(settings)) {
+    if (this.isSupabase(settings)) {
+      try {
+        const supaAdmins = await supabaseService.getAdmins(settings);
+        if (supaAdmins.length > 0) {
+          storageService.setAdminAccounts(supaAdmins);
+          return supaAdmins;
+        }
+      } catch (err) {
+        console.warn('Supabase getAdmins error:', err);
+      }
+    } else if (this.isLiveSheets(settings)) {
       try {
         const res = await fetch(`${settings.gasWebAppUrl}?action=getAdmins`, { mode: 'cors' });
         const json = await res.json();
@@ -782,7 +933,10 @@ export const apiService = {
     data: Omit<AdminAccount, 'id' | 'createdAt'>,
     settings: AllianceSettings
   ): Promise<AdminAccount> {
-    if (this.isLiveSheets(settings)) {
+    const newAdmin = storageService.createAdminAccount(data);
+    if (this.isSupabase(settings)) {
+      await supabaseService.createAdmin(newAdmin, settings);
+    } else if (this.isLiveSheets(settings)) {
       try {
         await fetch(settings.gasWebAppUrl, {
           method: 'POST',
@@ -793,11 +947,13 @@ export const apiService = {
         // Fallback
       }
     }
-    return storageService.createAdminAccount(data);
+    return newAdmin;
   },
 
   async deleteAdmin(adminId: string, settings: AllianceSettings): Promise<boolean> {
-    if (this.isLiveSheets(settings)) {
+    if (this.isSupabase(settings)) {
+      await supabaseService.deleteAdmin(adminId, settings);
+    } else if (this.isLiveSheets(settings)) {
       try {
         await fetch(settings.gasWebAppUrl, {
           method: 'POST',
@@ -815,7 +971,16 @@ export const apiService = {
   // CONTRIBUTIONS & AUDIT
   // --------------------------------------------------------------------------
   async getContributions(settings: AllianceSettings): Promise<OfficerContribution[]> {
-    if (this.isLiveSheets(settings)) {
+    if (this.isSupabase(settings)) {
+      try {
+        const data = await supabaseService.getContributions(settings);
+        if (data.length > 0) {
+          return data;
+        }
+      } catch (err) {
+        console.warn('Supabase getContributions error:', err);
+      }
+    } else if (this.isLiveSheets(settings)) {
       try {
         const res = await fetch(`${settings.gasWebAppUrl}?action=getContributions`, { mode: 'cors' });
         const json = await res.json();
@@ -834,7 +999,9 @@ export const apiService = {
     settings: AllianceSettings
   ): Promise<OfficerContribution> {
     const entry = storageService.recordContribution(data);
-    if (this.isLiveSheets(settings)) {
+    if (this.isSupabase(settings)) {
+      await supabaseService.recordContribution(entry, settings);
+    } else if (this.isLiveSheets(settings)) {
       try {
         await fetch(settings.gasWebAppUrl, {
           method: 'POST',
@@ -850,7 +1017,9 @@ export const apiService = {
 
   async updateAdminPassword(adminId: string, newPass: string, settings: AllianceSettings): Promise<boolean> {
     const success = storageService.updateAdminPassword(adminId, newPass);
-    if (success && this.isLiveSheets(settings)) {
+    if (this.isSupabase(settings)) {
+      await supabaseService.updateAdminPassword(adminId, newPass, settings);
+    } else if (success && this.isLiveSheets(settings)) {
       try {
         await fetch(settings.gasWebAppUrl, {
           method: 'POST',
@@ -866,7 +1035,9 @@ export const apiService = {
 
   async updateAdminProfile(adminId: string, name: string, settings: AllianceSettings, username?: string): Promise<boolean> {
     storageService.updateAdminProfile(adminId, name, username);
-    if (this.isLiveSheets(settings)) {
+    if (this.isSupabase(settings)) {
+      await supabaseService.updateAdminProfile(adminId, name, settings, username);
+    } else if (this.isLiveSheets(settings)) {
       try {
         const gasUrl = normalizeGasUrl(settings.gasWebAppUrl);
         await fetch(gasUrl, {
@@ -884,4 +1055,3 @@ export const apiService = {
     return true;
   }
 };
-

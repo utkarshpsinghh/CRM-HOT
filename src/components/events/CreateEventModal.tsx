@@ -39,10 +39,10 @@ export const CreateEventModal: React.FC<CreateEventModalProps> = ({ isOpen, onCl
     setEventType(type);
     if (type === 'BT1') setEventName('Bear Trap 1');
     else if (type === 'BT2') setEventName('Bear Trap 2');
-    else if (type === 'Swordland L1') setEventName('Swordland Level 1');
-    else if (type === 'Swordland L2') setEventName('Swordland Level 2');
-    else if (type === 'Tri Alliance L1') setEventName('Tri Alliance Level 1');
-    else if (type === 'Tri Alliance L2') setEventName('Tri Alliance Level 2');
+    else if (type === 'Swordland L1') setEventName('Swordland Legion 1');
+    else if (type === 'Swordland L2') setEventName('Swordland Legion 2');
+    else if (type === 'Tri Alliance L1') setEventName('Tri Alliance Legion 1');
+    else if (type === 'Tri Alliance L2') setEventName('Tri Alliance Legion 2');
     else setEventName(`${type} Event`);
   };
 

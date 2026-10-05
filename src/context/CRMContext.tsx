@@ -16,6 +16,7 @@ import {
 } from '../types/crm';
 import { storageService } from '../services/storage';
 import { apiService } from '../services/api';
+import { supabaseService } from '../services/supabase';
 import { sounds } from '../utils/sound';
 import { useAuth } from './AuthContext';
 
@@ -63,6 +64,7 @@ interface CRMContextType {
     status: string;
     strikeMin: number;
   }>>;
+  activeDbProvider: 'supabase' | 'sheets' | 'local';
   // Operations
   refreshData: () => Promise<void>;
   syncWithGoogleSheets: () => Promise<boolean>;
@@ -82,6 +84,10 @@ interface CRMContextType {
   updateSettings: (newSettings: AllianceSettings) => Promise<boolean>;
   connectGoogleSheets: (url: string) => Promise<{ success: boolean; message: string }>;
   disconnectGoogleSheets: () => void;
+  connectSupabase: (url: string, key: string) => Promise<{ success: boolean; message: string }>;
+  disconnectSupabase: () => void;
+  testSupabaseConnection: (url: string, key: string) => Promise<{ success: boolean; message: string }>;
+  migrateToSupabase: () => Promise<{ success: boolean; message: string; counts?: Record<string, number> }>;
   clearLocalData: () => void;
   createAdminUser: (username: string, pass: string, name?: string) => Promise<boolean>;
   deleteAdminUser: (adminId: string) => Promise<boolean>;
@@ -160,7 +166,42 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     try {
-      if (apiService.isLiveSheets(currentSettings)) {
+      const activeProvider = apiService.getActiveProvider(currentSettings);
+
+      if (activeProvider === 'supabase') {
+        setIsSyncingSheets(true);
+        setSyncStatus('syncing');
+        setSyncMessage('Updating from Supabase PostgreSQL...');
+        try {
+          const allData = await apiService.getAllData(currentSettings);
+          if (allData && typeof allData === 'object') {
+            storageService.saveAllData(allData);
+
+            if (Array.isArray(allData.members)) setMembers(allData.members);
+            if (Array.isArray(allData.events)) setEvents(allData.events);
+            if (Array.isArray(allData.attendance)) setAttendance(allData.attendance);
+            if (Array.isArray(allData.strikes)) setStrikes(allData.strikes);
+            if (Array.isArray(allData.communications)) setCommunications(allData.communications);
+            if (Array.isArray(allData.admins) && allData.admins.length > 0) setAdmins(allData.admins);
+            if (Array.isArray(allData.contributions)) setContributions(allData.contributions);
+
+            setSyncStatus('connected');
+            setSyncMessage('Supabase PostgreSQL Live Connected');
+            setLastSyncTime(new Date().toLocaleTimeString());
+          }
+        } catch (err) {
+          console.warn('Supabase sync warning:', err);
+          setSyncStatus('error');
+          setSyncMessage('Supabase unreachable. Using cached roster.');
+          setMembers(storageService.getMembers());
+          setEvents(storageService.getEvents());
+          setAttendance(storageService.getAttendance());
+          setStrikes(storageService.getStrikes());
+          setCommunications(storageService.getCommunications());
+        } finally {
+          setIsSyncingSheets(false);
+        }
+      } else if (activeProvider === 'sheets') {
         setIsSyncingSheets(true);
         setSyncStatus('syncing');
         setSyncMessage('Updating from Google Sheets...');
@@ -228,7 +269,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
       } else {
         setSyncStatus('demo');
-        setSyncMessage('Connect Google Sheets to view alliance data');
+        setSyncMessage('Connect Supabase or Sheets to sync cloud data');
         setMembers(storageService.getMembers());
         setEvents(storageService.getEvents());
         setAttendance(storageService.getAttendance());
@@ -379,8 +420,10 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       storageService.setContributions([entry, ...current]);
       setContributions(prev => [entry, ...prev]);
 
-      // Non-blocking background sync to Google Sheets
-      if (apiService.isLiveSheets(settings)) {
+      // Non-blocking background sync
+      if (apiService.isSupabase(settings)) {
+        apiService.recordContribution(entry, settings).catch(err => console.warn('Supabase contribution sync:', err));
+      } else if (apiService.isLiveSheets(settings)) {
         fetch(settings.gasWebAppUrl, {
           method: 'POST',
           mode: 'cors',
@@ -476,8 +519,10 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         message: `${fullMember.name} (${fullMember.currentRank}) has joined the HOT Alliance roster!`,
       });
 
-      // 2. NON-BLOCKING BACKGROUND SYNC TO GOOGLE SHEETS
-      if (apiService.isLiveSheets(settings)) {
+      // 2. NON-BLOCKING BACKGROUND SYNC
+      if (apiService.isSupabase(settings)) {
+        apiService.createMember(fullMember, settings).catch(err => console.warn('Supabase member create error:', err));
+      } else if (apiService.isLiveSheets(settings)) {
         fetch(settings.gasWebAppUrl, {
           method: 'POST',
           mode: 'cors',
@@ -516,7 +561,9 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       });
 
       // 2. NON-BLOCKING BACKGROUND SYNC
-      if (apiService.isLiveSheets(settings)) {
+      if (apiService.isSupabase(settings)) {
+        apiService.updateMember(updated, settings).catch(err => console.warn('Supabase member update error:', err));
+      } else if (apiService.isLiveSheets(settings)) {
         fetch(settings.gasWebAppUrl, {
           method: 'POST',
           mode: 'cors',
@@ -555,7 +602,9 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       });
 
       // 2. NON-BLOCKING BACKGROUND SYNC
-      if (apiService.isLiveSheets(settings)) {
+      if (apiService.isSupabase(settings)) {
+        apiService.archiveMember(memberId, settings).catch(err => console.warn('Supabase archive error:', err));
+      } else if (apiService.isLiveSheets(settings)) {
         fetch(settings.gasWebAppUrl, {
           method: 'POST',
           mode: 'cors',
@@ -609,7 +658,9 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       });
 
       // 2. NON-BLOCKING BACKGROUND SYNC
-      if (apiService.isLiveSheets(settings)) {
+      if (apiService.isSupabase(settings)) {
+        apiService.createEvent(fullEvent, activeMembers, settings).catch(err => console.warn('Background event sync error:', err));
+      } else if (apiService.isLiveSheets(settings)) {
         fetch(settings.gasWebAppUrl, {
           method: 'POST',
           mode: 'cors',
@@ -660,7 +711,9 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setAttendance(updated);
 
     // 2. NON-BLOCKING BACKGROUND SYNC
-    if (apiService.isLiveSheets(settings)) {
+    if (apiService.isSupabase(settings)) {
+      apiService.updateVote(eventId, memberId, vote, settings).catch(err => console.warn('Background vote sync:', err));
+    } else if (apiService.isLiveSheets(settings)) {
       fetch(settings.gasWebAppUrl, {
         method: 'POST',
         mode: 'cors',
@@ -703,7 +756,9 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setAttendance(updated);
 
     // 2. NON-BLOCKING BACKGROUND SYNC
-    if (apiService.isLiveSheets(settings)) {
+    if (apiService.isSupabase(settings)) {
+      apiService.updateAttendance(eventId, memberId, att, settings).catch(err => console.warn('Background attendance sync:', err));
+    } else if (apiService.isLiveSheets(settings)) {
       fetch(settings.gasWebAppUrl, {
         method: 'POST',
         mode: 'cors',
@@ -758,7 +813,9 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     storageService.setAttendance(updated);
     setAttendance(updated);
 
-    if (apiService.isLiveSheets(settings)) {
+    if (apiService.isSupabase(settings)) {
+      apiService.bulkUpdateAttendance(eventId, updates, settings).catch(err => console.warn('Background bulk att sync:', err));
+    } else if (apiService.isLiveSheets(settings)) {
       fetch(settings.gasWebAppUrl, {
         method: 'POST',
         mode: 'cors',
@@ -809,7 +866,9 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       });
 
       // 2. NON-BLOCKING BACKGROUND SYNC
-      if (apiService.isLiveSheets(settings)) {
+      if (apiService.isSupabase(settings)) {
+        apiService.addStrike(memberId, reason, adminName, settings).catch(err => console.warn('Background strike sync:', err));
+      } else if (apiService.isLiveSheets(settings)) {
         fetch(settings.gasWebAppUrl, {
           method: 'POST',
           mode: 'cors',
@@ -849,7 +908,9 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       });
 
       // 2. NON-BLOCKING BACKGROUND SYNC
-      if (apiService.isLiveSheets(settings)) {
+      if (apiService.isSupabase(settings)) {
+        apiService.removeStrike(strikeId, memberId, settings).catch(err => console.warn('Background strike removal sync:', err));
+      } else if (apiService.isLiveSheets(settings)) {
         fetch(settings.gasWebAppUrl, {
           method: 'POST',
           mode: 'cors',
@@ -899,7 +960,9 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       });
 
       // 2. NON-BLOCKING BACKGROUND SYNC
-      if (apiService.isLiveSheets(settings)) {
+      if (apiService.isSupabase(settings)) {
+        apiService.addCommunication(memberId, status, note, adminName, settings).catch(err => console.warn('Background comm sync:', err));
+      } else if (apiService.isLiveSheets(settings)) {
         fetch(settings.gasWebAppUrl, {
           method: 'POST',
           mode: 'cors',
@@ -997,6 +1060,132 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       message: 'Switched back to local demo mode.',
     });
     refreshData();
+  };
+
+  const connectSupabase = async (url: string, key: string): Promise<{ success: boolean; message: string }> => {
+    const cleanUrl = (url || '').trim();
+    const cleanKey = (key || '').trim();
+    if (!cleanUrl.startsWith('http')) {
+      return { success: false, message: 'Invalid Supabase Project URL. Must start with https://' };
+    }
+    if (!cleanKey) {
+      return { success: false, message: 'Supabase Anon Public API Key is required.' };
+    }
+
+    setIsLoading(true);
+    setIsSyncingSheets(true);
+    try {
+      const testRes = await apiService.testSupabaseConnection(cleanUrl, cleanKey);
+      if (!testRes.success) {
+        return testRes;
+      }
+
+      // Save permanently to storage
+      const newSettings: AllianceSettings = {
+        ...settings,
+        supabaseUrl: cleanUrl,
+        supabaseAnonKey: cleanKey,
+        dbProvider: 'supabase',
+        demoMode: false,
+      };
+      storageService.setSettings(newSettings);
+      setSettings(newSettings);
+
+      // Refresh data from Supabase
+      await refreshData();
+
+      sounds.playSuccess();
+      addToast({
+        type: 'success',
+        title: 'Supabase PostgreSQL Connected',
+        message: 'Saved permanently. High-performance PostgreSQL backend active!',
+      });
+
+      return { success: true, message: 'Connected & synchronized with Supabase PostgreSQL successfully!' };
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      return { success: false, message: `Connection error: ${msg}` };
+    } finally {
+      setIsLoading(false);
+      setIsSyncingSheets(false);
+    }
+  };
+
+  const disconnectSupabase = () => {
+    sounds.playClick();
+    const newSettings: AllianceSettings = {
+      ...settings,
+      supabaseUrl: '',
+      supabaseAnonKey: '',
+      dbProvider: settings.gasWebAppUrl ? 'sheets' : 'local',
+      demoMode: !settings.gasWebAppUrl,
+    };
+    storageService.setSettings(newSettings);
+    setSettings(newSettings);
+    setSyncStatus('demo');
+    setSyncMessage('Local Demo Mode');
+    addToast({
+      type: 'info',
+      title: 'Supabase Disconnected',
+      message: 'Switched back to local / fallback database mode.',
+    });
+    refreshData();
+  };
+
+  const testSupabaseConnection = async (url: string, key: string) => {
+    sounds.playClick();
+    return await apiService.testSupabaseConnection(url, key);
+  };
+
+  const migrateToSupabase = async (): Promise<{ success: boolean; message: string; counts?: Record<string, number> }> => {
+    if (!supabaseService.isConfigured(settings)) {
+      addToast({
+        type: 'error',
+        title: 'Supabase Not Configured',
+        message: 'Please connect Supabase first with your Project URL & Anon Key.',
+      });
+      return { success: false, message: 'Supabase is not configured in settings.' };
+    }
+
+    sounds.playClick();
+    setIsLoading(true);
+    try {
+      const bundle = {
+        members: storageService.getMembers(),
+        events: storageService.getEvents(),
+        attendance: storageService.getAttendance(),
+        strikes: storageService.getStrikes(),
+        communications: storageService.getCommunications(),
+        admins: storageService.getAdminAccounts(),
+        contributions: storageService.getContributions(),
+      };
+
+      const result = await supabaseService.migrateAllToSupabase(bundle, settings);
+      if (result.success) {
+        sounds.playSuccess();
+        addToast({
+          type: 'success',
+          title: 'PostgreSQL Migration Complete',
+          message: `Uploaded ${result.counts.members || 0} members, ${result.counts.events || 0} events to Supabase!`,
+        });
+        await refreshData();
+      } else {
+        sounds.playAlert();
+        addToast({
+          type: 'error',
+          title: 'Migration Failed',
+          message: result.message,
+        });
+      }
+      return result;
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      sounds.playAlert();
+      addToast({ type: 'error', title: 'Migration Error', message: msg });
+      return { success: false, message: msg };
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const clearLocalData = () => {
@@ -1159,6 +1348,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setSelectedEventIdForAttendance,
         memberFilter,
         setMemberFilter,
+        activeDbProvider: apiService.getActiveProvider(settings),
         refreshData,
         syncWithGoogleSheets,
         logContribution,
@@ -1177,6 +1367,10 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         updateSettings,
         connectGoogleSheets,
         disconnectGoogleSheets,
+        connectSupabase,
+        disconnectSupabase,
+        testSupabaseConnection,
+        migrateToSupabase,
         clearLocalData,
         createAdminUser,
         deleteAdminUser,

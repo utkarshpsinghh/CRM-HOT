@@ -1,14 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useCRM } from '../../context/CRMContext';
-import { User, Lock, AlertCircle, ArrowRight, Eye, EyeOff, Clock, Database, CheckCircle2, RefreshCw, X, Shield } from 'lucide-react';
+import { User, Lock, AlertCircle, ArrowRight, Eye, EyeOff, Clock, Database, CheckCircle2, RefreshCw, X, Shield, Server, Zap } from 'lucide-react';
 import { sounds } from '../../utils/sound';
 import { getLoginAttemptState, resetLoginAttempts } from '../../utils/security';
 import { apiService } from '../../services/api';
 
 export const LoginView: React.FC = () => {
   const { login } = useAuth();
-  const { settings, connectGoogleSheets, disconnectGoogleSheets } = useCRM();
+  const {
+    settings,
+    connectGoogleSheets,
+    disconnectGoogleSheets,
+    connectSupabase,
+    disconnectSupabase,
+    activeDbProvider,
+  } = useCRM();
 
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -19,17 +26,28 @@ export const LoginView: React.FC = () => {
 
   // Database Connection Modal state
   const [showDbModal, setShowDbModal] = useState(false);
+  const [modalTab, setModalTab] = useState<'supabase' | 'sheets'>(
+    settings.dbProvider === 'sheets' ? 'sheets' : 'supabase'
+  );
   const [sheetUrlInput, setSheetUrlInput] = useState(settings.gasWebAppUrl || '');
+  const [supaUrlInput, setSupaUrlInput] = useState(settings.supabaseUrl || '');
+  const [supaKeyInput, setSupaKeyInput] = useState(settings.supabaseAnonKey || '');
   const [isConnectingDb, setIsConnectingDb] = useState(false);
   const [dbModalError, setDbModalError] = useState<string | null>(null);
   const [dbModalSuccess, setDbModalSuccess] = useState<string | null>(null);
 
-  // Sync sheetUrlInput if settings change
+  // Sync inputs if settings change
   useEffect(() => {
     if (settings.gasWebAppUrl) {
       setSheetUrlInput(settings.gasWebAppUrl);
     }
-  }, [settings.gasWebAppUrl]);
+    if (settings.supabaseUrl) {
+      setSupaUrlInput(settings.supabaseUrl);
+    }
+    if (settings.supabaseAnonKey) {
+      setSupaKeyInput(settings.supabaseAnonKey);
+    }
+  }, [settings.gasWebAppUrl, settings.supabaseUrl, settings.supabaseAnonKey]);
 
   // Check lockout on mount and poll countdown
   useEffect(() => {
@@ -68,6 +86,36 @@ export const LoginView: React.FC = () => {
     }
   };
 
+  const handleConnectSupabaseOnLogin = async () => {
+    setDbModalError(null);
+    setDbModalSuccess(null);
+    if (!supaUrlInput.trim() || !supaKeyInput.trim()) {
+      setDbModalError('Both Supabase Project URL and Anon API Key are required.');
+      return;
+    }
+
+    setIsConnectingDb(true);
+    try {
+      const res = await connectSupabase(supaUrlInput.trim(), supaKeyInput.trim());
+      if (res.success) {
+        setDbModalSuccess('Connected to Supabase PostgreSQL database successfully!');
+        sounds.playSuccess();
+        setTimeout(() => {
+          setShowDbModal(false);
+          setDbModalSuccess(null);
+        }, 1200);
+      } else {
+        setDbModalError(res.message);
+        sounds.playAlert();
+      }
+    } catch (err: any) {
+      setDbModalError(err.message || 'Connection failed.');
+      sounds.playAlert();
+    } finally {
+      setIsConnectingDb(false);
+    }
+  };
+
   const handleConnectSheetOnLogin = async () => {
     setDbModalError(null);
     setDbModalSuccess(null);
@@ -98,9 +146,12 @@ export const LoginView: React.FC = () => {
     }
   };
 
-  const handleDisconnectSheetOnLogin = () => {
-    disconnectGoogleSheets();
-    setSheetUrlInput('');
+  const handleDisconnectDbOnLogin = () => {
+    if (activeDbProvider === 'supabase') {
+      disconnectSupabase();
+    } else {
+      disconnectGoogleSheets();
+    }
     setDbModalSuccess('Switched to local / offline mode.');
     setTimeout(() => {
       setShowDbModal(false);
@@ -273,10 +324,14 @@ export const LoginView: React.FC = () => {
                 </div>
                 <div>
                   <h3 className="font-fantasy font-black text-base sm:text-lg text-[#fef08a]">
-                    Google Sheets Database
+                    Alliance Database Engine
                   </h3>
                   <p className="text-xs text-stone-400">
-                    {isLive ? 'Currently connected to live Google Sheet' : 'Currently in Offline / Local Mode'}
+                    {activeDbProvider === 'supabase'
+                      ? '⚡ Connected to Supabase PostgreSQL (Ultra-fast)'
+                      : isLive
+                      ? 'Connected to Google Sheets'
+                      : 'Currently in Offline / Local Mode'}
                   </p>
                 </div>
               </div>
@@ -293,33 +348,152 @@ export const LoginView: React.FC = () => {
               </button>
             </div>
 
-            {/* Status explanation */}
-            <div className="text-xs text-stone-300 space-y-1.5 bg-[#120c08] p-3 rounded-xl border border-[#3e2716]">
-              <div className="font-bold text-amber-300 flex items-center gap-1.5">
-                <Shield className="w-3.5 h-3.5" />
-                <span>How Device Connection Works:</span>
-              </div>
-              <p className="text-stone-400">
-                Browsers keep sheet URLs in local storage per device. To make your phone connect to the live sheet database, paste your deployed Web App URL below and tap <strong className="text-stone-200">Connect & Save</strong>.
-              </p>
+            {/* Engine Tabs */}
+            <div className="flex rounded-xl bg-[#120c08] p-1 border border-[#3e2716] gap-1">
+              <button
+                type="button"
+                onClick={() => setModalTab('supabase')}
+                className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-fantasy font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                  modalTab === 'supabase'
+                    ? 'bg-gradient-to-r from-[#ca8a04] to-[#eab308] text-black shadow-md font-black'
+                    : 'text-stone-400 hover:text-stone-200'
+                }`}
+              >
+                <Server className="w-3.5 h-3.5" />
+                <span>Supabase PostgreSQL</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setModalTab('sheets')}
+                className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-fantasy font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                  modalTab === 'sheets'
+                    ? 'bg-gradient-to-r from-[#ca8a04] to-[#eab308] text-black shadow-md font-black'
+                    : 'text-stone-400 hover:text-stone-200'
+                }`}
+              >
+                <Database className="w-3.5 h-3.5" />
+                <span>Google Sheets</span>
+              </button>
             </div>
 
-            {/* URL Input */}
-            <div className="space-y-1.5">
-              <label className="block text-xs font-fantasy font-bold text-stone-300 uppercase">
-                Google Apps Script Web App URL
-              </label>
-              <input
-                type="url"
-                value={sheetUrlInput}
-                onChange={e => setSheetUrlInput(e.target.value)}
-                placeholder="https://script.google.com/macros/s/AKfycb.../exec"
-                className="w-full px-3.5 py-2.5 rounded-xl bg-[#120c08] border border-[#3e2716] text-[#fffbeb] text-base sm:text-sm font-mono focus:outline-none focus:border-[#ca8a04] placeholder-stone-600"
-              />
-              <p className="text-[11px] text-stone-400">
-                Must start with <code className="text-[#fef08a] font-mono">https://script.google.com/macros/s/.../exec</code>
-              </p>
-            </div>
+            {/* TAB 1: SUPABASE */}
+            {modalTab === 'supabase' && (
+              <div className="space-y-3">
+                <div className="space-y-1">
+                  <label className="block text-[11px] font-fantasy font-bold text-stone-300 uppercase">
+                    Supabase Project URL
+                  </label>
+                  <input
+                    type="url"
+                    value={supaUrlInput}
+                    onChange={e => setSupaUrlInput(e.target.value)}
+                    placeholder="https://xyzabcdefghijklmn.supabase.co"
+                    className="w-full px-3 py-2 rounded-xl bg-[#120c08] border border-[#3e2716] text-[#fffbeb] text-xs font-mono focus:outline-none focus:border-[#ca8a04] placeholder-stone-600"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="block text-[11px] font-fantasy font-bold text-stone-300 uppercase">
+                    Supabase Anon Public API Key
+                  </label>
+                  <input
+                    type="password"
+                    value={supaKeyInput}
+                    onChange={e => setSupaKeyInput(e.target.value)}
+                    placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                    className="w-full px-3 py-2 rounded-xl bg-[#120c08] border border-[#3e2716] text-[#fffbeb] text-xs font-mono focus:outline-none focus:border-[#ca8a04] placeholder-stone-600"
+                  />
+                  <p className="text-[10px] text-stone-400">
+                    Find these in Supabase Dashboard &gt; Project Settings &gt; API.
+                  </p>
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={handleConnectSupabaseOnLogin}
+                    disabled={isConnectingDb || !supaUrlInput.trim() || !supaKeyInput.trim()}
+                    className="btn-kingshot-gold flex-1 py-2 text-xs font-fantasy font-black uppercase flex items-center justify-center gap-1.5 cursor-pointer shadow-md disabled:opacity-50"
+                  >
+                    {isConnectingDb ? (
+                      <>
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                        <span>Verifying &amp; Connecting...</span>
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        <span>Connect &amp; Save Supabase</span>
+                      </>
+                    )}
+                  </button>
+
+                  {(activeDbProvider === 'supabase' || isLive) && (
+                    <button
+                      type="button"
+                      onClick={handleDisconnectDbOnLogin}
+                      disabled={isConnectingDb}
+                      className="px-3 py-2 rounded-xl bg-[#29160a] border border-[#42220d] text-stone-300 hover:text-red-400 text-xs font-bold transition-colors cursor-pointer"
+                    >
+                      Disconnect (Use Offline)
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* TAB 2: GOOGLE SHEETS */}
+            {modalTab === 'sheets' && (
+              <div className="space-y-3">
+                <div className="space-y-1">
+                  <label className="block text-[11px] font-fantasy font-bold text-stone-300 uppercase">
+                    Google Apps Script Web App URL
+                  </label>
+                  <input
+                    type="url"
+                    value={sheetUrlInput}
+                    onChange={e => setSheetUrlInput(e.target.value)}
+                    placeholder="https://script.google.com/macros/s/AKfycb.../exec"
+                    className="w-full px-3 py-2 rounded-xl bg-[#120c08] border border-[#3e2716] text-[#fffbeb] text-xs font-mono focus:outline-none focus:border-[#ca8a04] placeholder-stone-600"
+                  />
+                  <p className="text-[10px] text-stone-400">
+                    Must start with <code className="text-[#fef08a] font-mono">https://script.google.com/macros/s/.../exec</code>
+                  </p>
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={handleConnectSheetOnLogin}
+                    disabled={isConnectingDb || !sheetUrlInput.trim()}
+                    className="btn-kingshot-gold flex-1 py-2 text-xs font-fantasy font-black uppercase flex items-center justify-center gap-1.5 cursor-pointer shadow-md disabled:opacity-50"
+                  >
+                    {isConnectingDb ? (
+                      <>
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                        <span>Verifying &amp; Connecting...</span>
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        <span>Connect &amp; Save Sheet</span>
+                      </>
+                    )}
+                  </button>
+
+                  {(activeDbProvider === 'supabase' || isLive) && (
+                    <button
+                      type="button"
+                      onClick={handleDisconnectDbOnLogin}
+                      disabled={isConnectingDb}
+                      className="px-3 py-2 rounded-xl bg-[#29160a] border border-[#42220d] text-stone-300 hover:text-red-400 text-xs font-bold transition-colors cursor-pointer"
+                    >
+                      Disconnect (Use Offline)
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Error / Success Feedback */}
             {dbModalError && (
@@ -334,39 +508,6 @@ export const LoginView: React.FC = () => {
                 <span>{dbModalSuccess}</span>
               </div>
             )}
-
-            {/* Actions */}
-            <div className="flex flex-col sm:flex-row gap-2 pt-2">
-              <button
-                type="button"
-                onClick={handleConnectSheetOnLogin}
-                disabled={isConnectingDb || !sheetUrlInput.trim()}
-                className="btn-kingshot-gold flex-1 py-2.5 text-xs font-fantasy font-black uppercase flex items-center justify-center gap-1.5 cursor-pointer shadow-md disabled:opacity-50"
-              >
-                {isConnectingDb ? (
-                  <>
-                    <RefreshCw className="w-4 h-4 animate-spin" />
-                    <span>Verifying & Connecting...</span>
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle2 className="w-4 h-4" />
-                    <span>Connect & Save</span>
-                  </>
-                )}
-              </button>
-
-              {isLive && (
-                <button
-                  type="button"
-                  onClick={handleDisconnectSheetOnLogin}
-                  disabled={isConnectingDb}
-                  className="px-3.5 py-2.5 rounded-xl bg-[#29160a] border border-[#42220d] text-stone-300 hover:text-red-400 text-xs font-bold transition-colors cursor-pointer"
-                >
-                  Disconnect (Use Offline)
-                </button>
-              )}
-            </div>
           </div>
         </div>
       )}

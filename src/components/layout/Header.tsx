@@ -15,6 +15,8 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCreateEvent }) => {
     setActiveTab,
     settings,
     updateSettings,
+    activeDbProvider,
+    refreshData,
     syncWithGoogleSheets,
     isSyncingSheets,
     inactiveInsights,
@@ -116,12 +118,12 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCreateEvent }) => {
             </button>
           )}
 
-          {/* Sync Sheets Button */}
+          {/* Sync Cloud Database Button */}
           <button
-            onClick={() => syncWithGoogleSheets()}
+            onClick={() => (activeDbProvider === 'supabase' ? refreshData() : syncWithGoogleSheets())}
             disabled={isSyncingSheets}
             className="p-1.5 sm:p-2 rounded-xl bg-[#29160a] border border-[#42220d] text-amber-300 hover:text-white hover:border-[#b45309] transition-colors cursor-pointer disabled:opacity-50"
-            title="Sync with Google Sheets"
+            title={activeDbProvider === 'supabase' ? 'Sync with Supabase PostgreSQL' : 'Sync with Google Sheets'}
           >
             <RefreshCw className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${isSyncingSheets ? 'animate-spin text-amber-400' : ''}`} />
           </button>

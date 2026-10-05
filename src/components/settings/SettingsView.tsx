@@ -20,6 +20,10 @@ import {
   Trash2,
   Lock,
   User,
+  Server,
+  Zap,
+  Copy,
+  Check,
 } from 'lucide-react';
 
 export const SettingsView: React.FC = () => {
@@ -28,6 +32,12 @@ export const SettingsView: React.FC = () => {
     updateSettings,
     connectGoogleSheets,
     disconnectGoogleSheets,
+    connectSupabase,
+    disconnectSupabase,
+    testSupabaseConnection,
+    migrateToSupabase,
+    activeDbProvider,
+    refreshData,
     clearLocalData,
     syncWithGoogleSheets,
     lastSyncTime,
@@ -42,7 +52,13 @@ export const SettingsView: React.FC = () => {
     deleteAdminUser,
   } = useCRM();
 
-  const [gasUrl, setGasUrl] = useState(settings.gasWebAppUrl);
+  const [activeEngineTab, setActiveEngineTab] = useState<'supabase' | 'sheets'>(
+    settings.dbProvider === 'sheets' ? 'sheets' : 'supabase'
+  );
+
+  const [gasUrl, setGasUrl] = useState(settings.gasWebAppUrl || '');
+  const [supaUrl, setSupaUrl] = useState(settings.supabaseUrl || '');
+  const [supaKey, setSupaKey] = useState(settings.supabaseAnonKey || '');
   const [warningDays, setWarningDays] = useState(settings.inactivityWarningDays);
   const [inactiveDays, setInactiveDays] = useState(settings.inactivityInactiveDays);
   const [criticalDays, setCriticalDays] = useState(settings.inactivityCriticalDays);
@@ -51,6 +67,14 @@ export const SettingsView: React.FC = () => {
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const [isTesting, setIsTesting] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
+
+  const [supaTestResult, setSupaTestResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [isConnectingSupa, setIsConnectingSupa] = useState(false);
+  const [isTestingSupa, setIsTestingSupa] = useState(false);
+  const [isMigratingSupa, setIsMigratingSupa] = useState(false);
+  const [migrationResult, setMigrationResult] = useState<{ success: boolean; message: string; counts?: Record<string, number> } | null>(null);
+  const [schemaCopied, setSchemaCopied] = useState(false);
+
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
@@ -64,17 +88,61 @@ export const SettingsView: React.FC = () => {
 
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
-    const hasUrl = Boolean(gasUrl.trim().startsWith('http'));
     await updateSettings({
       ...settings,
       gasWebAppUrl: gasUrl.trim(),
+      supabaseUrl: supaUrl.trim(),
+      supabaseAnonKey: supaKey.trim(),
+      dbProvider: activeEngineTab,
       inactivityWarningDays: Number(warningDays),
       inactivityInactiveDays: Number(inactiveDays),
       inactivityCriticalDays: Number(criticalDays),
-      demoMode: hasUrl ? false : demoMode,
+      demoMode: Boolean(demoMode),
     });
     setSavedSuccess(true);
     setTimeout(() => setSavedSuccess(false), 3000);
+  };
+
+  const handleConnectSupabase = async () => {
+    if (!supaUrl.trim()) {
+      setSupaTestResult({ success: false, message: 'Please enter your Supabase Project URL.' });
+      return;
+    }
+    if (!supaKey.trim()) {
+      setSupaTestResult({ success: false, message: 'Please enter your Supabase Anon Public API Key.' });
+      return;
+    }
+    setIsConnectingSupa(true);
+    setSupaTestResult(null);
+    const result = await connectSupabase(supaUrl.trim(), supaKey.trim());
+    setIsConnectingSupa(false);
+    setSupaTestResult(result);
+  };
+
+  const handleTestSupabase = async () => {
+    if (!supaUrl.trim() || !supaKey.trim()) {
+      setSupaTestResult({ success: false, message: 'Both Supabase Project URL and Anon API Key are required to test.' });
+      return;
+    }
+    setIsTestingSupa(true);
+    setSupaTestResult(null);
+    const result = await testSupabaseConnection(supaUrl.trim(), supaKey.trim());
+    setIsTestingSupa(false);
+    setSupaTestResult(result);
+  };
+
+  const handleMigrateToSupabase = async () => {
+    setIsMigratingSupa(true);
+    setMigrationResult(null);
+    const result = await migrateToSupabase();
+    setIsMigratingSupa(false);
+    setMigrationResult(result);
+  };
+
+  const handleCopySchemaPath = () => {
+    navigator.clipboard.writeText('supabase/schema.sql');
+    setSchemaCopied(true);
+    setTimeout(() => setSchemaCopied(false), 2500);
   };
 
   const handleConnectSheet = async () => {
@@ -302,17 +370,29 @@ export const SettingsView: React.FC = () => {
 
       {/* Main Settings Form */}
       <form onSubmit={handleSaveSettings} className="space-y-6">
-        {/* SECTION 2: GOOGLE SHEETS CONNECTION */}
+        {/* SECTION 2: DATABASE ENGINE & CLOUD SYNC */}
         <div className="p-4 sm:p-5 rounded-2xl bg-[#1a1410] border-2 border-[#3e2716] shadow-md space-y-4">
           <div className="flex items-start justify-between gap-3 flex-wrap">
-            <div className="flex items-center gap-2">
-              <Database className="w-5 h-5 text-[#fef08a]" />
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-300 shrink-0">
+                <Database className="w-5 h-5" />
+              </div>
               <div>
-                <h2 className="font-fantasy font-bold text-base text-[#fef08a]">
-                  Google Sheets Backend
+                <h2 className="font-fantasy font-bold text-base text-[#fef08a] flex items-center gap-2">
+                  <span>Database Engine &amp; Cloud Sync</span>
+                  {activeDbProvider === 'supabase' && (
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-950/80 text-emerald-300 border border-emerald-500 font-sans font-bold flex items-center gap-1">
+                      <Zap className="w-3 h-3 text-emerald-400" /> PostgreSQL Active
+                    </span>
+                  )}
+                  {activeDbProvider === 'sheets' && (
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-950/80 text-amber-300 border border-amber-500 font-sans font-bold">
+                      Google Sheets Active
+                    </span>
+                  )}
                 </h2>
                 <p className="text-xs text-stone-400">
-                  Connect your live Google Sheet to save members, events, and attendance.
+                  Select your primary cloud database. Supabase PostgreSQL delivers sub-20ms reads/writes and infinite scalability.
                 </p>
               </div>
             </div>
@@ -337,99 +417,353 @@ export const SettingsView: React.FC = () => {
             </div>
           </div>
 
-          {/* Connected Active Card */}
-          {syncStatus === 'connected' && (
-            <div className="p-3.5 rounded-xl bg-emerald-950/40 border border-emerald-700/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div className="flex items-center gap-2 text-xs text-emerald-300">
-                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                <span>
-                  <strong>Connected &amp; Live:</strong> All changes sync with your Google Sheet. Refreshing the page will keep this sheet connected.
-                </span>
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <button
-                  type="button"
-                  onClick={() => syncWithGoogleSheets()}
-                  className="px-3 py-1.5 rounded-lg bg-emerald-800 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors"
-                >
-                  <RefreshCw className="w-3 h-3" />
-                  <span>Sync Now</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={disconnectGoogleSheets}
-                  className="px-3 py-1.5 rounded-lg bg-stone-800 hover:bg-stone-700 text-stone-300 text-xs font-bold cursor-pointer transition-colors"
-                >
-                  Disconnect
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Google Apps Script Web App URL Input */}
-          <div className="space-y-2">
-            <label className="block text-xs font-fantasy font-bold text-stone-300 uppercase">
-              Google Apps Script Web App URL
-            </label>
-            <div className="flex flex-col sm:flex-row gap-2">
-              <input
-                type="url"
-                value={gasUrl}
-                onChange={e => setGasUrl(e.target.value)}
-                placeholder="https://script.google.com/macros/s/AKfycb.../exec"
-                className="flex-1 px-3 py-2 rounded-xl bg-[#120c08] border border-[#3e2716] text-stone-200 text-xs sm:text-sm focus:outline-none focus:border-[#ca8a04] font-mono"
-              />
-              <button
-                type="button"
-                onClick={handleConnectSheet}
-                disabled={isConnecting || !gasUrl.trim()}
-                className="btn-kingshot-gold px-4 py-2 text-xs font-fantasy font-black uppercase flex items-center justify-center gap-1.5 cursor-pointer shadow-md shrink-0"
-              >
-                <CheckCircle2 className={`w-3.5 h-3.5 ${isConnecting ? 'animate-spin' : ''}`} />
-                <span>{isConnecting ? 'Connecting...' : 'Connect & Save Sheet'}</span>
-              </button>
-              <GameButton
-                type="button"
-                variant="slate"
-                size="sm"
-                onClick={handleTestConnection}
-                disabled={isTesting || !gasUrl.trim()}
-                icon={<RefreshCw className={`w-3.5 h-3.5 ${isTesting ? 'animate-spin' : ''}`} />}
-              >
-                {isTesting ? 'Testing...' : 'Test Only'}
-              </GameButton>
-            </div>
-            <p className="text-[11px] text-stone-400">
-              Paste the deployed Web App URL (starts with <code className="text-[#fef08a] font-mono">https://script.google.com/macros/s/.../exec</code>). Do not paste the spreadsheet viewer URL.
-            </p>
-          </div>
-
-          {/* Connection Test Result */}
-          {testResult && (
-            <div
-              className={`p-3 rounded-xl border text-xs flex items-start gap-2 ${
-                testResult.success
-                  ? 'bg-emerald-950/60 border-emerald-600 text-emerald-300'
-                  : 'bg-red-950/60 border-red-600 text-red-300'
+          {/* Engine Selector Tabs */}
+          <div className="flex rounded-xl bg-[#120c08] p-1 border border-[#3e2716] gap-1">
+            <button
+              type="button"
+              onClick={() => setActiveEngineTab('supabase')}
+              className={`flex-1 py-2 px-3 rounded-lg text-xs font-fantasy font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                activeEngineTab === 'supabase'
+                  ? 'bg-gradient-to-r from-[#ca8a04] to-[#eab308] text-black shadow-md font-black'
+                  : 'text-stone-400 hover:text-stone-200 hover:bg-[#1f140e]'
               }`}
             >
-              {testResult.success ? (
-                <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400 mt-0.5" />
-              ) : (
-                <AlertCircle className="w-4 h-4 shrink-0 text-red-400 mt-0.5" />
+              <Server className="w-4 h-4" />
+              <span>PostgreSQL &amp; Supabase (High Scale)</span>
+              <span className="text-[9px] px-1.5 py-0.2 rounded uppercase font-sans font-black bg-black/30">Fast</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveEngineTab('sheets')}
+              className={`flex-1 py-2 px-3 rounded-lg text-xs font-fantasy font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                activeEngineTab === 'sheets'
+                  ? 'bg-gradient-to-r from-[#ca8a04] to-[#eab308] text-black shadow-md font-black'
+                  : 'text-stone-400 hover:text-stone-200 hover:bg-[#1f140e]'
+              }`}
+            >
+              <Database className="w-4 h-4" />
+              <span>Google Sheets (Legacy)</span>
+            </button>
+          </div>
+
+          {/* TAB 1: SUPABASE POSTGRESQL */}
+          {activeEngineTab === 'supabase' && (
+            <div className="space-y-4 pt-1">
+              {/* Active Supabase Card */}
+              {activeDbProvider === 'supabase' && syncStatus === 'connected' && (
+                <div className="p-3.5 rounded-xl bg-emerald-950/40 border border-emerald-700/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-2 text-xs text-emerald-300">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                    <span>
+                      <strong>Supabase Live Connected:</strong> Operating directly on PostgreSQL database with ultra-low latency (&lt;25ms).
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => refreshData()}
+                      className="px-3 py-1.5 rounded-lg bg-emerald-800 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                    >
+                      <RefreshCw className="w-3 h-3" />
+                      <span>Refresh</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={disconnectSupabase}
+                      className="px-3 py-1.5 rounded-lg bg-stone-800 hover:bg-stone-700 text-stone-300 text-xs font-bold cursor-pointer transition-colors"
+                    >
+                      Disconnect
+                    </button>
+                  </div>
+                </div>
               )}
-              <span>{testResult.message}</span>
+
+              {/* Supabase URL and Anon Key Inputs */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-fantasy font-bold text-stone-300 uppercase">
+                    Supabase Project URL
+                  </label>
+                  <input
+                    type="url"
+                    value={supaUrl}
+                    onChange={e => setSupaUrl(e.target.value)}
+                    placeholder="https://xyzabcdefghijklmn.supabase.co"
+                    className="w-full px-3 py-2 rounded-xl bg-[#120c08] border border-[#3e2716] text-stone-200 text-xs sm:text-sm focus:outline-none focus:border-[#ca8a04] font-mono"
+                  />
+                  <p className="text-[11px] text-stone-500">
+                    From Supabase Dashboard &gt; Project Settings &gt; API
+                  </p>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-fantasy font-bold text-stone-300 uppercase">
+                    Supabase Anon Public API Key
+                  </label>
+                  <input
+                    type="password"
+                    value={supaKey}
+                    onChange={e => setSupaKey(e.target.value)}
+                    placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                    className="w-full px-3 py-2 rounded-xl bg-[#120c08] border border-[#3e2716] text-stone-200 text-xs sm:text-sm focus:outline-none focus:border-[#ca8a04] font-mono"
+                  />
+                  <p className="text-[11px] text-stone-500">
+                    Anon Public Key (<code className="text-amber-400">anon</code> / <code className="text-amber-400">public</code>)
+                  </p>
+                </div>
+              </div>
+
+              {/* Supabase Connect & Test Buttons */}
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={handleConnectSupabase}
+                  disabled={isConnectingSupa || !supaUrl.trim() || !supaKey.trim()}
+                  className="btn-kingshot-gold px-4 py-2 text-xs font-fantasy font-black uppercase flex items-center justify-center gap-1.5 cursor-pointer shadow-md disabled:opacity-50"
+                >
+                  <CheckCircle2 className={`w-3.5 h-3.5 ${isConnectingSupa ? 'animate-spin' : ''}`} />
+                  <span>{isConnectingSupa ? 'Verifying & Saving...' : 'Connect & Save Supabase'}</span>
+                </button>
+                <GameButton
+                  type="button"
+                  variant="slate"
+                  size="sm"
+                  onClick={handleTestSupabase}
+                  disabled={isTestingSupa || !supaUrl.trim() || !supaKey.trim()}
+                  icon={<RefreshCw className={`w-3.5 h-3.5 ${isTestingSupa ? 'animate-spin' : ''}`} />}
+                >
+                  {isTestingSupa ? 'Testing...' : 'Test Connection'}
+                </GameButton>
+              </div>
+
+              {/* Supabase Test Feedback */}
+              {supaTestResult && (
+                <div
+                  className={`p-3 rounded-xl border text-xs flex items-start gap-2 ${
+                    supaTestResult.success
+                      ? 'bg-emerald-950/60 border-emerald-600 text-emerald-300'
+                      : 'bg-red-950/60 border-red-600 text-red-300'
+                  }`}
+                >
+                  {supaTestResult.success ? (
+                    <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400 mt-0.5" />
+                  ) : (
+                    <AlertCircle className="w-4 h-4 shrink-0 text-red-400 mt-0.5" />
+                  )}
+                  <span>{supaTestResult.message}</span>
+                </div>
+              )}
+
+              {/* Migration Box: 1-Click Upload to Supabase */}
+              <div className="p-3.5 rounded-xl bg-[#120c08] border border-[#3e2716] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="space-y-0.5">
+                  <div className="text-xs font-fantasy font-bold text-amber-300 uppercase flex items-center gap-1.5">
+                    <Upload className="w-3.5 h-3.5" />
+                    <span>Migrate Local / Sheet Data to PostgreSQL</span>
+                  </div>
+                  <div className="text-[11px] text-stone-400">
+                    Upload all currently loaded members, battle events, attendance, strikes, and logs into your Supabase database in bulk.
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleMigrateToSupabase}
+                  disabled={isMigratingSupa}
+                  className="px-3.5 py-2 rounded-lg bg-gradient-to-r from-amber-600 to-yellow-600 hover:from-amber-500 hover:to-yellow-500 text-black text-xs font-fantasy font-black uppercase cursor-pointer shrink-0 transition-all flex items-center justify-center gap-1.5 shadow-md disabled:opacity-50"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isMigratingSupa ? 'animate-spin' : ''}`} />
+                  <span>{isMigratingSupa ? 'Migrating...' : 'Migrate Now'}</span>
+                </button>
+              </div>
+
+              {/* Migration Result Banner */}
+              {migrationResult && (
+                <div
+                  className={`p-3 rounded-xl border text-xs flex items-start gap-2 ${
+                    migrationResult.success
+                      ? 'bg-emerald-950/60 border-emerald-600 text-emerald-300'
+                      : 'bg-red-950/60 border-red-600 text-red-300'
+                  }`}
+                >
+                  {migrationResult.success ? (
+                    <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400 mt-0.5" />
+                  ) : (
+                    <AlertCircle className="w-4 h-4 shrink-0 text-red-400 mt-0.5" />
+                  )}
+                  <div>
+                    <p className="font-bold">{migrationResult.message}</p>
+                    {migrationResult.counts && (
+                      <p className="text-[11px] text-stone-300 mt-0.5">
+                        Uploaded: {migrationResult.counts.members || 0} members, {migrationResult.counts.events || 0} events, {migrationResult.counts.attendance || 0} attendance records, {migrationResult.counts.strikes || 0} strikes, {migrationResult.counts.communications || 0} comm logs.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Quick Schema Setup Instructions */}
+              <div className="p-3.5 rounded-xl bg-[#120c08]/80 border border-[#3e2716] text-xs space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-fantasy font-bold text-[#fef08a] uppercase flex items-center gap-1.5">
+                    <Server className="w-3.5 h-3.5 text-amber-400" />
+                    <span>First-Time Supabase Setup (2 Minutes)</span>
+                  </span>
+                  <a
+                    href="https://supabase.com/dashboard"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-[#ca8a04] hover:text-[#fef08a] flex items-center gap-1 text-[11px] font-bold"
+                  >
+                    <span>Supabase Dashboard</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
+
+                <ol className="list-decimal list-inside space-y-1 text-stone-300 text-xs leading-relaxed">
+                  <li>Create a free project at <strong>supabase.com</strong>.</li>
+                  <li>In your Supabase project, click on <strong>SQL Editor</strong> &gt; <strong>New Query</strong>.</li>
+                  <li>
+                    Run the schema script provided in <code className="text-[#fef08a] font-mono">supabase/schema.sql</code> to create all tables and performance indexes.
+                  </li>
+                  <li>In Supabase, go to <strong>Project Settings &gt; API</strong> and copy your Project URL &amp; <code className="text-amber-400">anon public</code> key into the fields above.</li>
+                </ol>
+
+                <div className="pt-1">
+                  <button
+                    type="button"
+                    onClick={handleCopySchemaPath}
+                    className="px-2.5 py-1 rounded bg-[#1e130c] hover:bg-[#2e1d13] border border-[#522d14] text-stone-300 hover:text-white text-[11px] font-mono flex items-center gap-1.5 cursor-pointer transition-colors"
+                  >
+                    {schemaCopied ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3 text-amber-400" />}
+                    <span>{schemaCopied ? 'Schema Path Copied!' : 'Copy Schema File Path (supabase/schema.sql)'}</span>
+                  </button>
+                </div>
+              </div>
             </div>
           )}
 
-          {/* Sheets-Only Cleanliness Option */}
+          {/* TAB 2: GOOGLE SHEETS */}
+          {activeEngineTab === 'sheets' && (
+            <div className="space-y-4 pt-1">
+              {/* Connected Active Card */}
+              {activeDbProvider === 'sheets' && syncStatus === 'connected' && (
+                <div className="p-3.5 rounded-xl bg-emerald-950/40 border border-emerald-700/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-2 text-xs text-emerald-300">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                    <span>
+                      <strong>Google Sheet Connected:</strong> Changes synchronize with your Google Spreadsheet backend.
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => syncWithGoogleSheets()}
+                      className="px-3 py-1.5 rounded-lg bg-emerald-800 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                    >
+                      <RefreshCw className="w-3 h-3" />
+                      <span>Sync Now</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={disconnectGoogleSheets}
+                      className="px-3 py-1.5 rounded-lg bg-stone-800 hover:bg-stone-700 text-stone-300 text-xs font-bold cursor-pointer transition-colors"
+                    >
+                      Disconnect
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Google Apps Script Web App URL Input */}
+              <div className="space-y-2">
+                <label className="block text-xs font-fantasy font-bold text-stone-300 uppercase">
+                  Google Apps Script Web App URL
+                </label>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <input
+                    type="url"
+                    value={gasUrl}
+                    onChange={e => setGasUrl(e.target.value)}
+                    placeholder="https://script.google.com/macros/s/AKfycb.../exec"
+                    className="flex-1 px-3 py-2 rounded-xl bg-[#120c08] border border-[#3e2716] text-stone-200 text-xs sm:text-sm focus:outline-none focus:border-[#ca8a04] font-mono"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleConnectSheet}
+                    disabled={isConnecting || !gasUrl.trim()}
+                    className="btn-kingshot-gold px-4 py-2 text-xs font-fantasy font-black uppercase flex items-center justify-center gap-1.5 cursor-pointer shadow-md shrink-0 disabled:opacity-50"
+                  >
+                    <CheckCircle2 className={`w-3.5 h-3.5 ${isConnecting ? 'animate-spin' : ''}`} />
+                    <span>{isConnecting ? 'Connecting...' : 'Connect & Save Sheet'}</span>
+                  </button>
+                  <GameButton
+                    type="button"
+                    variant="slate"
+                    size="sm"
+                    onClick={handleTestConnection}
+                    disabled={isTesting || !gasUrl.trim()}
+                    icon={<RefreshCw className={`w-3.5 h-3.5 ${isTesting ? 'animate-spin' : ''}`} />}
+                  >
+                    {isTesting ? 'Testing...' : 'Test Only'}
+                  </GameButton>
+                </div>
+                <p className="text-[11px] text-stone-400">
+                  Paste the deployed Web App URL (starts with <code className="text-[#fef08a] font-mono">https://script.google.com/macros/s/.../exec</code>).
+                </p>
+              </div>
+
+              {/* Connection Test Result */}
+              {testResult && (
+                <div
+                  className={`p-3 rounded-xl border text-xs flex items-start gap-2 ${
+                    testResult.success
+                      ? 'bg-emerald-950/60 border-emerald-600 text-emerald-300'
+                      : 'bg-red-950/60 border-red-600 text-red-300'
+                  }`}
+                >
+                  {testResult.success ? (
+                    <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400 mt-0.5" />
+                  ) : (
+                    <AlertCircle className="w-4 h-4 shrink-0 text-red-400 mt-0.5" />
+                  )}
+                  <span>{testResult.message}</span>
+                </div>
+              )}
+
+              {/* Quick Setup Instructions */}
+              <div className="p-3.5 rounded-xl bg-[#120c08]/80 border border-[#3e2716] text-xs space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-fantasy font-bold text-[#fef08a] uppercase">
+                    Quick Google Sheet Setup (3 Steps)
+                  </span>
+                  <a
+                    href="https://sheets.new"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-[#ca8a04] hover:text-[#fef08a] flex items-center gap-1 text-[11px] font-bold"
+                  >
+                    <span>New Sheet</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
+
+                <ol className="list-decimal list-inside space-y-1 text-stone-300 text-xs leading-relaxed">
+                  <li>Open your Google Sheet &gt; Click <strong>Extensions &gt; Apps Script</strong>.</li>
+                  <li>Paste the code from <code className="text-[#fef08a]">google-apps-script/Code.gs</code> and run <strong>`setupDatabase`</strong>.</li>
+                  <li>Click <strong>Deploy &gt; New deployment &gt; Web app</strong> (Access: Anyone) &gt; Paste the URL above.</li>
+                </ol>
+              </div>
+            </div>
+          )}
+
+          {/* Cleanliness Option */}
           <div className="p-3.5 rounded-xl bg-[#120c08] border border-[#3e2716] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
               <div className="text-xs font-fantasy font-bold text-stone-200 uppercase">
-                Sheets-Only Mode (Remove Local Demo Data)
+                Clean Slate Mode (Remove Local Demo Data)
               </div>
               <div className="text-xs text-stone-400 mt-0.5">
-                Remove all starter demo members, fake events, and dates so the CRM exclusively displays records from your Google Sheet.
+                Remove all starter demo members, fake events, and dates so the CRM exclusively displays records from your connected cloud database.
               </div>
             </div>
             <button
@@ -440,30 +774,6 @@ export const SettingsView: React.FC = () => {
               <Trash2 className="w-3.5 h-3.5" />
               <span>Clear Local Demo Data</span>
             </button>
-          </div>
-
-          {/* Quick Setup Instructions */}
-          <div className="p-3.5 rounded-xl bg-[#120c08]/80 border border-[#3e2716] text-xs space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="font-fantasy font-bold text-[#fef08a] uppercase">
-                Quick Google Sheet Setup (3 Steps)
-              </span>
-              <a
-                href="https://sheets.new"
-                target="_blank"
-                rel="noreferrer"
-                className="text-[#ca8a04] hover:text-[#fef08a] flex items-center gap-1 text-[11px] font-bold"
-              >
-                <span>New Sheet</span>
-                <ExternalLink className="w-3 h-3" />
-              </a>
-            </div>
-
-            <ol className="list-decimal list-inside space-y-1 text-stone-300 text-xs leading-relaxed">
-              <li>Open your Google Sheet &gt; Click <strong>Extensions &gt; Apps Script</strong>.</li>
-              <li>Paste the code from <code className="text-[#fef08a]">google-apps-script/Code.gs</code> and run <strong>`setupDatabase`</strong>.</li>
-              <li>Click <strong>Deploy &gt; New deployment &gt; Web app</strong> (Access: Anyone) &gt; Paste the URL above.</li>
-            </ol>
           </div>
         </div>
 
