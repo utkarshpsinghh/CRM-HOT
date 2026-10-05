@@ -16,6 +16,7 @@ import {
   Eye,
   ArrowUpDown,
   X,
+  RefreshCw,
 } from 'lucide-react';
 import { sounds } from '../../utils/sound';
 
@@ -39,6 +40,8 @@ export const MembersView: React.FC<MembersViewProps> = ({
     inactiveInsights,
     memberFilter,
     setMemberFilter,
+    syncKingshotRoster,
+    isSyncing,
   } = useCRM();
 
   const [sortBy, setSortBy] = useState<'rank' | 'name' | 'strikes' | 'participation'>('rank');
@@ -148,16 +151,28 @@ export const MembersView: React.FC<MembersViewProps> = ({
           </p>
         </div>
 
-        <button
-          onClick={() => {
-            sounds.playClick();
-            onOpenAddMember();
-          }}
-          className="btn-kingshot-gold px-3.5 py-2 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 cursor-pointer shadow-sm self-start sm:self-auto"
-        >
-          <UserPlus className="w-4 h-4" />
-          <span>Add Member</span>
-        </button>
+        <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
+          <button
+            onClick={() => syncKingshotRoster()}
+            disabled={isSyncing}
+            className="px-3.5 py-2 rounded-xl bg-[#24170d] hover:bg-[#341f12] text-amber-300 border border-[#522d14] hover:border-amber-500/60 text-xs font-fantasy uppercase tracking-wider flex items-center gap-1.5 cursor-pointer transition-all shadow-sm disabled:opacity-50"
+            title="Fetch & synchronize latest Kingshot roster for Kingdom #1391 [HOT]"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin text-amber-400' : 'text-amber-400'}`} />
+            <span>{isSyncing ? 'Syncing...' : 'Sync Kingshot API'}</span>
+          </button>
+
+          <button
+            onClick={() => {
+              sounds.playClick();
+              onOpenAddMember();
+            }}
+            className="btn-kingshot-gold px-3.5 py-2 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 cursor-pointer shadow-sm"
+          >
+            <UserPlus className="w-4 h-4" />
+            <span>Add Member</span>
+          </button>
+        </div>
       </div>
 
       {/* Simple Search & Filters */}

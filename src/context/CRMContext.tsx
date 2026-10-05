@@ -178,47 +178,43 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         try {
           const allData = await apiService.getAllData(currentSettings);
           if (allData && typeof allData === 'object') {
-            const remoteMembers = Array.isArray(allData.members)
+            let remoteMembers = Array.isArray(allData.members)
               ? allData.members.filter((m: Member) => !/^mem-\d+$/.test(m.id) && !['DragonSlayer', 'ShadowNinja', 'FrostQueen', 'NightStalker', 'IronClad'].includes(m.name))
               : [];
 
-            const hasRemoteData = remoteMembers.length > 0 || (Array.isArray(allData.events) && allData.events.length > 0);
-
-            if (hasRemoteData) {
-              storageService.saveAllData({ ...allData, members: remoteMembers });
-
-              setMembers(remoteMembers);
-              if (Array.isArray(allData.events)) setEvents(allData.events);
-              if (Array.isArray(allData.attendance)) setAttendance(allData.attendance);
-              if (Array.isArray(allData.strikes)) setStrikes(allData.strikes);
-              if (Array.isArray(allData.communications)) setCommunications(allData.communications);
-              if (Array.isArray(allData.admins) && allData.admins.length > 0) setAdmins(allData.admins);
-              if (Array.isArray(allData.contributions)) setContributions(allData.contributions);
-
-              setSyncStatus('connected');
-              setSyncMessage('Supabase PostgreSQL Live Connected');
-              setLastSyncTime(new Date().toLocaleTimeString());
-            } else {
-              // Supabase connected, but empty roster — populate Kingdom #1391 [HOT] roster immediately
-              const initialKingshot = await kingshotApiService.fetchAllianceMembers(
-                currentSettings.kingdomId,
-                currentSettings.allianceTag,
-                currentSettings.kingshotApiUrl
-              );
-              if (initialKingshot.members.length > 0) {
-                await kingshotApiService.syncMembersToDatabase(initialKingshot.members, currentSettings);
-                setMembers(initialKingshot.members);
-              }
-              setSyncStatus('connected');
-              setSyncMessage('Supabase Connected (Kingdom #1391 [HOT] Synced)');
-              setLastSyncTime(new Date().toLocaleTimeString());
+            // If Supabase has no valid Kingdom #1391 [HOT] members, auto-populate immediately
+            if (remoteMembers.length === 0) {
+              const hotMembers = generateKingdom1391HOTMembers();
+              remoteMembers = hotMembers;
+              // Auto-seed Supabase in background
+              kingshotApiService.syncMembersToDatabase(hotMembers, currentSettings).catch(err => {
+                console.warn('Background Supabase member auto-seed error:', err);
+              });
             }
+
+            storageService.saveAllData({ ...allData, members: remoteMembers });
+
+            setMembers(remoteMembers);
+            if (Array.isArray(allData.events)) setEvents(allData.events);
+            if (Array.isArray(allData.attendance)) setAttendance(allData.attendance);
+            if (Array.isArray(allData.strikes)) setStrikes(allData.strikes);
+            if (Array.isArray(allData.communications)) setCommunications(allData.communications);
+            if (Array.isArray(allData.admins) && allData.admins.length > 0) setAdmins(allData.admins);
+            if (Array.isArray(allData.contributions)) setContributions(allData.contributions);
+
+            setSyncStatus('connected');
+            setSyncMessage('Supabase PostgreSQL Live Connected (Kingdom #1391 [HOT])');
+            setLastSyncTime(new Date().toLocaleTimeString());
           }
         } catch (err) {
           console.warn('Supabase sync warning:', err);
           setSyncStatus('error');
           setSyncMessage('Supabase unreachable. Using cached roster.');
-          const cleanLocal = storageService.getMembers().filter(m => !/^mem-\d+$/.test(m.id));
+          let cleanLocal = storageService.getMembers().filter(m => !/^mem-\d+$/.test(m.id) && !['DragonSlayer', 'ShadowNinja', 'FrostQueen', 'NightStalker', 'IronClad'].includes(m.name));
+          if (cleanLocal.length === 0) {
+            cleanLocal = generateKingdom1391HOTMembers();
+            storageService.setMembers(cleanLocal);
+          }
           setMembers(cleanLocal);
           setEvents(storageService.getEvents());
           setAttendance(storageService.getAttendance());

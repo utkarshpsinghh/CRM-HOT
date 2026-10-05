@@ -242,7 +242,16 @@ export const storageService = {
   // Admin Account Management
   getAdminAccounts(): AdminAccount[] {
     const raw = localStorage.getItem(STORAGE_KEYS.ADMIN_ACCOUNTS);
-    return raw ? JSON.parse(raw) : initialAdmins;
+    let accounts: AdminAccount[] = raw ? JSON.parse(raw) : [...initialAdmins];
+    
+    // Ensure both seoyoon and admin exist
+    initialAdmins.forEach(initAdm => {
+      if (!accounts.some(a => a.username.toLowerCase() === initAdm.username.toLowerCase())) {
+        accounts.push(initAdm);
+      }
+    });
+
+    return accounts;
   },
 
   setAdminAccounts(admins: AdminAccount[]) {

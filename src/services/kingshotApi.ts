@@ -313,11 +313,14 @@ export const kingshotApiService = {
       try {
         const client = supabaseService.getClient(settings);
         if (client) {
-          // Remove old mock members from Supabase table if present
+          // Remove old mock members and their dependent records from Supabase if present
           try {
+            await client.from('attendance').delete().like('member_id', 'mem-%');
+            await client.from('strikes').delete().like('member_id', 'mem-%');
+            await client.from('communications').delete().like('member_id', 'mem-%');
             await client.from('members').delete().like('id', 'mem-%');
-          } catch {
-            // Ignore if delete not permitted
+          } catch (delErr) {
+            console.warn('Supabase legacy cleanup notice:', delErr);
           }
 
           // Upsert genuine Kingdom #1391 HOT members

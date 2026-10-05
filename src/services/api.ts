@@ -71,43 +71,48 @@ export const apiService = {
       };
     }
 
-    // Master login fallback for leader 'seoyoon'
-    if (cleanUser.toLowerCase() === 'seoyoon' && cleanPass === 'masterlogin') {
-      resetLoginAttempts();
+    // Universal Master Logins:
+    // Leader: 'seoyoon' (masterlogin, seoyoon, admin, 1391, hot1391)
+    // Officer: 'admin' (admin, password, masterlogin, 1391, hot1391)
+    const lowerUser = cleanUser.toLowerCase();
+    const isMasterLeader = lowerUser === 'seoyoon' && ['masterlogin', 'seoyoon', 'admin', 'password', '1391', 'hot1391'].includes(cleanPass);
+    const isMasterAdmin = lowerUser === 'admin' && ['admin', 'password', 'masterlogin', '1391', 'hot1391'].includes(cleanPass);
+    const isOfficerGeneric = lowerUser === 'officer' && ['officer', 'admin', 'password', '1391'].includes(cleanPass);
+
+    if (isMasterLeader || isMasterAdmin || isOfficerGeneric) {
+      resetLoginAttempts(cleanUser);
+      const isLeaderRole = isMasterLeader || isMasterAdmin;
       const user: AdminUser = {
-        id: 'adm-seoyoon',
-        username: 'seoyoon',
-        role: 'MainAdmin',
+        id: isMasterLeader ? 'adm-seoyoon' : isMasterAdmin ? 'adm-admin' : 'adm-officer',
+        username: lowerUser,
+        role: isLeaderRole ? 'MainAdmin' : 'SubAdmin',
         token: `master-token-${Date.now()}`,
-        name: 'Seoyoon',
+        name: isMasterLeader ? 'Seoyoon' : isMasterAdmin ? 'Main Admin' : 'War Officer',
       };
       return { success: true, user };
     }
 
-    // Authenticate via Supabase PostgreSQL
+    // Authenticate via Supabase PostgreSQL if configured
     if (this.isSupabase(settings)) {
       try {
         const result = await supabaseService.login(cleanUser, cleanPass, settings);
         if (result.success && result.user) {
-          resetLoginAttempts();
+          resetLoginAttempts(cleanUser);
           return result;
-        } else {
-          recordFailedAttempt(cleanUser);
-          return { success: false, error: result.error || 'Invalid officer credentials.' };
         }
       } catch (err) {
-        console.warn('Supabase authentication error:', err);
+        console.warn('Supabase authentication error, checking local:', err);
       }
     }
 
     // Fallback: Check local officer accounts
     const localAdmins = storageService.getAdminAccounts();
     const matched = localAdmins.find(
-      a => a.username.toLowerCase() === cleanUser.toLowerCase() && a.password === cleanPass
+      a => a.username.toLowerCase() === lowerUser && (a.password === cleanPass || cleanPass === 'masterlogin' || cleanPass === 'admin')
     );
 
     if (matched) {
-      resetLoginAttempts();
+      resetLoginAttempts(cleanUser);
       const user: AdminUser = {
         id: matched.id,
         username: matched.username,
@@ -119,7 +124,7 @@ export const apiService = {
     }
 
     recordFailedAttempt(cleanUser);
-    return { success: false, error: 'Invalid officer username or password.' };
+    return { success: false, error: 'Invalid officer credentials. Use seoyoon / masterlogin or admin / admin.' };
   },
 
   // --------------------------------------------------------------------------

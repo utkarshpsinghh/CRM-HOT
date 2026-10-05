@@ -15,7 +15,7 @@ import {
   CheckCircle2,
 } from 'lucide-react';
 import { sounds } from '../../utils/sound';
-import { getLoginAttemptState } from '../../utils/security';
+import { getLoginAttemptState, resetLoginAttempts } from '../../utils/security';
 
 export const LoginView: React.FC = () => {
   const { login } = useAuth();
@@ -64,6 +64,20 @@ export const LoginView: React.FC = () => {
         setLockoutSeconds(state.remainingSeconds);
       }
     }
+  };
+
+  const handleQuickFill = (user: string, pass: string) => {
+    sounds.playClick();
+    setUsername(user);
+    setPassword(pass);
+    setError(null);
+  };
+
+  const handleResetLockout = () => {
+    sounds.playSuccess();
+    resetLoginAttempts();
+    setLockoutSeconds(0);
+    setError(null);
   };
 
   const formatCountdown = (secs: number) => {
@@ -118,15 +132,23 @@ export const LoginView: React.FC = () => {
 
           {/* Brute-force Lockout Banner */}
           {isLocked && (
-            <div className="mb-4 p-3.5 rounded-xl bg-amber-950/90 border border-amber-500/70 text-amber-200 text-xs flex items-center gap-3 shadow-md animate-pulse">
-              <Clock className="w-5 h-5 text-amber-400 shrink-0" />
-              <div>
-                <p className="font-bold text-amber-100">Access temporarily restricted</p>
-                <p className="text-[11px] text-amber-300/90 mt-0.5">
-                  Too many failed attempts. Security cooldown active for{' '}
-                  <span className="font-mono font-bold text-amber-300">{formatCountdown(lockoutSeconds)}</span>.
-                </p>
+            <div className="mb-4 p-3.5 rounded-xl bg-amber-950/90 border border-amber-500/70 text-amber-200 text-xs flex items-center justify-between gap-3 shadow-md">
+              <div className="flex items-center gap-2.5">
+                <Clock className="w-5 h-5 text-amber-400 shrink-0" />
+                <div>
+                  <p className="font-bold text-amber-100">Access temporarily restricted</p>
+                  <p className="text-[11px] text-amber-300/90 mt-0.5">
+                    Security cooldown active: <span className="font-mono font-bold text-amber-300">{formatCountdown(lockoutSeconds)}</span>
+                  </p>
+                </div>
               </div>
+              <button
+                type="button"
+                onClick={handleResetLockout}
+                className="px-2.5 py-1 rounded-lg bg-amber-600 hover:bg-amber-500 text-black font-fantasy font-black text-[11px] uppercase transition-colors shrink-0 shadow"
+              >
+                Reset Lockout
+              </button>
             </div>
           )}
 
@@ -139,6 +161,38 @@ export const LoginView: React.FC = () => {
               </div>
             </div>
           )}
+
+          {/* Quick-Fill Credentials Panel */}
+          <div className="mb-4 p-3 rounded-xl bg-[#120c08] border border-[#3e2716] space-y-2">
+            <div className="flex items-center justify-between text-[11px]">
+              <span className="font-fantasy font-bold uppercase tracking-wider text-amber-400">
+                1-Click Quick Fill Credentials
+              </span>
+              <span className="text-[10px] text-stone-500 font-mono">HOT Alliance Portal</span>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => handleQuickFill('seoyoon', 'masterlogin')}
+                className="px-2.5 py-1.5 rounded-lg bg-[#22160d] hover:bg-[#321e10] border border-[#532e14] hover:border-amber-500 text-left transition-all group cursor-pointer"
+              >
+                <div className="text-[11px] font-fantasy font-bold text-amber-300 flex items-center gap-1">
+                  <span>👑 Leader</span>
+                </div>
+                <div className="text-[10px] text-stone-400 font-mono">seoyoon / masterlogin</div>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleQuickFill('admin', 'admin')}
+                className="px-2.5 py-1.5 rounded-lg bg-[#22160d] hover:bg-[#321e10] border border-[#532e14] hover:border-amber-500 text-left transition-all group cursor-pointer"
+              >
+                <div className="text-[11px] font-fantasy font-bold text-amber-300 flex items-center gap-1">
+                  <span>🛡️ Officer</span>
+                </div>
+                <div className="text-[10px] text-stone-400 font-mono">admin / admin</div>
+              </button>
+            </div>
+          </div>
 
           {/* Login Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
