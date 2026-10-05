@@ -17,7 +17,7 @@ import {
 import { storageService } from '../services/storage';
 import { apiService } from '../services/api';
 import { supabaseService, normalizeSupabaseUrl } from '../services/supabase';
-import { kingshotApiService } from '../services/kingshotApi';
+import { kingshotApiService, generateKingdom1391HOTMembers } from '../services/kingshotApi';
 import { sounds } from '../utils/sound';
 import { useAuth } from './AuthContext';
 
@@ -101,7 +101,16 @@ const CRMContext = createContext<CRMContextType | undefined>(undefined);
 
 export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { admin, updateCurrentAdmin } = useAuth();
-  const [members, setMembers] = useState<Member[]>(() => storageService.getMembers());
+  const [members, setMembers] = useState<Member[]>(() => {
+    storageService.purgeMockJunk();
+    const clean = storageService.getMembers().filter(m => !/^mem-\d+$/.test(m.id) && !['DragonSlayer', 'ShadowNinja', 'FrostQueen', 'NightStalker', 'IronClad'].includes(m.name));
+    if (clean.length === 0) {
+      const defaults = generateKingdom1391HOTMembers();
+      storageService.setMembers(defaults);
+      return defaults;
+    }
+    return clean;
+  });
   const [events, setEvents] = useState<AllianceEvent[]>(() => storageService.getEvents());
   const [attendance, setAttendance] = useState<AttendanceRecord[]>(() => storageService.getAttendance());
   const [strikes, setStrikes] = useState<StrikeRecord[]>(() => storageService.getStrikes());
@@ -111,7 +120,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [settings, setSettings] = useState<AllianceSettings>(() => storageService.getSettings());
   const [syncStatus, setSyncStatus] = useState<'connected' | 'demo' | 'syncing' | 'error'>('demo');
   const [syncMessage, setSyncMessage] = useState<string>('Local Demo Mode');
-  const [isLoading, setIsLoading] = useState<boolean>(() => storageService.getMembers().length === 0);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
   const [toasts, setToasts] = useState<ToastNotice[]>([]);
@@ -157,11 +166,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const refreshData = useCallback(async () => {
     const currentSettings = storageService.getSettings();
     setSettings(currentSettings);
-
-    // Only show blocking loading state if there are zero cached records
-    if (storageService.getMembers().length === 0) {
-      setIsLoading(true);
-    }
+    storageService.purgeMockJunk();
 
     try {
       const activeProvider = apiService.getActiveProvider(currentSettings);
@@ -173,13 +178,16 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         try {
           const allData = await apiService.getAllData(currentSettings);
           if (allData && typeof allData === 'object') {
-            const hasRemoteData = (Array.isArray(allData.members) && allData.members.length > 0) ||
-                                  (Array.isArray(allData.events) && allData.events.length > 0);
+            const remoteMembers = Array.isArray(allData.members)
+              ? allData.members.filter((m: Member) => !/^mem-\d+$/.test(m.id) && !['DragonSlayer', 'ShadowNinja', 'FrostQueen', 'NightStalker', 'IronClad'].includes(m.name))
+              : [];
+
+            const hasRemoteData = remoteMembers.length > 0 || (Array.isArray(allData.events) && allData.events.length > 0);
 
             if (hasRemoteData) {
-              storageService.saveAllData(allData);
+              storageService.saveAllData({ ...allData, members: remoteMembers });
 
-              if (Array.isArray(allData.members)) setMembers(allData.members);
+              setMembers(remoteMembers);
               if (Array.isArray(allData.events)) setEvents(allData.events);
               if (Array.isArray(allData.attendance)) setAttendance(allData.attendance);
               if (Array.isArray(allData.strikes)) setStrikes(allData.strikes);
@@ -191,13 +199,18 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               setSyncMessage('Supabase PostgreSQL Live Connected');
               setLastSyncTime(new Date().toLocaleTimeString());
             } else {
-              // Supabase connected, but empty
-              const cachedCount = storageService.getMembers().length;
-              setSyncStatus('connected');
-              setSyncMessage(cachedCount > 0
-                ? `Supabase Connected (Empty DB — ${cachedCount} cached members ready to upload)`
-                : 'Supabase Connected (Ready for Roster Sync)'
+              // Supabase connected, but empty roster — populate Kingdom #1391 [HOT] roster immediately
+              const initialKingshot = await kingshotApiService.fetchAllianceMembers(
+                currentSettings.kingdomId,
+                currentSettings.allianceTag,
+                currentSettings.kingshotApiUrl
               );
+              if (initialKingshot.members.length > 0) {
+                await kingshotApiService.syncMembersToDatabase(initialKingshot.members, currentSettings);
+                setMembers(initialKingshot.members);
+              }
+              setSyncStatus('connected');
+              setSyncMessage('Supabase Connected (Kingdom #1391 [HOT] Synced)');
               setLastSyncTime(new Date().toLocaleTimeString());
             }
           }
@@ -205,7 +218,8 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           console.warn('Supabase sync warning:', err);
           setSyncStatus('error');
           setSyncMessage('Supabase unreachable. Using cached roster.');
-          setMembers(storageService.getMembers());
+          const cleanLocal = storageService.getMembers().filter(m => !/^mem-\d+$/.test(m.id));
+          setMembers(cleanLocal);
           setEvents(storageService.getEvents());
           setAttendance(storageService.getAttendance());
           setStrikes(storageService.getStrikes());
@@ -215,8 +229,14 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
       } else {
         setSyncStatus('demo');
-        setSyncMessage('Local Mode (Configure Supabase in Settings)');
-        setMembers(storageService.getMembers());
+        setSyncMessage('Local Mode (Kingdom #1391 [HOT])');
+        let currentRoster = storageService.getMembers().filter(m => !/^mem-\d+$/.test(m.id) && !['DragonSlayer', 'ShadowNinja', 'FrostQueen', 'NightStalker', 'IronClad'].includes(m.name));
+        if (currentRoster.length === 0) {
+          const defaultHOT = generateKingdom1391HOTMembers();
+          storageService.setMembers(defaultHOT);
+          currentRoster = defaultHOT;
+        }
+        setMembers(currentRoster);
         setEvents(storageService.getEvents());
         setAttendance(storageService.getAttendance());
         setStrikes(storageService.getStrikes());
@@ -239,7 +259,11 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         const parsed = kingshotApiService.parseRosterText(rosterText);
         fetchedMembers = parsed.members;
       } else {
-        const fetched = await kingshotApiService.fetchAllianceMembers(currentSettings.kingdomId, currentSettings.allianceTag);
+        const fetched = await kingshotApiService.fetchAllianceMembers(
+          currentSettings.kingdomId,
+          currentSettings.allianceTag,
+          currentSettings.kingshotApiUrl
+        );
         fetchedMembers = fetched.members;
       }
 
@@ -255,18 +279,14 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       const result = await kingshotApiService.syncMembersToDatabase(fetchedMembers, currentSettings);
 
-      // Refresh memory & state
-      const current = storageService.getMembers();
-      const updatedMap = new Map(current.map(m => [m.id, m]));
-      fetchedMembers.forEach(m => updatedMap.set(m.id, m));
-      const merged = Array.from(updatedMap.values());
-      storageService.setMembers(merged);
-      setMembers(merged);
+      // Refresh memory & state strictly with clean members
+      const cleanRoster = storageService.getMembers().filter(m => !/^mem-\d+$/.test(m.id));
+      setMembers(cleanRoster);
 
       sounds.playSuccess();
       addToast({
         type: 'success',
-        title: 'Kingshot Roster Synced',
+        title: 'Kingdom #1391 [HOT] Roster Synced',
         message: `Synced ${result.total} members (${result.added} added, ${result.updated} updated) for Kingdom #${currentSettings.kingdomId || '1391'} [${currentSettings.allianceTag || 'HOT'}].`,
       });
       return { success: true, message: 'Roster synced successfully!', added: result.added, updated: result.updated };

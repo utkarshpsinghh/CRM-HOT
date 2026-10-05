@@ -15,27 +15,27 @@ const STORAGE_KEYS = {
 };
 
 export const storageService = {
-  // Purge any legacy mock / demo data from localStorage (runs once per session for speed)
+  // Purge any legacy mock / demo data from localStorage
   purgeMockJunk() {
     try {
-      if (sessionStorage.getItem('crm_hot_purged')) return;
-      sessionStorage.setItem('crm_hot_purged', 'true');
-
-      // 1. Purge old mock members (e.g. mem-001..mem-092 or names like HOT_Ares)
+      // 1. Purge old mock members (e.g. mem-1..mem-92, mem-001..mem-092, or generic names)
       const rawMem = localStorage.getItem(STORAGE_KEYS.MEMBERS);
       if (rawMem) {
         const mems: Member[] = JSON.parse(rawMem);
-        const filtered = mems.filter(m => !/^mem-\d{3}$/.test(m.id) && m.name !== 'HOT_Ares' && m.name !== 'Valkyrie_HOT');
+        const filtered = mems.filter(m =>
+          !/^mem-\d+$/.test(m.id) &&
+          !['DragonSlayer', 'ShadowNinja', 'FrostQueen', 'NightStalker', 'IronClad', 'HOT_Ares', 'Valkyrie_HOT'].includes(m.name)
+        );
         if (filtered.length !== mems.length) {
           localStorage.setItem(STORAGE_KEYS.MEMBERS, JSON.stringify(filtered));
         }
       }
 
-      // 2. Purge old mock events (e.g. evt-001..evt-006 or Tri Alliance Level 1 Showdown)
+      // 2. Purge old mock events (e.g. evt-1..evt-99, evt-001..evt-006 or Tri Alliance Level 1 Showdown)
       const rawEvt = localStorage.getItem(STORAGE_KEYS.EVENTS);
       if (rawEvt) {
         const evts: AllianceEvent[] = JSON.parse(rawEvt);
-        const filtered = evts.filter(e => !/^evt-\d{3}$/.test(e.id) && !e.eventName.includes('Showdown') && !e.eventName.includes('Siege'));
+        const filtered = evts.filter(e => !/^evt-\d+$/.test(e.id) && !e.eventName.includes('Showdown') && !e.eventName.includes('Siege'));
         if (filtered.length !== evts.length) {
           localStorage.setItem(STORAGE_KEYS.EVENTS, JSON.stringify(filtered));
         }
@@ -45,7 +45,7 @@ export const storageService = {
       const rawAtt = localStorage.getItem(STORAGE_KEYS.ATTENDANCE);
       if (rawAtt) {
         const att: AttendanceRecord[] = JSON.parse(rawAtt);
-        const filtered = att.filter(a => !/^att-evt-\d{3}/.test(a.id));
+        const filtered = att.filter(a => !/^att-evt-\d+/.test(a.id) && !/^att-\d+/.test(a.id));
         if (filtered.length !== att.length) {
           localStorage.setItem(STORAGE_KEYS.ATTENDANCE, JSON.stringify(filtered));
         }

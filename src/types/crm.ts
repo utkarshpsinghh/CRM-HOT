@@ -78,6 +78,7 @@ export interface AllianceSettings {
   inactivityCriticalDays: number;  // default 14
   kingdomId?: string;              // Kingdom #1391
   allianceTag?: string;            // HOT
+  kingshotApiUrl?: string;         // Kingshot API endpoint or webhook
   supabaseUrl?: string;
   supabaseAnonKey?: string;
   dbProvider?: 'supabase' | 'local';

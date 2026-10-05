@@ -55,6 +55,7 @@ export const SettingsView: React.FC = () => {
   const [supaKey, setSupaKey] = useState(settings.supabaseAnonKey || '');
   const [kingdomId, setKingdomId] = useState(settings.kingdomId || '1391');
   const [allianceTag, setAllianceTag] = useState(settings.allianceTag || 'HOT');
+  const [kingshotApiUrl, setKingshotApiUrl] = useState(settings.kingshotApiUrl || '');
   const [warningDays, setWarningDays] = useState(settings.inactivityWarningDays);
   const [inactiveDays, setInactiveDays] = useState(settings.inactivityInactiveDays);
   const [criticalDays, setCriticalDays] = useState(settings.inactivityCriticalDays);
@@ -83,14 +84,15 @@ export const SettingsView: React.FC = () => {
   const [isCreatingAdmin, setIsCreatingAdmin] = useState(false);
   const [adminToDelete, setAdminToDelete] = useState<AdminAccount | null>(null);
 
-  const handleSaveSettings = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSaveSettings = async (e?: React.FormEvent) => {
+    if (e && e.preventDefault) e.preventDefault();
     await updateSettings({
       ...settings,
       supabaseUrl: supaUrl.trim(),
       supabaseAnonKey: supaKey.trim(),
       kingdomId: kingdomId.trim() || '1391',
       allianceTag: allianceTag.trim() || 'HOT',
+      kingshotApiUrl: kingshotApiUrl.trim(),
       dbProvider: supaUrl.trim() ? 'supabase' : 'local',
       inactivityWarningDays: Number(warningDays),
       inactivityInactiveDays: Number(inactiveDays),
@@ -434,6 +436,32 @@ export const SettingsView: React.FC = () => {
               className="w-full px-3 py-1.5 rounded-lg bg-[#1a1410] border border-[#3e2716] text-amber-300 font-mono font-bold text-xs focus:outline-none focus:border-[#ca8a04]"
             />
           </div>
+        </div>
+
+        {/* Optional Kingshot Custom API Endpoint */}
+        <div className="p-3.5 rounded-xl bg-[#120c08] border border-[#3e2716] space-y-1.5">
+          <label className="block text-[11px] font-bold text-stone-400 uppercase">
+            Kingshot API Endpoint (Optional)
+          </label>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={kingshotApiUrl}
+              onChange={e => setKingshotApiUrl(e.target.value)}
+              placeholder="https://your-kingshot-bot-or-api.com/alliance/1391/members"
+              className="flex-1 px-3 py-1.5 rounded-lg bg-[#1a1410] border border-[#3e2716] text-stone-200 font-mono text-xs focus:outline-none focus:border-[#ca8a04] placeholder:text-stone-600"
+            />
+            <button
+              type="button"
+              onClick={() => handleSaveSettings()}
+              className="px-3 py-1.5 rounded-lg bg-[#24170d] hover:bg-[#341f12] text-amber-300 border border-[#522d14] text-xs font-fantasy uppercase transition-colors shrink-0"
+            >
+              Save Endpoint
+            </button>
+          </div>
+          <p className="text-[11px] text-stone-500">
+            Leave blank to use the built-in Kingdom #1391 [HOT] Kingshot Roster Engine, or supply an external bot / webhook endpoint JSON array.
+          </p>
         </div>
 
         {/* Smart In-Game Roster Parser & Importer */}
