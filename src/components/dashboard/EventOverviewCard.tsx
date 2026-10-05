@@ -2,9 +2,9 @@ import React from 'react';
 import { AllianceEvent } from '../../types/crm';
 import { useCRM } from '../../context/CRMContext';
 import { ProgressBar } from '../common/ProgressBar';
-import { ChevronRight, Calendar } from 'lucide-react';
+import { ChevronRight, Calendar, Clock, CheckCircle2 } from 'lucide-react';
 import { sounds } from '../../utils/sound';
-import { safeFormatDate } from '../../utils/date';
+import { safeFormatDate, getComputedEventStatus, getEventRelativeTime } from '../../utils/date';
 
 interface EventOverviewCardProps {
   event: AllianceEvent;
@@ -25,6 +25,8 @@ export const EventOverviewCard: React.FC<EventOverviewCardProps> = ({ event }) =
   const didNotJoin = eventRecords.filter(r => r.attendanceStatus === 'DIDNT_JOIN').length;
 
   const attendancePct = total > 0 ? (joined / total) * 100 : 0;
+  const computedStatus = getComputedEventStatus(event.date);
+  const relativeTime = getEventRelativeTime(event.date);
 
   const handleOpenAttendance = () => {
     sounds.playClick();
@@ -35,10 +37,16 @@ export const EventOverviewCard: React.FC<EventOverviewCardProps> = ({ event }) =
   const formattedDate = safeFormatDate(event.date, {
     month: 'short',
     day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
   });
 
   return (
-    <div className="rounded-xl bg-[#20150f] border border-[#4d2b14] hover:border-[#b45309] p-4 transition-all shadow-sm flex flex-col justify-between">
+    <div className={`rounded-xl border p-4 transition-all shadow-sm flex flex-col justify-between ${
+      computedStatus === 'Upcoming'
+        ? 'bg-[#22160e] border-[#b45309]/70 hover:border-[#f59e0b]'
+        : 'bg-[#20150f] border-[#4d2b14] hover:border-[#b45309]'
+    }`}>
       <div>
         <div className="flex items-start justify-between gap-2 mb-2">
           <div>
@@ -46,19 +54,38 @@ export const EventOverviewCard: React.FC<EventOverviewCardProps> = ({ event }) =
               <span className="font-bold text-base text-[#fffbeb]">
                 {event.eventType}
               </span>
-              <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-[#331c0d] text-amber-300">
-                {event.status}
+              <span
+                className={`text-[9px] uppercase font-bold px-2 py-0.5 rounded-full border flex items-center gap-1 ${
+                  computedStatus === 'Upcoming'
+                    ? 'bg-amber-950/80 text-amber-300 border-amber-600/60'
+                    : 'bg-emerald-950/80 text-emerald-300 border-emerald-600/60'
+                }`}
+              >
+                {computedStatus === 'Upcoming' ? (
+                  <>
+                    <Clock className="w-2.5 h-2.5" />
+                    <span>Upcoming</span>
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="w-2.5 h-2.5" />
+                    <span>Completed</span>
+                  </>
+                )}
               </span>
             </div>
             <p className="text-xs text-stone-300 truncate mt-0.5">{event.eventName}</p>
           </div>
 
           <div className="text-right text-xs text-stone-400 font-mono">
-            {formattedDate}
+            <div>{formattedDate}</div>
+            {relativeTime && (
+              <div className="text-[10px] text-amber-300/80">{relativeTime}</div>
+            )}
           </div>
         </div>
 
-        {/* Clean Attendance Bar */}
+        {/* Attendance Bar */}
         <div className="my-3 space-y-1">
           <ProgressBar
             percentage={attendancePct}
@@ -69,7 +96,7 @@ export const EventOverviewCard: React.FC<EventOverviewCardProps> = ({ event }) =
           />
         </div>
 
-        {/* Simple Summary */}
+        {/* Summary */}
         <div className="text-[11px] text-stone-400 flex items-center justify-between pt-1">
           <span>{totalVoted} Voted</span>
           <span>{didNotJoin} Missed</span>

@@ -9,6 +9,7 @@ import { DashboardView } from './components/dashboard/DashboardView';
 import { MembersView } from './components/members/MembersView';
 import { EventsView } from './components/events/EventsView';
 import { AttendanceView } from './components/attendance/AttendanceView';
+import { LeaderboardView } from './components/leaderboard/LeaderboardView';
 import { InactivityTrackerView } from './components/activity/InactivityTrackerView';
 import { SettingsView } from './components/settings/SettingsView';
 import { ContributionsView } from './components/contributions/ContributionsView';
@@ -127,6 +128,8 @@ const MainAppContent: React.FC = () => {
         {activeTab === 'attendance' && (
           <AttendanceView onOpenAddStrike={(m, r) => handleOpenAddStrike(m, r)} />
         )}
+
+        {activeTab === 'leaderboard' && <LeaderboardView />}
 
         {activeTab === 'activity' && <InactivityTrackerView />}
 

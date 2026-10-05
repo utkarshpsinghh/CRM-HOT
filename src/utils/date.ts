@@ -54,3 +54,52 @@ export function safeFormatDateTime(
 
   return safeFormatDate(dateInput);
 }
+
+/**
+ * Automatically computes whether an event is 'Upcoming' or 'Completed' based on its date & time.
+ * Never returns 'Live' (only Upcoming and Completed per user requirement).
+ */
+export function getComputedEventStatus(
+  dateInput: string | number | Date | undefined | null
+): 'Upcoming' | 'Completed' {
+  if (!dateInput) return 'Completed';
+  const str = String(dateInput).trim();
+  const d = new Date(str);
+  if (isNaN(d.getTime())) return 'Completed';
+  return d.getTime() > Date.now() ? 'Upcoming' : 'Completed';
+}
+
+/**
+ * Returns a human-friendly relative time label (e.g. "Starts in 2h 30m", "In 3 days", "Yesterday")
+ */
+export function getEventRelativeTime(
+  dateInput: string | number | Date | undefined | null
+): string {
+  if (!dateInput) return '';
+  const d = new Date(String(dateInput));
+  const time = d.getTime();
+  if (isNaN(time)) return '';
+
+  const diffMs = time - Date.now();
+  const isFuture = diffMs > 0;
+  const absSec = Math.floor(Math.abs(diffMs) / 1000);
+  const absMin = Math.floor(absSec / 60);
+  const absHours = Math.floor(absMin / 60);
+  const absDays = Math.floor(absHours / 24);
+
+  if (isFuture) {
+    if (absMin < 1) return 'Starting shortly';
+    if (absMin < 60) return `Starts in ${absMin}m`;
+    if (absHours < 24) {
+      const remainingMin = absMin % 60;
+      return `Starts in ${absHours}h${remainingMin > 0 ? ` ${remainingMin}m` : ''}`;
+    }
+    if (absDays === 1) return 'Tomorrow';
+    return `In ${absDays} days`;
+  } else {
+    if (absHours < 1) return 'Ended just now';
+    if (absHours < 24) return `Ended ${absHours}h ago`;
+    if (absDays === 1) return 'Yesterday';
+    return `${absDays} days ago`;
+  }
+}

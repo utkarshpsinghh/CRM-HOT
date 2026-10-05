@@ -145,22 +145,26 @@ export const CreateEventModal: React.FC<CreateEventModalProps> = ({ isOpen, onCl
               type="datetime-local"
               required
               value={date}
-              onChange={e => setDate(e.target.value)}
+              onChange={e => {
+                const newDate = e.target.value;
+                setDate(newDate);
+                const isFuture = new Date(newDate).getTime() > Date.now();
+                setStatus(isFuture ? 'Scheduled' : 'Completed');
+              }}
               className="w-full px-3 py-2 rounded-xl bg-[#120c08] border border-[#3e2716] text-stone-200 focus:outline-none focus:border-[#ca8a04]"
             />
           </div>
 
           <div>
             <label className="block text-xs font-fantasy font-bold text-[#fef08a] uppercase mb-1">
-              Status
+              Event Status (Auto-detected)
             </label>
             <select
               value={status}
               onChange={e => setStatus(e.target.value as EventStatus)}
               className="w-full px-3 py-2 rounded-xl bg-[#120c08] border border-[#3e2716] text-stone-200 focus:outline-none focus:border-[#ca8a04]"
             >
-              <option value="Scheduled">Scheduled</option>
-              <option value="Live">Live</option>
+              <option value="Scheduled">Upcoming (Scheduled)</option>
               <option value="Completed">Completed</option>
             </select>
           </div>

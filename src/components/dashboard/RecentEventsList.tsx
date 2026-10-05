@@ -1,8 +1,8 @@
 import React from 'react';
 import { useCRM } from '../../context/CRMContext';
-import { Swords, ChevronRight, CheckCircle2 } from 'lucide-react';
+import { ChevronRight, Clock, CheckCircle2 } from 'lucide-react';
 import { sounds } from '../../utils/sound';
-import { safeFormatDate } from '../../utils/date';
+import { safeFormatDate, getComputedEventStatus } from '../../utils/date';
 
 export const RecentEventsList: React.FC = () => {
   const { events, attendance, setSelectedEventIdForAttendance, setActiveTab } = useCRM();
@@ -20,13 +20,13 @@ export const RecentEventsList: React.FC = () => {
     <div className="rounded-xl bg-[#20150f] border border-[#4d2b14] shadow-sm overflow-hidden">
       <div className="px-4 py-3 bg-[#19100a] border-b border-[#3d200e] flex items-center justify-between">
         <h3 className="font-bold text-sm text-[#fffbeb]">
-          Recent Events
+          Recent &amp; Upcoming Events
         </h3>
         <span className="text-xs text-stone-400">Click to view roster</span>
       </div>
 
       <div className="divide-y divide-[#2e170b]">
-        {sorted.map(evt => {
+        {sorted.slice(0, 6).map(evt => {
           const records = attendance.filter(a => a.eventId === evt.id);
           const total = records.length;
           const joined = records.filter(r => r.attendanceStatus === 'JOINED').length;
@@ -36,6 +36,8 @@ export const RecentEventsList: React.FC = () => {
             month: 'short',
             day: 'numeric',
           });
+
+          const computedStatus = getComputedEventStatus(evt.date);
 
           return (
             <div
@@ -48,9 +50,18 @@ export const RecentEventsList: React.FC = () => {
                   <span className="font-bold text-sm text-[#fffbeb] group-hover:text-[#fbbf24] transition-colors truncate">
                     {evt.eventType}
                   </span>
+                  <span
+                    className={`text-[9px] font-bold uppercase px-1.5 py-0.2 rounded-full border ${
+                      computedStatus === 'Upcoming'
+                        ? 'bg-amber-950/80 text-amber-300 border-amber-600/50'
+                        : 'bg-emerald-950/80 text-emerald-300 border-emerald-600/50'
+                    }`}
+                  >
+                    {computedStatus}
+                  </span>
                   <span className="text-xs text-stone-400 font-mono">• {formattedDate}</span>
                 </div>
-                <div className="text-xs text-stone-300 truncate">{evt.eventName}</div>
+                <div className="text-xs text-stone-300 truncate mt-0.5">{evt.eventName}</div>
               </div>
 
               <div className="flex items-center gap-3 shrink-0">

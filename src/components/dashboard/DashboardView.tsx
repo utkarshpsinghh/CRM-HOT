@@ -14,6 +14,7 @@ import {
   Swords,
   UserPlus,
   ArrowRight,
+  Trophy,
 } from 'lucide-react';
 import { sounds } from '../../utils/sound';
 
@@ -134,6 +135,38 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
       {/* Actionable Alerts */}
       <AlertsBanner />
+
+      {/* Attendance Leaderboard Banner Card */}
+      <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-[#241710] via-[#1c120c] to-[#28180e] border border-[#ca8a04]/40 shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-b from-[#f59e0b] to-[#b45309] flex items-center justify-center text-black shrink-0 shadow-md">
+            <Trophy className="w-5 h-5 text-black" />
+          </div>
+          <div>
+            <h3 className="font-fantasy font-black text-base text-[#fef08a] flex items-center gap-2">
+              <span>Attendance Leaderboard &amp; Hall of Fame</span>
+              <span className="text-[10px] font-sans font-black uppercase px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                Rankings
+              </span>
+            </h3>
+            <p className="text-xs text-stone-300 mt-0.5">
+              Discover top attendance warriors this month and all-time participation champions.
+            </p>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => {
+            sounds.playClick();
+            setActiveTab('leaderboard');
+          }}
+          className="btn-kingshot-gold px-4 py-2 text-xs font-fantasy font-black uppercase flex items-center justify-center gap-1.5 cursor-pointer shadow-md shrink-0 self-start sm:self-auto hover:scale-105 transition-transform"
+        >
+          <Trophy className="w-3.5 h-3.5" />
+          <span>View Leaderboard</span>
+        </button>
+      </div>
 
       {/* Events Overview */}
       <div className="space-y-3">

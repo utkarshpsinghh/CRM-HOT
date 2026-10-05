@@ -34,6 +34,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCreateEvent }) => {
     { id: 'members', label: 'Members', count: stats.totalMembers },
     { id: 'events', label: 'Events' },
     { id: 'attendance', label: 'Attendance' },
+    { id: 'leaderboard', label: 'Leaderboard' },
     { id: 'activity', label: 'Inactive', badge: inactiveInsights.length > 0 ? `${inactiveInsights.length}` : null },
     ...(isMainAdmin ? [{ id: 'contributions', label: 'Contributions' }] : []),
     ...(isMainAdmin ? [{ id: 'settings', label: 'Settings' }] : []),
