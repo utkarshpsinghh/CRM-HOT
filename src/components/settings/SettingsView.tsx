@@ -25,6 +25,7 @@ import {
   Users,
   Crown,
   FileText,
+  Wrench,
 } from 'lucide-react';
 
 export const SettingsView: React.FC = () => {
@@ -59,6 +60,7 @@ export const SettingsView: React.FC = () => {
   const [warningDays, setWarningDays] = useState(settings.inactivityWarningDays);
   const [inactiveDays, setInactiveDays] = useState(settings.inactivityInactiveDays);
   const [criticalDays, setCriticalDays] = useState(settings.inactivityCriticalDays);
+  const [underDevelopment, setUnderDevelopment] = useState(settings.underDevelopment !== false);
 
   const [supaTestResult, setSupaTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const [isConnectingSupa, setIsConnectingSupa] = useState(false);
@@ -97,6 +99,7 @@ export const SettingsView: React.FC = () => {
       inactivityWarningDays: Number(warningDays),
       inactivityInactiveDays: Number(inactiveDays),
       inactivityCriticalDays: Number(criticalDays),
+      underDevelopment,
     });
     setSavedSuccess(true);
     setTimeout(() => setSavedSuccess(false), 3000);
@@ -851,7 +854,44 @@ export const SettingsView: React.FC = () => {
           </div>
         </div>
 
-        {/* SECTION 5: SOUND & AUDIO */}
+        {/* SECTION 5: SITE ACCESS & DEVELOPMENT MODE */}
+        <div className="p-4 rounded-2xl bg-[#1a1410] border-2 border-amber-600/40 flex items-center justify-between gap-3 shadow-md">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-300 shrink-0">
+              <Wrench className="w-5 h-5 text-amber-400" />
+            </div>
+            <div>
+              <div className="text-xs font-fantasy font-bold text-[#fef08a] uppercase flex items-center gap-2">
+                <span>Active Development Mode</span>
+                <span className={`text-[10px] px-2 py-0.2 rounded-full font-mono font-bold ${
+                  underDevelopment
+                    ? 'bg-amber-950/80 text-amber-300 border border-amber-600/60'
+                    : 'bg-stone-800 text-stone-400 border border-stone-600'
+                }`}>
+                  {underDevelopment ? 'PUBLIC UNDER CONSTRUCTION ACTIVE' : 'LIVE PUBLIC'}
+                </span>
+              </div>
+              <div className="text-xs text-stone-400 mt-0.5">
+                When enabled, public visitors see the Under Development page. Officers can still sign in using the Officer Portal button.
+              </div>
+            </div>
+          </div>
+
+          <label className="relative inline-flex items-center cursor-pointer shrink-0">
+            <input
+              type="checkbox"
+              checked={underDevelopment}
+              onChange={e => {
+                setUnderDevelopment(e.target.checked);
+                updateSettings({ ...settings, underDevelopment: e.target.checked });
+              }}
+              className="sr-only peer"
+            />
+            <div className="w-11 h-6 bg-stone-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#ca8a04]" />
+          </label>
+        </div>
+
+        {/* SECTION 6: SOUND & AUDIO */}
         <div className="p-4 rounded-2xl bg-[#1a1410] border-2 border-[#3e2716] flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             {settings.soundEnabled ? (

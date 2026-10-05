@@ -12,6 +12,7 @@ export const initialSettings: AllianceSettings = {
   dbProvider: 'supabase',
   soundEnabled: true,
   demoMode: false,
+  underDevelopment: true,
 };
 
 // Pure clean initial state — no junk or fake mock data

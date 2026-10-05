@@ -5,6 +5,7 @@ import { Header } from './components/layout/Header';
 import { Navigation } from './components/layout/Navigation';
 import { Footer } from './components/layout/Footer';
 import { LoginView } from './components/auth/LoginView';
+import { UnderDevelopmentView } from './components/common/UnderDevelopmentView';
 import { DashboardView } from './components/dashboard/DashboardView';
 import { MembersView } from './components/members/MembersView';
 import { EventsView } from './components/events/EventsView';
@@ -37,6 +38,7 @@ const MainAppContent: React.FC = () => {
     isSyncing,
     members,
     syncStatus,
+    settings,
   } = useCRM();
 
   // Modals state
@@ -58,7 +60,12 @@ const MainAppContent: React.FC = () => {
     return <LoadingScreen message="Loading..." />;
   }
 
+  const isDevMode = settings?.underDevelopment !== false;
+
   if (!isAuthenticated) {
+    if (isDevMode) {
+      return <UnderDevelopmentView />;
+    }
     return <LoginView />;
   }
 
@@ -90,6 +97,17 @@ const MainAppContent: React.FC = () => {
 
   return (
     <div className="min-h-screen flex flex-col bg-[#14110e] text-[#fef9ee] selection:bg-[#d97706] selection:text-[#fffbeb] w-full max-w-full overflow-x-hidden">
+      {/* Active Development Mode Status Banner */}
+      {isDevMode && (
+        <div className="bg-amber-950/90 border-b border-amber-600/50 px-3 sm:px-4 py-1 text-center text-xs text-amber-200 flex items-center justify-center gap-2 shadow-inner">
+          <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+          <span className="font-fantasy font-black uppercase tracking-wider text-amber-300">
+            Active Development Mode
+          </span>
+          <span className="text-stone-400 hidden sm:inline">• Public visitors see the Under Development page</span>
+        </div>
+      )}
+
       {/* Top Header */}
       <Header onOpenCreateEvent={() => setIsCreateEventOpen(true)} />
 

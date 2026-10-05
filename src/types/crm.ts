@@ -84,6 +84,7 @@ export interface AllianceSettings {
   dbProvider?: 'supabase' | 'local';
   soundEnabled: boolean;
   demoMode: boolean;
+  underDevelopment?: boolean;      // Under Development mode toggle
 }
 
 export interface EventAttendanceSummary {
