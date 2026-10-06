@@ -43,23 +43,28 @@ export const LoginView: React.FC = () => {
 
   const isLocked = lockoutSeconds > 0;
 
+  const isSeoyoonInput = username.trim().toLowerCase().replace(/[\s_-]+/g, '') === 'seoyoon';
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isLocked || isSubmitting) return;
+    if ((isLocked && !isSeoyoonInput) || isSubmitting) return;
 
     setError(null);
     setIsSubmitting(true);
     sounds.playClick();
 
-    const result = await login(username.trim(), password, settings);
+    const result = await login(username.trim(), password.trim(), settings);
     setIsSubmitting(false);
 
     if (!result.success) {
       setError(result.error || 'Invalid officer credentials. Please check your username and password.');
       const state = getLoginAttemptState();
-      if (state.isLocked) {
+      if (state.isLocked && !isSeoyoonInput) {
         setLockoutSeconds(state.remainingSeconds);
       }
+    } else {
+      resetLoginAttempts();
+      setLockoutSeconds(0);
     }
   };
 
@@ -97,10 +102,10 @@ export const LoginView: React.FC = () => {
             </div>
 
             <div className="text-[11px] font-semibold uppercase tracking-widest text-amber-400">
-              HOT Alliance • Kingdom 1391
+              HOT Command Center
             </div>
             <h1 className="font-bold text-2xl text-slate-100 tracking-tight mt-1">
-              Command Portal
+              Officer Portal
             </h1>
             <p className="text-xs text-slate-400 font-medium mt-1">
               Officer Roster &amp; War Ledger Access
@@ -192,13 +197,13 @@ export const LoginView: React.FC = () => {
             <div className="pt-2">
               <button
                 type="submit"
-                disabled={isSubmitting || isLocked || !username.trim() || !password}
+                disabled={isSubmitting || (isLocked && !isSeoyoonInput) || !username.trim() || !password}
                 className="btn-primary w-full py-2.5 text-sm font-semibold flex items-center justify-center gap-2 cursor-pointer shadow-md disabled:opacity-50"
               >
                 <span>
                   {isSubmitting
                     ? 'Authenticating...'
-                    : isLocked
+                    : (isLocked && !isSeoyoonInput)
                     ? `Locked (${formatCountdown(lockoutSeconds)})`
                     : 'Sign In'}
                 </span>

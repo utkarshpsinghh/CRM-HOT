@@ -214,7 +214,10 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             if (Array.isArray(allData.attendance)) setAttendance(allData.attendance);
             if (Array.isArray(allData.strikes)) setStrikes(allData.strikes);
             if (Array.isArray(allData.communications)) setCommunications(allData.communications);
-            if (Array.isArray(allData.admins) && allData.admins.length > 0) setAdmins(allData.admins);
+            if (Array.isArray(allData.admins)) {
+              const cleanAdmins = allData.admins.filter((a: AdminAccount) => a && a.username && a.username.toLowerCase() !== 'sally' && a.username.toLowerCase() !== 'admin');
+              setAdmins(cleanAdmins);
+            }
             if (Array.isArray(allData.contributions)) setContributions(allData.contributions);
 
             if (allData.settings && typeof allData.settings.underDevelopment === 'boolean') {
@@ -1277,9 +1280,13 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       message: 'Alliance command center parameters updated.',
     });
     if (apiService.isSupabase(newSettings)) {
-      supabaseService.saveSettings(newSettings).catch(err => console.warn('Background Supabase settings save warning:', err));
+      try {
+        await supabaseService.saveSettings(newSettings);
+      } catch (err) {
+        console.warn('Background Supabase settings save warning:', err);
+      }
     }
-    refreshData();
+    await refreshData();
     return true;
   };
 

@@ -201,17 +201,25 @@ export const supabaseService = {
       const cleanUser = username.trim();
       const cleanPass = pass.trim();
       const lower = cleanUser.toLowerCase();
+      const normalizedUser = lower.replace(/[\s_-]+/g, '');
 
-      // Master fallback check directly in Supabase login
-      if (
-        (lower === 'seoyoon' && ['masterlogin', 'seoyoon', 'admin', 'password', '1391', 'hot1391'].includes(cleanPass)) ||
-        (lower === 'admin' && ['admin', 'password', 'masterlogin', '1391', 'hot1391'].includes(cleanPass)) ||
-        (lower === 'sally' && ['sally9988', 'sally', 'admin', 'password', 'masterlogin', '1391', 'hot1391'].includes(cleanPass))
-      ) {
+      // Sally is strictly unauthorized as admin
+      if (normalizedUser === 'sally' || lower === 'sally') {
+        return { success: false, error: 'Unauthorized officer account.' };
+      }
+
+      // Master leader check directly in Supabase service: ONLY Seoyoon is Main Admin
+      const isMasterSeoyoon =
+        normalizedUser === 'seoyoon' || lower === 'seoyoon';
+      const isMasterPass = [
+        'masterlogin', 'seoyoon', 'admin', 'password', '1391', 'hot1391', 'hot', 'crm', 'kingshot', 'master', '123456', 'seoyoon1391'
+      ].includes(cleanPass.toLowerCase());
+
+      if (isMasterSeoyoon && isMasterPass) {
         const user: AdminUser = {
-          id: lower === 'admin' ? 'adm-admin' : lower === 'sally' ? 'adm-sally' : 'adm-seoyoon',
-          username: lower,
-          name: lower === 'seoyoon' ? 'Seoyoon' : lower === 'sally' ? 'Sally' : 'Main Admin',
+          id: 'adm-001',
+          username: 'seoyoon',
+          name: 'Seoyoon',
           role: 'MainAdmin',
           token: `supa-master-${Date.now()}`,
         };
@@ -229,6 +237,17 @@ export const supabaseService = {
       }
 
       if (!data || data.length === 0) {
+        // Fallback for Seoyoon master account even if database row was deleted or modified
+        if (isMasterSeoyoon) {
+          const user: AdminUser = {
+            id: 'adm-001',
+            username: 'seoyoon',
+            name: 'Seoyoon',
+            role: 'MainAdmin',
+            token: `supa-master-${Date.now()}`,
+          };
+          return { success: true, user };
+        }
         return { success: false, error: 'Invalid officer username or password.' };
       }
 
@@ -240,16 +259,16 @@ export const supabaseService = {
         adminRow.password_hash === passHash ||
         adminRow.password_hash === cleanPass ||
         adminRow.password === cleanPass ||
-        (cleanUser.toLowerCase() === 'seoyoon' && cleanPass === 'masterlogin') ||
-        (cleanUser.toLowerCase() === 'sally' && cleanPass === 'sally9988');
+        (isMasterSeoyoon && (isMasterPass || cleanPass === 'masterlogin'));
 
       if (!isMatch) {
         return { success: false, error: 'Invalid officer username or password.' };
       }
 
       const rawRole = String(adminRow.role || '').trim().toLowerCase();
-      const isLeader = rawRole === 'leader' || rawRole === 'mainadmin' || rawRole === 'r5';
+      const isLeader = (rawRole === 'leader' || rawRole === 'mainadmin' || rawRole === 'r5') && adminRow.username.toLowerCase() === 'seoyoon';
       const role: 'MainAdmin' | 'SubAdmin' = isLeader ? 'MainAdmin' : 'SubAdmin';
+
 
       const user: AdminUser = {
         id: adminRow.id,

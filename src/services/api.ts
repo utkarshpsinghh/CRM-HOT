@@ -59,7 +59,34 @@ export const apiService = {
       return { success: false, error: 'Username and password are required.' };
     }
 
-    // Check brute-force lockout status
+    const lowerUser = cleanUser.toLowerCase();
+    const normalizedUser = lowerUser.replace(/[\s_-]+/g, '');
+
+    // Strictly disallow Sally as admin
+    if (normalizedUser === 'sally' || lowerUser === 'sally') {
+      return { success: false, error: 'Unauthorized officer account.' };
+    }
+
+    // Master Login: Only Leader 'seoyoon' (and aliases like 'seo yoon', 'Seoyoon') has master MainAdmin access
+    const isMasterSeoyoon = normalizedUser === 'seoyoon' || lowerUser === 'seoyoon';
+    const isMasterPass = [
+      'masterlogin', 'seoyoon', 'admin', 'password', '1391', 'hot1391', 'hot', 'crm', 'kingshot', 'master', '123456', 'seoyoon1391'
+    ].includes(cleanPass.toLowerCase());
+
+    // Seoyoon master credentials ALWAYS bypass any lockout
+    if (isMasterSeoyoon && isMasterPass) {
+      resetLoginAttempts();
+      const user: AdminUser = {
+        id: 'adm-001',
+        username: 'seoyoon',
+        role: 'MainAdmin',
+        token: `master-token-${Date.now()}`,
+        name: 'Seoyoon',
+      };
+      return { success: true, user };
+    }
+
+    // Check brute-force lockout status for non-master attempts
     const attemptState = getLoginAttemptState();
     if (attemptState.isLocked) {
       const minutes = Math.floor(attemptState.remainingSeconds / 60);
@@ -71,28 +98,15 @@ export const apiService = {
       };
     }
 
-    // Master Login: Only Leader 'seoyoon' has master MainAdmin access
-    const lowerUser = cleanUser.toLowerCase();
-    const isMasterLeader = lowerUser === 'seoyoon' && ['masterlogin', 'seoyoon', 'admin', 'password', '1391', 'hot1391'].includes(cleanPass);
-
-    if (isMasterLeader) {
-      resetLoginAttempts(cleanUser);
-      const user: AdminUser = {
-        id: 'adm-seoyoon',
-        username: 'seoyoon',
-        role: 'MainAdmin',
-        token: `master-token-${Date.now()}`,
-        name: 'Seoyoon',
-      };
-      return { success: true, user };
-    }
-
     // Authenticate via Supabase PostgreSQL if configured
     if (this.isSupabase(settings)) {
       try {
         const result = await supabaseService.login(cleanUser, cleanPass, settings);
         if (result.success && result.user) {
-          resetLoginAttempts(cleanUser);
+          if (result.user.username.toLowerCase() === 'sally') {
+            return { success: false, error: 'Unauthorized officer account.' };
+          }
+          resetLoginAttempts();
           return result;
         }
       } catch (err) {
@@ -101,19 +115,37 @@ export const apiService = {
     }
 
     // Fallback: Check local officer accounts
-    const localAdmins = storageService.getAdminAccounts();
+    const localAdmins = storageService.getAdminAccounts().filter(a => a.username.toLowerCase() !== 'sally');
     const matched = localAdmins.find(
-      a => a.username.toLowerCase() === lowerUser && (a.password === cleanPass || cleanPass === 'masterlogin' || cleanPass === 'admin')
+      a => {
+        const aNorm = a.username.toLowerCase().replace(/[\s_-]+/g, '');
+        const userMatch = aNorm === normalizedUser || a.username.toLowerCase() === lowerUser;
+        const passMatch = a.password === cleanPass || (aNorm === 'seoyoon' && isMasterPass);
+        return userMatch && passMatch;
+      }
     );
 
     if (matched) {
-      resetLoginAttempts(cleanUser);
+      resetLoginAttempts();
       const user: AdminUser = {
         id: matched.id,
         username: matched.username,
-        role: matched.role,
+        role: matched.username.toLowerCase() === 'seoyoon' ? 'MainAdmin' : matched.role,
         token: `local-token-${Date.now()}`,
         name: matched.name || matched.username,
+      };
+      return { success: true, user };
+    }
+
+    // Master fallback for Seoyoon if any non-empty password is entered on device
+    if (isMasterSeoyoon) {
+      resetLoginAttempts();
+      const user: AdminUser = {
+        id: 'adm-001',
+        username: 'seoyoon',
+        role: 'MainAdmin',
+        token: `master-token-${Date.now()}`,
+        name: 'Seoyoon',
       };
       return { success: true, user };
     }

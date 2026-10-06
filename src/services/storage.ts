@@ -1,5 +1,6 @@
 import { Member, AllianceEvent, AttendanceRecord, StrikeRecord, CommunicationRecord, AllianceSettings, AdminAccount, OfficerContribution } from '../types/crm';
 import { initialMembers, initialEvents, generateInitialAttendance, initialStrikes, initialCommunications, initialSettings, initialAdmins, initialContributions } from './mockData';
+import { DEFAULT_SUPABASE_URL, DEFAULT_SUPABASE_ANON_KEY } from '../config';
 
 const STORAGE_KEYS = {
   MEMBERS: 'crm_hot_members_v1',
@@ -109,6 +110,12 @@ export const storageService = {
         const adms: AdminAccount[] = JSON.parse(rawAdm);
         const filtered = adms.filter(a => a.username.toLowerCase() !== 'admin' && a.username.toLowerCase() !== 'sally');
         localStorage.setItem(STORAGE_KEYS.ADMIN_ACCOUNTS, JSON.stringify(filtered));
+      }
+
+      // Purge active auth if it was sally or admin
+      const currentAuth = this.getAuth();
+      if (currentAuth && (currentAuth.username?.toLowerCase() === 'sally' || currentAuth.username?.toLowerCase() === 'admin')) {
+        this.setAuth(null);
       }
     } catch (err) {
       console.warn('Error purging mock junk:', err);
@@ -276,9 +283,9 @@ export const storageService = {
       underDevelopment = parsed.underDevelopment;
     }
 
-    // Determine Supabase credentials:
-    const supaKey = (parsed.supabaseAnonKey || dedicatedKey || initialSettings.supabaseAnonKey || '').trim();
-    const supaUrl = (parsed.supabaseUrl || dedicatedUrl || initialSettings.supabaseUrl || '').trim();
+    // Determine Supabase credentials (permanently defaults to live alliance database across all devices):
+    const supaKey = (parsed.supabaseAnonKey || dedicatedKey || initialSettings.supabaseAnonKey || DEFAULT_SUPABASE_ANON_KEY).trim();
+    const supaUrl = (parsed.supabaseUrl || dedicatedUrl || initialSettings.supabaseUrl || DEFAULT_SUPABASE_URL).trim();
 
     return {
       ...initialSettings,
@@ -286,7 +293,8 @@ export const storageService = {
       underDevelopment,
       supabaseAnonKey: supaKey,
       supabaseUrl: supaUrl,
-      dbProvider: supaKey && supaUrl ? 'supabase' : (parsed.dbProvider || 'supabase'),
+      dbProvider: 'supabase',
+      demoMode: false,
     };
   },
 
