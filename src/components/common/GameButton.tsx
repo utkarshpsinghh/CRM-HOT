@@ -30,48 +30,49 @@ export const GameButton: React.FC<GameButtonProps> = ({
     onClick?.(e);
   };
 
-  const baseStyles = 'inline-flex items-center justify-center font-bold tracking-wide uppercase transition-all duration-150 select-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed game-btn relative font-fantasy rounded-md shadow-md';
+  const baseStyles = 'inline-flex items-center justify-center font-black tracking-wide uppercase transition-all duration-100 select-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed game-btn relative font-fantasy rounded-xl active:translate-y-1 active:shadow-none';
 
   const sizeStyles = {
-    sm: 'text-xs px-2.5 py-1.5 gap-1.5 border',
-    md: 'text-sm px-4 py-2 gap-2 border-[1.5px]',
-    lg: 'text-base px-6 py-3 gap-2.5 border-2 shadow-lg',
+    sm: 'text-xs px-3 py-1.5 gap-1.5 border-2',
+    md: 'text-sm px-4.5 py-2 gap-2 border-2',
+    lg: 'text-base px-6 py-2.5 gap-2.5 border-2',
   };
 
   const variantStyles = {
     gold: `
-      bg-gradient-to-b from-[#fef08a] via-[#eab308] to-[#a16207]
-      text-[#1e1503] border-[#fef08a]
-      hover:from-[#fef9c3] hover:to-[#b45309] hover:shadow-[0_0_15px_rgba(234,179,8,0.4)]
-      active:border-[#ca8a04] shadow-[0_3px_0_#713f12]
+      bg-gradient-to-b from-[#fef08a] via-[#eab308] to-[#ca8a04]
+      text-[#261103] border-[#fef9c3]
+      hover:from-[#fffbeb] hover:to-[#d97706]
+      shadow-[0_4px_0_#78350f,0_6px_12px_rgba(0,0,0,0.35)]
     `,
     crimson: `
-      bg-gradient-to-b from-[#ef4444] via-[#b91c1c] to-[#7f1d1d]
-      text-[#fef2f2] border-[#f87171]
-      hover:from-[#f87171] hover:to-[#991b1b] hover:shadow-[0_0_15px_rgba(239,68,68,0.4)]
-      active:border-[#b91c1c] shadow-[0_3px_0_#450a0a]
+      bg-gradient-to-b from-[#f87171] via-[#dc2626] to-[#991b1b]
+      text-[#ffffff] border-[#fca5a5]
+      hover:from-[#fca5a5] hover:to-[#b91c1c]
+      shadow-[0_4px_0_#450a0a,0_6px_12px_rgba(0,0,0,0.35)]
     `,
     emerald: `
-      bg-gradient-to-b from-[#22c55e] via-[#15803d] to-[#14532d]
-      text-[#f0fdf4] border-[#86efac]
-      hover:from-[#4ade80] hover:to-[#166534] hover:shadow-[0_0_15px_rgba(34,197,94,0.4)]
-      active:border-[#15803d] shadow-[0_3px_0_#052e16]
+      bg-gradient-to-b from-[#4ade80] via-[#16a34a] to-[#15803d]
+      text-[#ffffff] border-[#86efac]
+      hover:from-[#86efac] hover:to-[#166534]
+      shadow-[0_4px_0_#052e16,0_6px_12px_rgba(0,0,0,0.35)]
     `,
     slate: `
-      bg-gradient-to-b from-[#334155] via-[#1e293b] to-[#0f172a]
-      text-[#f1f5f9] border-[#64748b]
-      hover:from-[#475569] hover:to-[#1e293b] hover:shadow-[0_0_15px_rgba(148,163,184,0.3)]
-      active:border-[#475569] shadow-[0_3px_0_#020617]
+      bg-gradient-to-b from-[#475569] via-[#334155] to-[#1e293b]
+      text-[#f8fafc] border-[#94a3b8]
+      hover:from-[#64748b] hover:to-[#0f172a]
+      shadow-[0_4px_0_#0f172a,0_6px_12px_rgba(0,0,0,0.35)]
     `,
     parchment: `
-      bg-gradient-to-b from-[#fef3c7] via-[#fde68a] to-[#d97706]
+      bg-gradient-to-b from-[#fef9c3] via-[#fde047] to-[#eab308]
       text-[#451a03] border-[#fef08a]
-      hover:brightness-105 active:shadow-none shadow-[0_3px_0_#92400e]
+      hover:brightness-105
+      shadow-[0_4px_0_#854d0e,0_6px_12px_rgba(0,0,0,0.3)]
     `,
     outline: `
-      bg-transparent text-[#eab308] border-[#eab308]/60
-      hover:bg-[#eab308]/15 hover:border-[#eab308]
-      active:bg-[#eab308]/25
+      bg-[#241710] text-[#facc15] border-[#ca8a04]
+      hover:bg-[#332014] hover:border-[#facc15]
+      shadow-[0_4px_0_#140b06]
     `,
   };
 

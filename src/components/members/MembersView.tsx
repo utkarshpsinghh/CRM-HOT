@@ -197,11 +197,11 @@ export const MembersView: React.FC<MembersViewProps> = ({
       {/* Header and Controls */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-[#fffbeb] tracking-tight">
+          <h1 className="text-2xl sm:text-3xl font-fantasy font-black text-[#fffbeb] tracking-wide">
             Alliance Members
           </h1>
-          <p className="text-xs text-stone-300">
-            {sortedMembers.length} members enrolled
+          <p className="text-xs text-stone-300 font-medium">
+            {sortedMembers.length} warriors enrolled
           </p>
         </div>
 
@@ -212,7 +212,7 @@ export const MembersView: React.FC<MembersViewProps> = ({
               setIsSyncModalOpen(true);
             }}
             disabled={isSyncing}
-            className="px-3.5 py-2 rounded-xl bg-[#24170d] hover:bg-[#341f12] text-amber-300 border border-[#522d14] hover:border-amber-500/60 text-xs font-fantasy uppercase tracking-wider flex items-center gap-1.5 cursor-pointer transition-all shadow-sm disabled:opacity-50"
+            className="btn-kingshot-cream px-3.5 py-2 text-xs font-fantasy font-black uppercase tracking-wider flex items-center gap-1.5 cursor-pointer shadow-md disabled:opacity-50"
             title="Update & synchronize member roster for HOT Alliance"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin text-amber-400' : 'text-amber-400'}`} />
@@ -224,7 +224,7 @@ export const MembersView: React.FC<MembersViewProps> = ({
               sounds.playClick();
               onOpenAddMember();
             }}
-            className="btn-kingshot-gold px-3.5 py-2 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 cursor-pointer shadow-sm"
+            className="btn-kingshot-gold px-4 py-2 text-xs font-fantasy font-black uppercase tracking-wider flex items-center gap-1.5 cursor-pointer shadow-md"
           >
             <UserPlus className="w-4 h-4" />
             <span>Add Member</span>
@@ -232,8 +232,8 @@ export const MembersView: React.FC<MembersViewProps> = ({
         </div>
       </div>
 
-      {/* Simple Search & Filters */}
-      <div className="p-3 rounded-lg bg-[#20150f] border border-[#4d2b14] flex flex-wrap gap-2.5 items-center w-full min-w-0">
+      {/* Cartoon Search & Filters */}
+      <div className="p-3.5 rounded-2xl bg-[#1c120a] border-2 border-[#4d2b14] shadow-[0_4px_0_rgba(0,0,0,0.4)] flex flex-wrap gap-2.5 items-center w-full min-w-0">
         {/* Search */}
         <div className="relative w-full sm:flex-1 min-w-0">
           <Search className="w-4 h-4 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2" />
@@ -337,7 +337,7 @@ export const MembersView: React.FC<MembersViewProps> = ({
             return (
               <div
                 key={member.id}
-                className="p-3.5 rounded-2xl bg-[#20150f] border-2 border-[#4d2b14] space-y-2.5 shadow-sm"
+                className="p-3.5 rounded-2xl bg-[#1e130c] border-2 border-[#522d14] space-y-2.5 shadow-[0_4px_0_rgba(0,0,0,0.4)] hover:border-amber-600/80 transition-all"
               >
                 {/* Top row: Name, Rank, Status */}
                 <div className="flex items-center justify-between gap-2">
@@ -347,7 +347,7 @@ export const MembersView: React.FC<MembersViewProps> = ({
                         sounds.playClick();
                         setSelectedMemberForProfile(member);
                       }}
-                      className="font-fantasy font-black text-sm text-[#fffbeb] hover:text-[#fbbf24] cursor-pointer truncate"
+                      className="font-fantasy font-black text-sm sm:text-base text-[#fffbeb] hover:text-[#fbbf24] cursor-pointer truncate"
                     >
                       {member.name}
                     </span>
@@ -432,7 +432,7 @@ export const MembersView: React.FC<MembersViewProps> = ({
                       sounds.playClick();
                       setSelectedMemberForProfile(member);
                     }}
-                    className="flex-1 py-1.5 px-2 rounded-lg bg-[#170e09] border border-[#3d200e] text-stone-200 hover:text-white text-xs font-semibold flex items-center justify-center gap-1 cursor-pointer"
+                    className="flex-1 py-1.5 px-2 rounded-xl bg-[#24170d] border border-[#522d14] hover:bg-[#341f12] text-stone-200 hover:text-white text-xs font-fantasy uppercase font-black flex items-center justify-center gap-1 cursor-pointer transition-all shadow-[0_2px_0_rgba(0,0,0,0.3)] active:translate-y-0.5"
                   >
                     <Eye className="w-3.5 h-3.5 text-amber-400" />
                     <span>Profile</span>
@@ -443,7 +443,7 @@ export const MembersView: React.FC<MembersViewProps> = ({
                       sounds.playClick();
                       onOpenAddStrike(member);
                     }}
-                    className="flex-1 py-1.5 px-2 rounded-lg bg-red-950/40 border border-red-900/60 text-red-200 text-xs font-semibold flex items-center justify-center gap-1 cursor-pointer"
+                    className="flex-1 py-1.5 px-2 rounded-xl bg-red-950/60 border border-red-800 hover:bg-red-900 text-red-200 text-xs font-fantasy uppercase font-black flex items-center justify-center gap-1 cursor-pointer transition-all shadow-[0_2px_0_rgba(0,0,0,0.3)] active:translate-y-0.5"
                   >
                     <Flame className="w-3.5 h-3.5 text-red-400" />
                     <span>Strike</span>
@@ -454,10 +454,10 @@ export const MembersView: React.FC<MembersViewProps> = ({
                       sounds.playClick();
                       onOpenEditMember(member);
                     }}
-                    className="p-1.5 rounded-lg bg-[#170e09] border border-[#3d200e] text-stone-300 hover:text-white cursor-pointer"
+                    className="p-1.5 rounded-xl bg-[#24170d] border border-[#522d14] hover:bg-[#341f12] text-stone-300 hover:text-white cursor-pointer shadow-[0_2px_0_rgba(0,0,0,0.3)] active:translate-y-0.5"
                     title="Edit"
                   >
-                    <Edit className="w-3.5 h-3.5" />
+                    <Edit className="w-3.5 h-3.5 text-amber-300" />
                   </button>
 
                   {member.status !== 'Archived' && (

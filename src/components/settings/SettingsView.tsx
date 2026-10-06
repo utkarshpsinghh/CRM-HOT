@@ -54,6 +54,7 @@ export const SettingsView: React.FC = () => {
     syncKingshotRoster,
     syncGoogleSheetRoster,
     syncGoogleSheetAll,
+    migrateSheetToSupabaseDirect,
     syncGoogleSheetEvents,
     syncGoogleSheetAttendance,
     syncGoogleSheetContributions,
@@ -99,7 +100,6 @@ export const SettingsView: React.FC = () => {
   const [isMigratingSupa, setIsMigratingSupa] = useState(false);
   const [migrationStatusText, setMigrationStatusText] = useState('');
   const [migrationResult, setMigrationResult] = useState<{ success: boolean; message: string; counts?: Record<string, number> } | null>(null);
-  const [schemaCopied, setSchemaCopied] = useState(false);
 
   // Alliance roster parser state
   const [rosterInputText, setRosterInputText] = useState('');
@@ -157,7 +157,7 @@ export const SettingsView: React.FC = () => {
     setIsSyncingAll(true);
     setAllSyncResult(null);
     try {
-      const res = await syncGoogleSheetAll(googleSheetUrl);
+      const res = await migrateSheetToSupabaseDirect(googleSheetUrl);
       setAllSyncResult(res);
     } finally {
       setIsSyncingAll(false);
@@ -296,12 +296,6 @@ export const SettingsView: React.FC = () => {
     } finally {
       setIsSyncingKingshot(false);
     }
-  };
-
-  const handleCopySchemaPath = () => {
-    navigator.clipboard.writeText('supabase/schema.sql');
-    setSchemaCopied(true);
-    setTimeout(() => setSchemaCopied(false), 2500);
   };
 
   const handleCreateAdmin = async (e: React.FormEvent) => {
@@ -661,15 +655,15 @@ export const SettingsView: React.FC = () => {
             />
           </div>
 
-          {/* PRIMARY ACTION: SYNC ALL SECTIONS */}
-          <div className="p-3.5 rounded-xl bg-gradient-to-r from-[#20150f] via-[#2a1a0e] to-[#20150f] border border-[#ca8a04]/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-md">
+          {/* PRIMARY ACTION: SYNC & MIGRATE ALL TO CLOUD VAULT */}
+          <div className="p-4 rounded-2xl bg-gradient-to-r from-[#20150f] via-[#2a1a0e] to-[#20150f] border-2 border-[#ca8a04] flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-lg">
             <div>
-              <div className="text-xs font-fantasy font-black text-amber-300 uppercase tracking-wide flex items-center gap-1.5">
+              <div className="text-sm font-fantasy font-black text-amber-300 uppercase tracking-wide flex items-center gap-1.5">
                 <Crown className="w-4 h-4 text-amber-400 shrink-0" />
-                <span>One-Click Full Roster &amp; Battle Sync</span>
+                <span>⚡ Sync &amp; Permanently Migrate Sheet Data</span>
               </div>
-              <p className="text-[11px] text-stone-300 mt-0.5">
-                Pulls all 6 sections (Members, Events, Attendance, Contributions, Strikes, Comms) simultaneously in seconds.
+              <p className="text-xs text-stone-300 mt-1">
+                Reads all Google Sheet tabs (Members, Events, Attendance, Logs), aligns members &amp; events, and permanently uploads them to the Alliance Cloud Vault.
               </p>
             </div>
 
@@ -677,10 +671,10 @@ export const SettingsView: React.FC = () => {
               type="button"
               onClick={handleSyncAllSections}
               disabled={isSyncingAll || isSyncing || !googleSheetUrl.trim()}
-              className="btn-kingshot-gold px-4 py-2.5 text-xs font-fantasy font-black uppercase flex items-center justify-center gap-2 cursor-pointer shadow-lg disabled:opacity-50 shrink-0"
+              className="btn-kingshot-gold px-5 py-3 text-xs sm:text-sm font-fantasy font-black uppercase flex items-center justify-center gap-2 cursor-pointer shadow-xl disabled:opacity-50 shrink-0"
             >
               <RefreshCw className={`w-4 h-4 ${isSyncingAll ? 'animate-spin' : ''}`} />
-              <span>{isSyncingAll ? 'Syncing All Sections...' : 'Sync Entire Sheet (All Sections)'}</span>
+              <span>{isSyncingAll ? 'Syncing & Migrating...' : '⚡ Sync & Migrate Entire Sheet'}</span>
             </button>
           </div>
 
@@ -839,7 +833,7 @@ export const SettingsView: React.FC = () => {
         )}
       </div>
 
-      {/* SECTION 3: SUPABASE POSTGRESQL DATABASE */}
+      {/* SECTION 3: ALLIANCE CLOUD VAULT */}
       <form onSubmit={handleSaveSettings} className="space-y-6">
         <div className="p-4 sm:p-5 rounded-2xl bg-[#1a1410] border-2 border-[#3e2716] shadow-md space-y-4">
           <div className="flex items-start justify-between gap-3 flex-wrap">
@@ -849,15 +843,15 @@ export const SettingsView: React.FC = () => {
               </div>
               <div>
                 <h2 className="font-fantasy font-bold text-base text-[#fef08a] flex items-center gap-2">
-                  <span>Supabase PostgreSQL Database</span>
+                  <span>Alliance Cloud Vault</span>
                   {activeDbProvider === 'supabase' && (
                     <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-950/80 text-emerald-300 border border-emerald-500 font-sans font-bold flex items-center gap-1">
-                      <Zap className="w-3 h-3 text-emerald-400" /> PostgreSQL Active
+                      <Zap className="w-3 h-3 text-emerald-400" /> Cloud Vault Active
                     </span>
                   )}
                 </h2>
                 <p className="text-xs text-stone-400">
-                  Primary cloud database for events, attendance checks, strikes, communications, officer logs, and admin accounts.
+                  Permanent secure cloud storage for alliance members, battle events, attendance checks, and logs.
                 </p>
               </div>
             </div>
@@ -888,7 +882,7 @@ export const SettingsView: React.FC = () => {
               <div className="flex items-center gap-2 text-xs text-emerald-300">
                 <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
                 <span>
-                  <strong>Supabase Live Connected:</strong> Operating directly on PostgreSQL database with ultra-low latency (&lt;25ms).
+                  <strong>Cloud Vault Live:</strong> Alliance records are synchronized live across all officers with zero delay.
                 </span>
               </div>
               <div className="flex items-center gap-2 shrink-0">
@@ -915,7 +909,7 @@ export const SettingsView: React.FC = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <label className="block text-xs font-fantasy font-bold text-stone-300 uppercase">
-                Supabase Project URL
+                Alliance Cloud URL
               </label>
               <input
                 type="url"
@@ -932,17 +926,17 @@ export const SettingsView: React.FC = () => {
                     storageService.saveSupabaseCredentials(supaUrl.trim(), supaKey);
                   }
                 }}
-                placeholder="https://nlnrfoolpcdgvgwgpklx.supabase.co"
+                placeholder="https://xxxx.supabase.co"
                 className="w-full px-3 py-2 rounded-xl bg-[#120c08] border border-[#3e2716] text-stone-200 text-xs sm:text-sm focus:outline-none focus:border-[#ca8a04] font-mono"
               />
               <p className="text-[11px] text-stone-500">
-                From Supabase Dashboard &gt; Project Settings &gt; API
+                Supabase Project URL
               </p>
             </div>
 
             <div className="space-y-1.5">
               <label className="block text-xs font-fantasy font-bold text-stone-300 uppercase">
-                Supabase Anon Public API Key
+                Alliance Cloud Access Key
               </label>
               <div className="relative">
                 <input
@@ -972,7 +966,7 @@ export const SettingsView: React.FC = () => {
                 </button>
               </div>
               <p className="text-[11px] text-stone-500">
-                Anon Public Key (<code className="text-amber-400">anon</code> / <code className="text-amber-400">public</code>)
+                Anon API key
               </p>
             </div>
           </div>
@@ -986,7 +980,7 @@ export const SettingsView: React.FC = () => {
               className="btn-kingshot-gold px-4 py-2 text-xs font-fantasy font-black uppercase flex items-center justify-center gap-1.5 cursor-pointer shadow-md disabled:opacity-50"
             >
               <CheckCircle2 className={`w-3.5 h-3.5 ${isConnectingSupa ? 'animate-spin' : ''}`} />
-              <span>{isConnectingSupa ? 'Verifying & Saving...' : 'Connect & Save Supabase'}</span>
+              <span>{isConnectingSupa ? 'Connecting...' : 'Connect & Save Cloud Vault'}</span>
             </button>
             <GameButton
               type="button"
@@ -1023,20 +1017,20 @@ export const SettingsView: React.FC = () => {
             <div className="space-y-0.5">
               <div className="text-xs font-fantasy font-bold text-amber-300 uppercase flex items-center gap-1.5">
                 <Upload className="w-3.5 h-3.5" />
-                <span>Upload Local Records to PostgreSQL</span>
+                <span>Upload Local Records to Cloud Vault</span>
               </div>
               <div className="text-[11px] text-stone-400">
-                Upload all currently loaded members, battle events, attendance, strikes, and logs into your Supabase database in bulk.
+                Upload all currently loaded members, battle events, attendance, and logs into your permanent cloud vault.
               </div>
             </div>
             <button
               type="button"
               onClick={handleMigrateToSupabase}
               disabled={isMigratingSupa}
-              className="px-3.5 py-2 rounded-lg bg-gradient-to-r from-amber-600 to-yellow-600 hover:from-amber-500 hover:to-yellow-500 text-black text-xs font-fantasy font-black uppercase cursor-pointer shrink-0 transition-all flex items-center justify-center gap-1.5 shadow-md disabled:opacity-50"
+              className="btn-kingshot-gold px-3.5 py-2 text-xs font-fantasy font-black uppercase cursor-pointer shrink-0 transition-all flex items-center justify-center gap-1.5 shadow-md disabled:opacity-50"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isMigratingSupa ? 'animate-spin' : ''}`} />
-              <span>{isMigratingSupa ? 'Uploading...' : 'Upload All'}</span>
+              <span>{isMigratingSupa ? 'Uploading...' : 'Save All to Vault'}</span>
             </button>
           </div>
 
@@ -1072,45 +1066,6 @@ export const SettingsView: React.FC = () => {
               </div>
             </div>
           )}
-
-          {/* Quick Schema Setup Instructions */}
-          <div className="p-3.5 rounded-xl bg-[#120c08]/80 border border-[#3e2716] text-xs space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="font-fantasy font-bold text-[#fef08a] uppercase flex items-center gap-1.5">
-                <Server className="w-3.5 h-3.5 text-amber-400" />
-                <span>Supabase PostgreSQL Schema Setup</span>
-              </span>
-              <a
-                href="https://supabase.com/dashboard"
-                target="_blank"
-                rel="noreferrer"
-                className="text-[#ca8a04] hover:text-[#fef08a] flex items-center gap-1 text-[11px] font-bold"
-              >
-                <span>Supabase Dashboard</span>
-                <ExternalLink className="w-3 h-3" />
-              </a>
-            </div>
-
-            <ol className="list-decimal list-inside space-y-1.5 text-stone-300 text-xs leading-relaxed">
-              <li>Open your project at <strong>supabase.com/dashboard</strong>.</li>
-              <li>Go to <strong>SQL Editor</strong> &gt; <strong>New Query</strong>, paste and run <code className="text-[#fef08a] font-mono">supabase/schema.sql</code> to create all CRM tables.</li>
-              <li>In the left sidebar, click the gear icon (<strong className="text-amber-300">Project Settings</strong>) &gt; <strong className="text-amber-300">API</strong> (or <strong>API Keys</strong>).</li>
-              <li>Under <strong>Project URL</strong>, copy your <code className="text-stone-200">https://xxxx.supabase.co</code> URL.</li>
-              <li>Under <strong>API Keys</strong> &gt; <strong>Legacy anon, service_role API keys</strong>, copy the <code className="text-amber-400 font-mono">anon public</code> key (starts with <code className="text-amber-300">eyJhbGciOiJIUzI1Ni...</code>).</li>
-              <li>Paste both into the fields above and click <span className="text-emerald-400 font-bold">"Connect &amp; Save Supabase"</span>!</li>
-            </ol>
-
-            <div className="pt-1">
-              <button
-                type="button"
-                onClick={handleCopySchemaPath}
-                className="px-2.5 py-1 rounded bg-[#1e130c] hover:bg-[#2e1d13] border border-[#522d14] text-stone-300 hover:text-white text-[11px] font-mono flex items-center gap-1.5 cursor-pointer transition-colors"
-              >
-                {schemaCopied ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3 text-amber-400" />}
-                <span>{schemaCopied ? 'Schema Path Copied!' : 'Copy Schema File Path (supabase/schema.sql)'}</span>
-              </button>
-            </div>
-          </div>
 
           {/* Cleanliness Option */}
           <div className="p-3.5 rounded-xl bg-[#120c08] border border-[#3e2716] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -1195,7 +1150,7 @@ export const SettingsView: React.FC = () => {
           </div>
         </div>
 
-        {/* SECTION 5: SITE ACCESS & DEVELOPMENT MODE */}
+        {/* SECTION 5: SITE ACCESS & MAINTENANCE LOCK */}
         <div className="p-4 rounded-2xl bg-[#1a1410] border-2 border-amber-600/40 flex items-center justify-between gap-3 shadow-md">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-300 shrink-0">
@@ -1203,17 +1158,17 @@ export const SettingsView: React.FC = () => {
             </div>
             <div>
               <div className="text-xs font-fantasy font-bold text-[#fef08a] uppercase flex items-center gap-2">
-                <span>Active Development Mode</span>
-                <span className={`text-[10px] px-2 py-0.2 rounded-full font-mono font-bold ${
+                <span>Alliance Maintenance Lock</span>
+                <span className={`text-[10px] px-2 py-0.5 rounded-full font-sans font-bold ${
                   underDevelopment
                     ? 'bg-amber-950/80 text-amber-300 border border-amber-600/60'
-                    : 'bg-stone-800 text-stone-400 border border-stone-600'
+                    : 'bg-emerald-950/80 text-emerald-300 border border-emerald-600/60'
                 }`}>
-                  {underDevelopment ? 'PUBLIC UNDER CONSTRUCTION ACTIVE' : 'LIVE PUBLIC'}
+                  {underDevelopment ? 'UNDER CONSTRUCTION' : 'LIVE PUBLIC'}
                 </span>
               </div>
               <div className="text-xs text-stone-400 mt-0.5">
-                When enabled, public visitors see the Under Development page. Officers can still sign in using the Officer Portal button.
+                When locked, visitors see the Under Construction screen. Officers can sign in anytime via the Officer Portal.
               </div>
             </div>
           </div>

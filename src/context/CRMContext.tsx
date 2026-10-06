@@ -73,6 +73,7 @@ interface CRMContextType {
   syncKingshotRoster: (rosterText?: string, replaceExisting?: boolean) => Promise<{ success: boolean; message: string; added: number; updated: number; total?: number }>;
   syncGoogleSheetRoster: (customUrl?: string) => Promise<{ success: boolean; message: string; added?: number; updated?: number }>;
   syncGoogleSheetAll: (customUrl?: string) => Promise<SheetSyncResult>;
+  migrateSheetToSupabaseDirect: (customUrl?: string, onProgress?: (msg: string) => void) => Promise<{ success: boolean; message: string; counts?: Record<string, number> }>;
   syncGoogleSheetEvents: (customUrl?: string) => Promise<{ success: boolean; message: string; count?: number }>;
   syncGoogleSheetAttendance: (customUrl?: string) => Promise<{ success: boolean; message: string; count?: number }>;
   syncGoogleSheetContributions: (customUrl?: string) => Promise<{ success: boolean; message: string; count?: number }>;
@@ -409,7 +410,12 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             contributions: newContribs,
             strikes: newStrikes,
             communications: newComms,
-          }, currentSettings).catch(err => console.warn('Supabase sync warning:', err));
+          }, currentSettings).then(supaRes => {
+            if (supaRes.success) {
+              setSyncStatus('connected');
+              setSyncMessage('Cloud Vault Synchronized');
+            }
+          }).catch(err => console.warn('Supabase sync warning:', err));
         }
 
         sounds.playSuccess();
@@ -431,6 +437,110 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       sounds.playAlert();
       const msg = err.message || 'Failed to sync Google Sheet.';
       addToast({ type: 'error', title: 'Sheet Sync Error', message: msg });
+      return { success: false, message: msg };
+    } finally {
+      setIsSyncing(false);
+    }
+  }, [addToast]);
+
+  const migrateSheetToSupabaseDirect = useCallback(async (
+    customUrl?: string,
+    onProgress?: (msg: string) => void
+  ): Promise<{ success: boolean; message: string; counts?: Record<string, number> }> => {
+    sounds.playClick();
+    setIsSyncing(true);
+    try {
+      const currentSettings = storageService.getSettings();
+      const targetUrl = customUrl?.trim() || currentSettings.googleSheetUrl;
+
+      onProgress?.('Fetching live Google Sheet data across all tabs...');
+      const sheetResult = await googleSheetService.syncAllSections(targetUrl);
+
+      if (!sheetResult.success || !sheetResult.data) {
+        sounds.playAlert();
+        addToast({
+          type: 'error',
+          title: 'Sheet Download Failed',
+          message: sheetResult.message,
+        });
+        return { success: false, message: sheetResult.message };
+      }
+
+      const {
+        members: newMembers,
+        events: newEvents,
+        attendance: newAtt,
+        contributions: newContribs,
+        strikes: newStrikes,
+        communications: newComms,
+      } = sheetResult.data;
+
+      // 1. Save to local storage & React states immediately for instant UI responsiveness
+      storageService.saveAllData({
+        members: newMembers,
+        events: newEvents,
+        attendance: newAtt,
+        contributions: newContribs,
+        strikes: newStrikes,
+        communications: newComms,
+      });
+
+      if (newMembers.length > 0) setMembers(newMembers);
+      if (newEvents.length > 0) setEvents(newEvents);
+      if (newAtt.length > 0) setAttendance(newAtt);
+      if (newContribs.length > 0) setContributions(newContribs);
+      if (newStrikes.length > 0) setStrikes(newStrikes);
+      if (newComms.length > 0) setCommunications(newComms);
+      setLastSyncTime(new Date().toLocaleTimeString());
+
+      // 2. Permanently upload directly to Supabase
+      if (!supabaseService.isConfigured(currentSettings)) {
+        sounds.playSuccess();
+        addToast({
+          type: 'warning',
+          title: 'Sheet Saved Locally',
+          message: 'Saved to browser storage. Add Cloud Key in Settings to save permanently to cloud database.',
+        });
+        return {
+          success: true,
+          message: 'Saved sheet data locally. Configure Cloud Key to sync to Supabase.',
+          counts: sheetResult.counts,
+        };
+      }
+
+      onProgress?.('Uploading aligned sheet records permanently to Supabase PostgreSQL...');
+      const supaResult = await supabaseService.migrateAllToSupabase({
+        members: newMembers,
+        events: newEvents,
+        attendance: newAtt,
+        contributions: newContribs,
+        strikes: newStrikes,
+        communications: newComms,
+      }, currentSettings, onProgress);
+
+      if (supaResult.success) {
+        setSyncStatus('connected');
+        setSyncMessage('Supabase Cloud Synchronized');
+        sounds.playSuccess();
+        addToast({
+          type: 'success',
+          title: 'Sheet Migrated Permanently!',
+          message: `Saved ${supaResult.counts.members || 0} members & ${supaResult.counts.events || 0} events permanently to Supabase Cloud!`,
+        });
+      } else {
+        sounds.playAlert();
+        addToast({
+          type: 'error',
+          title: 'Cloud Upload Failed',
+          message: supaResult.message,
+        });
+      }
+
+      return supaResult;
+    } catch (err: any) {
+      sounds.playAlert();
+      const msg = err.message || 'Sheet migration encountered an error.';
+      addToast({ type: 'error', title: 'Migration Error', message: msg });
       return { success: false, message: msg };
     } finally {
       setIsSyncing(false);
@@ -1512,6 +1622,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         syncKingshotRoster,
         syncGoogleSheetRoster,
         syncGoogleSheetAll,
+        migrateSheetToSupabaseDirect,
         syncGoogleSheetEvents,
         syncGoogleSheetAttendance,
         syncGoogleSheetContributions,

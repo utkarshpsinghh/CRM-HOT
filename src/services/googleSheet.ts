@@ -395,8 +395,75 @@ export const googleSheetService = {
     const communications = commsResult.status === 'fulfilled' ? commsResult.value : [];
     if (commsResult.status === 'rejected') errors.push(`Communications: ${commsResult.reason.message}`);
 
+    // 1. Build lookup maps for Member and Event resolution
+    const memberByName = new Map<string, string>();
+    const memberById = new Set<string>();
+    for (const m of members) {
+      memberById.add(m.id);
+      memberByName.set(m.name.toLowerCase().trim(), m.id);
+    }
+
+    const eventByName = new Map<string, string>();
+    const eventById = new Set<string>();
+    for (const e of events) {
+      eventById.add(e.id);
+      eventByName.set(e.eventName.toLowerCase().trim(), e.id);
+    }
+
+    // 2. Align attendance: resolve names to IDs and satisfy foreign key constraints
+    const alignedAttendance: AttendanceRecord[] = [];
+    const seenAttIds = new Set<string>();
+
+    for (const att of attendance) {
+      let resolvedMemberId = att.memberId;
+      if (!memberById.has(resolvedMemberId)) {
+        const found = memberByName.get(resolvedMemberId.toLowerCase().trim());
+        if (found) resolvedMemberId = found;
+      }
+
+      let resolvedEventId = att.eventId;
+      if (!eventById.has(resolvedEventId)) {
+        const found = eventByName.get(resolvedEventId.toLowerCase().trim());
+        if (found) resolvedEventId = found;
+      }
+
+      if (memberById.has(resolvedMemberId) && eventById.has(resolvedEventId)) {
+        const attId = `att-${resolvedEventId}-${resolvedMemberId}`;
+        if (!seenAttIds.has(attId)) {
+          seenAttIds.add(attId);
+          alignedAttendance.push({
+            ...att,
+            id: attId,
+            memberId: resolvedMemberId,
+            eventId: resolvedEventId,
+          });
+        }
+      }
+    }
+
+    // 3. Ensure every event has attendance entries for all active members if none exist yet
+    for (const evt of events) {
+      const existingMembersForEvt = new Set(alignedAttendance.filter(a => a.eventId === evt.id).map(a => a.memberId));
+      for (const m of members) {
+        if (!existingMembersForEvt.has(m.id) && m.status !== 'Archived') {
+          const attId = `att-${evt.id}-${m.id}`;
+          if (!seenAttIds.has(attId)) {
+            seenAttIds.add(attId);
+            alignedAttendance.push({
+              id: attId,
+              eventId: evt.id,
+              memberId: m.id,
+              voteStatus: 'NO RESPONSE',
+              attendanceStatus: 'NOT_APPLICABLE',
+              updatedAt: evt.date || new Date().toISOString(),
+            });
+          }
+        }
+      }
+    }
+
     const totalSynced =
-      members.length + events.length + attendance.length + contributions.length + strikes.length + communications.length;
+      members.length + events.length + alignedAttendance.length + contributions.length + strikes.length + communications.length;
 
     if (totalSynced === 0 && errors.length > 0) {
       return {
@@ -408,11 +475,11 @@ export const googleSheetService = {
 
     return {
       success: true,
-      message: `Synchronized ${members.length} members, ${events.length} events, ${attendance.length} attendance records, and ${contributions.length} officer logs.`,
+      message: `Synchronized ${members.length} members, ${events.length} events, ${alignedAttendance.length} aligned attendance records, and ${contributions.length} officer logs.`,
       counts: {
         members: members.length,
         events: events.length,
-        attendance: attendance.length,
+        attendance: alignedAttendance.length,
         contributions: contributions.length,
         strikes: strikes.length,
         communications: communications.length,
@@ -420,7 +487,7 @@ export const googleSheetService = {
       data: {
         members,
         events,
-        attendance,
+        attendance: alignedAttendance,
         contributions,
         strikes,
         communications,

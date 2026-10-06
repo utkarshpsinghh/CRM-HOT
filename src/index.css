@@ -1,10 +1,21 @@
 @import "tailwindcss";
 
+@theme {
+  --font-fantasy: "Lilita One", cursive, sans-serif;
+  --font-cartoon: "Lilita One", cursive, sans-serif;
+  --font-sans: "Outfit", sans-serif;
+}
+
+.font-fantasy, .font-cartoon {
+  font-family: "Lilita One", cursive, sans-serif !important;
+  letter-spacing: 0.03em;
+}
+
 @layer base {
   :root {
-    --bg-dark: #14110e;
-    --card-bg: #221711;
-    --card-border: #4d2b14;
+    --bg-dark: #120c08;
+    --card-bg: #1c130d;
+    --card-border: #522d14;
     --gold: #f59e0b;
     --gold-light: #fef08a;
   }
@@ -41,10 +52,10 @@
 
   body {
     font-family: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    background-color: #14110e;
+    background-color: #120c08;
     background-image: 
-      radial-gradient(ellipse 80% 40% at 50% 0%, rgba(217, 119, 6, 0.12) 0%, transparent 70%),
-      linear-gradient(to bottom, #171310, #14110e 100%);
+      radial-gradient(ellipse 90% 50% at 50% 0%, rgba(245, 158, 11, 0.16) 0%, transparent 65%),
+      linear-gradient(to bottom, #1a120b, #120c08 100%);
     min-height: 100vh;
     color: #fef9ee;
     background-attachment: fixed;
@@ -57,106 +68,161 @@
     }
   }
 
-  h1, h2, h3 {
-    font-family: 'Outfit', sans-serif;
-    letter-spacing: -0.01em;
+  /* Bold Cartoonish Typography */
+  h1, h2, h3, .font-fantasy, .font-cartoon {
+    font-family: 'Lilita One', cursive, sans-serif !important;
+    letter-spacing: 0.03em;
   }
 }
 
-/* Custom Scrollbar */
+/* Custom Cartoon Scrollbar */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
 }
 ::-webkit-scrollbar-track {
-  background: #171310;
+  background: #140d08;
 }
 ::-webkit-scrollbar-thumb {
-  background: #522d14;
-  border-radius: 4px;
+  background: #633315;
+  border: 2px solid #24140a;
+  border-radius: 6px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #783e1b;
+  background: #85441c;
 }
 
-/* Clean Kingshot Game Card */
+/* Bold Cartoon Kingshot Card */
 .kingshot-card {
-  background-color: #221711;
-  background-image: linear-gradient(180deg, #271a13 0%, #1e130e 100%);
-  border: 1px solid #522d14;
-  border-radius: 0.75rem;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  background-color: #1c130d;
+  background-image: linear-gradient(180deg, #241710 0%, #19100a 100%);
+  border: 2.5px solid #5a3217;
+  border-radius: 1.25rem;
+  box-shadow: 0 5px 0 #0d0704, 0 12px 24px rgba(0, 0, 0, 0.5);
 }
 
 .kingshot-card-header {
-  border-bottom: 1px solid #42220d;
-  background-color: rgba(18, 10, 6, 0.4);
-  padding: 0.875rem 1.25rem;
+  border-bottom: 2.5px solid #4a2711;
+  background-color: #26160d;
+  padding: 1rem 1.25rem;
 }
 
-/* Clean Kingshot Buttons */
+/* Tactile 3D Cartoon Buttons */
 .btn-kingshot-gold {
-  background: linear-gradient(180deg, #fbbf24 0%, #d97706 100%);
-  border: 1px solid #b45309;
+  background: linear-gradient(180deg, #fde047 0%, #eab308 50%, #ca8a04 100%);
+  border: 2px solid #fef08a;
   color: #261103;
-  font-weight: 700;
-  border-radius: 0.5rem;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.25);
-  transition: all 0.15s ease-in-out;
+  font-family: 'Lilita One', cursive, sans-serif !important;
+  font-size: 0.85rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border-radius: 0.85rem;
+  box-shadow: 0 4px 0 #78350f, 0 6px 14px rgba(0, 0, 0, 0.35);
+  transition: all 0.12s ease-in-out;
 }
 .btn-kingshot-gold:hover {
-  background: linear-gradient(180deg, #fde047 0%, #f59e0b 100%);
-  box-shadow: 0 3px 8px rgba(245, 158, 11, 0.3);
+  background: linear-gradient(180deg, #fef08a 0%, #facc15 50%, #d97706 100%);
+  box-shadow: 0 4px 0 #78350f, 0 8px 18px rgba(234, 179, 8, 0.4);
 }
 .btn-kingshot-gold:active {
-  transform: translateY(1px);
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 #78350f, 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .btn-kingshot-cream {
-  background: #fffbeb;
-  border: 1px solid #78350f;
-  color: #3b1704;
-  font-weight: 700;
-  border-radius: 0.5rem;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-  transition: all 0.15s ease-in-out;
+  background: #fef3c7;
+  border: 2px solid #fde68a;
+  color: #451a03;
+  font-family: 'Lilita One', cursive, sans-serif !important;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border-radius: 0.85rem;
+  box-shadow: 0 4px 0 #92400e, 0 6px 12px rgba(0, 0, 0, 0.3);
+  transition: all 0.12s ease-in-out;
 }
 .btn-kingshot-cream:hover {
   background: #ffffff;
-  border-color: #b45309;
+  border-color: #fef08a;
 }
 .btn-kingshot-cream:active {
-  transform: translateY(1px);
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 #92400e;
 }
 
 .btn-kingshot-orange {
-  background: linear-gradient(180deg, #ea580c 0%, #c2410c 100%);
-  border: 1px solid #f97316;
+  background: linear-gradient(180deg, #fb923c 0%, #ea580c 50%, #c2410c 100%);
+  border: 2px solid #fed7aa;
   color: #ffffff;
-  font-weight: 700;
-  border-radius: 0.5rem;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.25);
-  transition: all 0.15s ease-in-out;
+  font-family: 'Lilita One', cursive, sans-serif !important;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border-radius: 0.85rem;
+  box-shadow: 0 4px 0 #7c2d12, 0 6px 12px rgba(0, 0, 0, 0.35);
+  transition: all 0.12s ease-in-out;
 }
 .btn-kingshot-orange:hover {
-  background: linear-gradient(180deg, #f97316 0%, #ea580c 100%);
+  background: linear-gradient(180deg, #fdba74 0%, #f97316 50%, #ea580c 100%);
 }
 .btn-kingshot-orange:active {
-  transform: translateY(1px);
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 #7c2d12;
+}
+
+.btn-kingshot-crimson {
+  background: linear-gradient(180deg, #f87171 0%, #dc2626 50%, #991b1b 100%);
+  border: 2px solid #fca5a5;
+  color: #ffffff;
+  font-family: 'Lilita One', cursive, sans-serif !important;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border-radius: 0.85rem;
+  box-shadow: 0 4px 0 #450a0a, 0 6px 12px rgba(0, 0, 0, 0.4);
+  transition: all 0.12s ease-in-out;
+}
+.btn-kingshot-crimson:hover {
+  background: linear-gradient(180deg, #fca5a5 0%, #ef4444 50%, #b91c1c 100%);
+}
+.btn-kingshot-crimson:active {
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 #450a0a;
+}
+
+.btn-kingshot-emerald {
+  background: linear-gradient(180deg, #4ade80 0%, #16a34a 50%, #15803d 100%);
+  border: 2px solid #86efac;
+  color: #ffffff;
+  font-family: 'Lilita One', cursive, sans-serif !important;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border-radius: 0.85rem;
+  box-shadow: 0 4px 0 #052e16, 0 6px 12px rgba(0, 0, 0, 0.4);
+  transition: all 0.12s ease-in-out;
+}
+.btn-kingshot-emerald:hover {
+  background: linear-gradient(180deg, #86efac 0%, #22c55e 50%, #16a34a 100%);
+}
+.btn-kingshot-emerald:active {
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 #052e16;
 }
 
 .btn-kingshot-brown {
   background: #2b180d;
-  border: 1px solid #572e13;
+  border: 2px solid #572e13;
   color: #fef3c7;
-  font-weight: 600;
-  border-radius: 0.5rem;
-  transition: all 0.15s ease-in-out;
+  font-family: 'Lilita One', cursive, sans-serif !important;
+  border-radius: 0.85rem;
+  box-shadow: 0 4px 0 #140b06;
+  transition: all 0.12s ease-in-out;
 }
 .btn-kingshot-brown:hover {
   background: #382012;
   border-color: #854d0e;
   color: #ffffff;
+}
+.btn-kingshot-brown:active {
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 #140b06;
 }
 
 /* Animations */

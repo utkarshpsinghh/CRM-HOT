@@ -32,13 +32,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
   return (
     <div className="space-y-6">
-      {/* Clean Welcome Banner */}
-      <div className="rounded-xl bg-gradient-to-r from-[#241710] to-[#1c120c] border border-[#4d2912] p-5 sm:p-6 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      {/* Cartoon Welcome Banner */}
+      <div className="kingshot-card p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-[#fffbeb] tracking-tight">
+          <h1 className="text-2xl sm:text-3xl font-fantasy font-black text-[#fffbeb] tracking-wide">
             Alliance Command Center
           </h1>
-          <p className="text-xs sm:text-sm text-stone-300 mt-1">
+          <p className="text-xs sm:text-sm text-stone-300 mt-1 font-medium">
             Manage alliance members, record war attendance, and monitor strikes.
           </p>
         </div>
@@ -171,7 +171,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       {/* Events Overview */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-bold text-[#fffbeb]">
+          <h2 className="text-xl font-fantasy font-black text-[#fffbeb] tracking-wide">
             War Events
           </h2>
 
