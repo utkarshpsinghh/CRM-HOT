@@ -164,6 +164,23 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     sounds.setEnabled(settings.soundEnabled);
   }, [settings.soundEnabled]);
 
+  // Cross-tab synchronization: keep settings synced across browser tabs in real-time
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (
+        !e.key ||
+        e.key.startsWith('crm_hot_settings') ||
+        e.key.startsWith('crm_hot_under_dev') ||
+        e.key.startsWith('crm_hot_supabase')
+      ) {
+        const freshSettings = storageService.getSettings();
+        setSettings(freshSettings);
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
+
   // Load all data with safety against showing uninitialized/junk data
   const refreshData = useCallback(async () => {
     const currentSettings = storageService.getSettings();
@@ -198,6 +215,11 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             if (Array.isArray(allData.communications)) setCommunications(allData.communications);
             if (Array.isArray(allData.admins) && allData.admins.length > 0) setAdmins(allData.admins);
             if (Array.isArray(allData.contributions)) setContributions(allData.contributions);
+
+            if (allData.settings && typeof allData.settings.underDevelopment === 'boolean') {
+              storageService.setUnderDevelopment(allData.settings.underDevelopment);
+              setSettings(prev => ({ ...prev, underDevelopment: allData.settings.underDevelopment }));
+            }
 
             setSyncStatus('connected');
             setSyncMessage('Alliance Records Synchronized (HOT Command Center)');
@@ -1144,6 +1166,9 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       title: 'Settings Saved',
       message: 'Alliance command center parameters updated.',
     });
+    if (apiService.isSupabase(newSettings)) {
+      supabaseService.saveSettings(newSettings).catch(err => console.warn('Background Supabase settings save warning:', err));
+    }
     refreshData();
     return true;
   };
@@ -1157,6 +1182,16 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (!cleanKey) {
       return { success: false, message: 'Supabase Anon Public API Key is required.' };
     }
+
+    // Immediately save credentials into storage so they are never lost across tabs or reloads
+    storageService.saveSupabaseCredentials(cleanUrl, cleanKey);
+    setSettings(prev => ({
+      ...prev,
+      supabaseUrl: cleanUrl,
+      supabaseAnonKey: cleanKey,
+      dbProvider: 'supabase',
+      demoMode: false,
+    }));
 
     setIsLoading(true);
     setIsSyncing(true);
@@ -1177,6 +1212,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       };
       storageService.setSettings(newSettings);
       setSettings(newSettings);
+      supabaseService.saveSettings(newSettings).catch(console.warn);
 
       // Refresh data from Supabase
       await refreshData();

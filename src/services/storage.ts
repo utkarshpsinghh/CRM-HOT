@@ -8,6 +8,9 @@ const STORAGE_KEYS = {
   STRIKES: 'crm_hot_strikes_v1',
   COMMUNICATION: 'crm_hot_comms_v1',
   SETTINGS: 'crm_hot_settings_v1',
+  SUPABASE_ANON_KEY: 'crm_hot_supabase_anon_key_v2',
+  SUPABASE_URL: 'crm_hot_supabase_url_v2',
+  UNDER_DEVELOPMENT: 'crm_hot_under_dev_v2',
   ADMIN: 'crm_hot_auth_v1',
   ADMIN_ACCOUNTS: 'crm_hot_admin_accounts_v1',
   CONTRIBUTIONS: 'crm_hot_contributions_v1',
@@ -249,17 +252,42 @@ export const storageService = {
 
   getSettings(): AllianceSettings {
     const raw = localStorage.getItem(STORAGE_KEYS.SETTINGS);
-    if (!raw) return initialSettings;
-    try {
-      const parsed: AllianceSettings = JSON.parse(raw);
-      return {
-        ...initialSettings,
-        ...parsed,
-        dbProvider: 'supabase',
-      };
-    } catch {
-      return initialSettings;
+    const dedicatedKey = localStorage.getItem(STORAGE_KEYS.SUPABASE_ANON_KEY);
+    const dedicatedUrl = localStorage.getItem(STORAGE_KEYS.SUPABASE_URL);
+    const dedicatedUnderDev = localStorage.getItem(STORAGE_KEYS.UNDER_DEVELOPMENT);
+
+    let parsed: Partial<AllianceSettings> = {};
+    if (raw) {
+      try {
+        parsed = JSON.parse(raw);
+      } catch {
+        parsed = {};
+      }
     }
+
+    // Determine underDevelopment:
+    // If dedicated key exists ('true' or 'false'), respect it.
+    // Otherwise if parsed.underDevelopment is boolean, respect it.
+    // Otherwise fallback to initialSettings.underDevelopment (false).
+    let underDevelopment = false;
+    if (dedicatedUnderDev !== null) {
+      underDevelopment = dedicatedUnderDev === 'true';
+    } else if (typeof parsed.underDevelopment === 'boolean') {
+      underDevelopment = parsed.underDevelopment;
+    }
+
+    // Determine Supabase credentials:
+    const supaKey = (parsed.supabaseAnonKey || dedicatedKey || initialSettings.supabaseAnonKey || '').trim();
+    const supaUrl = (parsed.supabaseUrl || dedicatedUrl || initialSettings.supabaseUrl || '').trim();
+
+    return {
+      ...initialSettings,
+      ...parsed,
+      underDevelopment,
+      supabaseAnonKey: supaKey,
+      supabaseUrl: supaUrl,
+      dbProvider: supaKey && supaUrl ? 'supabase' : (parsed.dbProvider || 'supabase'),
+    };
   },
 
   setSettings(settings: AllianceSettings) {
@@ -269,6 +297,43 @@ export const storageService = {
       demoMode: false,
     };
     localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(updated));
+
+    // Also persist dedicated keys for bulletproof multi-tab resilience
+    if (settings.supabaseAnonKey && settings.supabaseAnonKey.trim()) {
+      localStorage.setItem(STORAGE_KEYS.SUPABASE_ANON_KEY, settings.supabaseAnonKey.trim());
+    }
+    if (settings.supabaseUrl && settings.supabaseUrl.trim()) {
+      localStorage.setItem(STORAGE_KEYS.SUPABASE_URL, settings.supabaseUrl.trim());
+    }
+    if (typeof settings.underDevelopment === 'boolean') {
+      localStorage.setItem(STORAGE_KEYS.UNDER_DEVELOPMENT, String(settings.underDevelopment));
+    }
+  },
+
+  saveSupabaseCredentials(url: string, key: string) {
+    const cleanUrl = (url || '').trim();
+    const cleanKey = (key || '').trim();
+    if (cleanKey) {
+      localStorage.setItem(STORAGE_KEYS.SUPABASE_ANON_KEY, cleanKey);
+    }
+    if (cleanUrl) {
+      localStorage.setItem(STORAGE_KEYS.SUPABASE_URL, cleanUrl);
+    }
+    const current = this.getSettings();
+    this.setSettings({
+      ...current,
+      supabaseUrl: cleanUrl || current.supabaseUrl,
+      supabaseAnonKey: cleanKey || current.supabaseAnonKey,
+    });
+  },
+
+  setUnderDevelopment(val: boolean) {
+    localStorage.setItem(STORAGE_KEYS.UNDER_DEVELOPMENT, String(val));
+    const current = this.getSettings();
+    this.setSettings({
+      ...current,
+      underDevelopment: val,
+    });
   },
 
   getAuth() {

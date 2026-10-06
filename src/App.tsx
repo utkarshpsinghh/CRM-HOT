@@ -60,7 +60,7 @@ const MainAppContent: React.FC = () => {
     return <LoadingScreen message="Loading..." />;
   }
 
-  const isDevMode = settings?.underDevelopment !== false;
+  const isDevMode = Boolean(settings?.underDevelopment);
 
   if (!isAuthenticated) {
     if (isDevMode) {

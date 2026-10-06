@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useCRM } from '../../context/CRMContext';
 import { GameButton } from '../common/GameButton';
 import { ConfirmModal } from '../common/ConfirmModal';
 import { AdminAccount, AllianceSettings } from '../../types/crm';
 import { normalizeSupabaseUrl } from '../../services/supabase';
+import { storageService } from '../../services/storage';
 import {
   Settings,
   Database,
@@ -76,10 +77,17 @@ export const SettingsView: React.FC = () => {
   const [warningDays, setWarningDays] = useState(settings.inactivityWarningDays);
   const [inactiveDays, setInactiveDays] = useState(settings.inactivityInactiveDays);
   const [criticalDays, setCriticalDays] = useState(settings.inactivityCriticalDays);
-  const [underDevelopment, setUnderDevelopment] = useState(settings.underDevelopment !== false);
+  const [underDevelopment, setUnderDevelopment] = useState(Boolean(settings.underDevelopment));
   const [googleSheetUrl, setGoogleSheetUrl] = useState(
     settings.googleSheetUrl || 'https://docs.google.com/spreadsheets/d/1z_oPJgwZ2TE05MNe6DFa7-XBw9o1N-3eaLWEoDFCt8c/edit?gid=875082368#gid=875082368'
   );
+
+  // Sync state when settings update across tabs or from background fetch
+  useEffect(() => {
+    setUnderDevelopment(Boolean(settings.underDevelopment));
+    if (settings.supabaseUrl) setSupaUrl(settings.supabaseUrl);
+    if (settings.supabaseAnonKey) setSupaKey(settings.supabaseAnonKey);
+  }, [settings.underDevelopment, settings.supabaseUrl, settings.supabaseAnonKey]);
   const [isSyncingSheet, setIsSyncingSheet] = useState(false);
   const [sheetSyncResult, setSheetSyncResult] = useState<{ success: boolean; message: string; added?: number; updated?: number } | null>(null);
   const [isSyncingAll, setIsSyncingAll] = useState(false);
@@ -111,14 +119,20 @@ export const SettingsView: React.FC = () => {
 
   const handleSaveSettings = async (e?: React.FormEvent) => {
     if (e && e.preventDefault) e.preventDefault();
+    const cleanUrl = supaUrl.trim();
+    const cleanKey = supaKey.trim();
+    if (cleanKey || cleanUrl) {
+      storageService.saveSupabaseCredentials(cleanUrl, cleanKey);
+    }
+    storageService.setUnderDevelopment(underDevelopment);
     await updateSettings({
       ...settings,
-      supabaseUrl: supaUrl.trim(),
-      supabaseAnonKey: supaKey.trim(),
+      supabaseUrl: cleanUrl,
+      supabaseAnonKey: cleanKey,
       kingdomId: kingdomId.trim() || '1391',
       allianceTag: allianceTag.trim() || 'HOT',
       googleSheetUrl: googleSheetUrl.trim(),
-      dbProvider: supaUrl.trim() ? 'supabase' : 'local',
+      dbProvider: cleanUrl ? 'supabase' : 'local',
       inactivityWarningDays: Number(warningDays),
       inactivityInactiveDays: Number(inactiveDays),
       inactivityCriticalDays: Number(criticalDays),
@@ -179,19 +193,25 @@ export const SettingsView: React.FC = () => {
 
   const handleConnectSupabase = async () => {
     const cleanUrl = normalizeSupabaseUrl(supaUrl);
+    const cleanKey = supaKey.trim();
     setSupaUrl(cleanUrl);
+
+    // Save immediately so credentials are never lost across tabs or reloads
+    if (cleanKey || cleanUrl) {
+      storageService.saveSupabaseCredentials(cleanUrl, cleanKey);
+    }
 
     if (!cleanUrl) {
       setSupaTestResult({ success: false, message: 'Please enter your Supabase Project URL.' });
       return;
     }
-    if (!supaKey.trim()) {
+    if (!cleanKey) {
       setSupaTestResult({ success: false, message: 'Please enter your Supabase Anon Public API Key.' });
       return;
     }
     setIsConnectingSupa(true);
     setSupaTestResult(null);
-    const result = await connectSupabase(cleanUrl, supaKey.trim());
+    const result = await connectSupabase(cleanUrl, cleanKey);
     setIsConnectingSupa(false);
     setSupaTestResult(result);
   };
@@ -900,7 +920,18 @@ export const SettingsView: React.FC = () => {
               <input
                 type="url"
                 value={supaUrl}
-                onChange={e => setSupaUrl(e.target.value)}
+                onChange={e => {
+                  const val = e.target.value;
+                  setSupaUrl(val);
+                  if (val.trim()) {
+                    storageService.saveSupabaseCredentials(val.trim(), supaKey);
+                  }
+                }}
+                onBlur={() => {
+                  if (supaUrl.trim()) {
+                    storageService.saveSupabaseCredentials(supaUrl.trim(), supaKey);
+                  }
+                }}
                 placeholder="https://nlnrfoolpcdgvgwgpklx.supabase.co"
                 className="w-full px-3 py-2 rounded-xl bg-[#120c08] border border-[#3e2716] text-stone-200 text-xs sm:text-sm focus:outline-none focus:border-[#ca8a04] font-mono"
               />
@@ -917,7 +948,18 @@ export const SettingsView: React.FC = () => {
                 <input
                   type={showSupaKey ? 'text' : 'password'}
                   value={supaKey}
-                  onChange={e => setSupaKey(e.target.value)}
+                  onChange={e => {
+                    const val = e.target.value;
+                    setSupaKey(val);
+                    if (val.trim()) {
+                      storageService.saveSupabaseCredentials(supaUrl, val.trim());
+                    }
+                  }}
+                  onBlur={() => {
+                    if (supaKey.trim()) {
+                      storageService.saveSupabaseCredentials(supaUrl, supaKey.trim());
+                    }
+                  }}
                   placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
                   className="w-full px-3 py-2 pr-9 rounded-xl bg-[#120c08] border border-[#3e2716] text-stone-200 text-xs sm:text-sm focus:outline-none focus:border-[#ca8a04] font-mono"
                 />
@@ -1181,8 +1223,10 @@ export const SettingsView: React.FC = () => {
               type="checkbox"
               checked={underDevelopment}
               onChange={e => {
-                setUnderDevelopment(e.target.checked);
-                updateSettings({ ...settings, underDevelopment: e.target.checked });
+                const checked = e.target.checked;
+                setUnderDevelopment(checked);
+                storageService.setUnderDevelopment(checked);
+                updateSettings({ ...settings, underDevelopment: checked });
               }}
               className="sr-only peer"
             />

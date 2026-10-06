@@ -110,6 +110,7 @@ export const supabaseService = {
     communications: CommunicationRecord[];
     admins: AdminAccount[];
     contributions: OfficerContribution[];
+    settings?: Partial<AllianceSettings>;
   } | null> {
     const client = this.getClient(settings);
     if (!client) return null;
@@ -137,20 +138,51 @@ export const supabaseService = {
       if (eventsRes.error) throw eventsRes.error;
       if (attendanceRes.error) throw attendanceRes.error;
 
-      return {
-        members: (membersRes.data || []).map(this.mapMemberFromRow),
-        events: (eventsRes.data || []).map(this.mapEventFromRow),
-        attendance: (attendanceRes.data || []).map(this.mapAttendanceFromRow),
-        strikes: (strikesRes.data || []).map(this.mapStrikeFromRow),
-        communications: (commsRes.data || []).map(this.mapCommFromRow),
-        admins: (adminsRes.data || []).map(this.mapAdminFromRow),
-        contributions: (contributionsRes.data || []).map(this.mapContributionFromRow),
-      };
-    } catch (err) {
-      console.error('Supabase getAllData error:', err);
-      return null;
-    }
-  },
+        let remoteSettings: Partial<AllianceSettings> | undefined;
+        try {
+          const { data: settingsData } = await client.from('settings').select('*');
+          if (Array.isArray(settingsData)) {
+            const underDevRow = settingsData.find(r => r.key === 'underDevelopment');
+            if (underDevRow) {
+              remoteSettings = { underDevelopment: underDevRow.value === 'true' };
+            }
+          }
+        } catch {
+          // settings table might not be initialized yet
+        }
+
+        return {
+          members: (membersRes.data || []).map(this.mapMemberFromRow),
+          events: (eventsRes.data || []).map(this.mapEventFromRow),
+          attendance: (attendanceRes.data || []).map(this.mapAttendanceFromRow),
+          strikes: (strikesRes.data || []).map(this.mapStrikeFromRow),
+          communications: (commsRes.data || []).map(this.mapCommFromRow),
+          admins: (adminsRes.data || []).map(this.mapAdminFromRow),
+          contributions: (contributionsRes.data || []).map(this.mapContributionFromRow),
+          settings: remoteSettings,
+        };
+      } catch (err) {
+        console.error('Supabase getAllData error:', err);
+        return null;
+      }
+    },
+
+    async saveSettings(settings: AllianceSettings): Promise<boolean> {
+      const client = this.getClient(settings);
+      if (!client) return false;
+      try {
+        await client.from('settings').upsert([
+          { key: 'underDevelopment', value: String(Boolean(settings.underDevelopment)) },
+          { key: 'inactivityWarningDays', value: String(settings.inactivityWarningDays || 3) },
+          { key: 'inactivityInactiveDays', value: String(settings.inactivityInactiveDays || 7) },
+          { key: 'inactivityCriticalDays', value: String(settings.inactivityCriticalDays || 14) },
+        ], { onConflict: 'key' });
+        return true;
+      } catch (err) {
+        console.warn('saveSettings to Supabase warning:', err);
+        return false;
+      }
+    },
 
   // ==========================================================================
   // AUTH

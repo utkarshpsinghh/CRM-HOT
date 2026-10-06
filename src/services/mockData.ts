@@ -12,7 +12,7 @@ export const initialSettings: AllianceSettings = {
   dbProvider: 'supabase',
   soundEnabled: true,
   demoMode: false,
-  underDevelopment: true,
+  underDevelopment: false,
   autoSyncRoster: true,
   autoSyncIntervalMinutes: 30,
   googleSheetUrl: 'https://docs.google.com/spreadsheets/d/1z_oPJgwZ2TE05MNe6DFa7-XBw9o1N-3eaLWEoDFCt8c/edit?gid=875082368#gid=875082368',
