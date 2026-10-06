@@ -43,29 +43,24 @@ export const EventOverviewCard: React.FC<EventOverviewCardProps> = ({ event }) =
 
   return (
     <div
-      style={{
-        boxShadow: computedStatus === 'Upcoming'
-          ? '0 6px 0 #78350f, 0 10px 20px rgba(0,0,0,0.45)'
-          : '0 6px 0 #180d07, 0 10px 20px rgba(0,0,0,0.45)',
-      }}
-      className={`rounded-2xl border-[3px] p-4 transition-all flex flex-col justify-between select-none relative overflow-hidden ${
+      className={`rounded-xl border p-4 transition-all duration-150 flex flex-col justify-between select-none relative overflow-hidden bg-slate-900/75 hover:bg-slate-900 ${
         computedStatus === 'Upcoming'
-          ? 'bg-gradient-to-b from-[#2a1a0e] to-[#1a0f07] border-[#ca8a04]'
-          : 'bg-gradient-to-b from-[#20150d] to-[#140d07] border-[#4d2812]'
+          ? 'border-amber-500/30 hover:border-amber-500/50'
+          : 'border-slate-800 hover:border-slate-700'
       }`}
     >
       <div>
         <div className="flex items-start justify-between gap-2 mb-2">
           <div>
             <div className="flex items-center gap-2">
-              <span className="font-fantasy font-black text-lg text-[#fffbeb] game-text-shadow">
+              <span className="font-bold text-base text-slate-100">
                 {event.eventType}
               </span>
               <span
-                className={`text-[9px] uppercase font-fantasy font-black px-2 py-0.5 rounded-full border-2 flex items-center gap-1 shadow-sm ${
+                className={`text-[10px] uppercase font-semibold px-2 py-0.5 rounded-md border flex items-center gap-1 ${
                   computedStatus === 'Upcoming'
-                    ? 'bg-amber-950 text-amber-300 border-amber-500 animate-pulse'
-                    : 'bg-emerald-950 text-emerald-300 border-emerald-500'
+                    ? 'bg-amber-500/15 text-amber-300 border-amber-500/30'
+                    : 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
                 }`}
               >
                 {computedStatus === 'Upcoming' ? (
@@ -81,13 +76,13 @@ export const EventOverviewCard: React.FC<EventOverviewCardProps> = ({ event }) =
                 )}
               </span>
             </div>
-            <p className="text-xs text-stone-300 font-medium truncate mt-0.5">{event.eventName}</p>
+            <p className="text-xs text-slate-400 font-medium truncate mt-0.5">{event.eventName}</p>
           </div>
 
-          <div className="text-right text-xs text-stone-300 font-mono">
-            <div className="font-bold">{formattedDate}</div>
+          <div className="text-right text-xs text-slate-400 font-mono">
+            <div className="font-semibold text-slate-200">{formattedDate}</div>
             {relativeTime && (
-              <div className="text-[10px] text-amber-400 font-bold">{relativeTime}</div>
+              <div className="text-[10px] text-amber-400 font-medium">{relativeTime}</div>
             )}
           </div>
         </div>
@@ -96,29 +91,46 @@ export const EventOverviewCard: React.FC<EventOverviewCardProps> = ({ event }) =
         <div className="my-3 space-y-1">
           <ProgressBar
             percentage={attendancePct}
-            label="War Attendance"
+            label="Turnout Rate"
             subLabel={`${joined}/${total}`}
-            color={attendancePct >= 75 ? 'emerald' : attendancePct >= 50 ? 'gold' : 'crimson'}
-            size="md"
+            color={
+              attendancePct >= 75 ? 'emerald' : attendancePct >= 50 ? 'gold' : 'crimson'
+            }
           />
         </div>
 
-        {/* Voting breakdown badge capsule */}
-        <div className="p-2 rounded-xl bg-black/40 border border-white/5 text-[11px] font-mono flex items-center justify-between text-stone-300">
-          <span className="text-stone-400">Votes:</span>
-          <span>
-            <strong className="text-emerald-400">{votedYes} YES</strong> / <strong className="text-red-400">{votedNo} NO</strong> / <strong className="text-stone-500">{noVote} Idle</strong>
-          </span>
+        {/* Voting & Attendance Stats Grid */}
+        <div className="grid grid-cols-2 gap-2 text-xs py-2 px-3 rounded-lg bg-slate-950/60 border border-slate-800/80 mb-3">
+          <div>
+            <span className="text-slate-400 text-[11px] block">Poll Votes:</span>
+            <span className="font-mono font-semibold text-slate-200">
+              <span className="text-emerald-400">{votedYes} YES</span>
+              <span className="text-slate-600 mx-1">/</span>
+              <span className="text-rose-400">{votedNo} NO</span>
+            </span>
+          </div>
+          <div>
+            <span className="text-slate-400 text-[11px] block">Attendance:</span>
+            <span className="font-mono font-semibold text-slate-200">
+              <span className="text-emerald-400">{joined} Joined</span>
+              <span className="text-slate-600 mx-1">/</span>
+              <span className="text-rose-400">{didNotJoin} Missed</span>
+            </span>
+          </div>
         </div>
       </div>
 
-      <div className="pt-3 mt-2 border-t border-[#3b1f0d]">
+      {/* Action Footer */}
+      <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between">
+        <span className="text-[11px] text-slate-400 font-medium">
+          {noVote > 0 ? `${noVote} unvoted members` : 'All votes recorded'}
+        </span>
         <button
           onClick={handleOpenAttendance}
-          className="w-full btn-kingshot-gold py-2 text-xs font-fantasy font-black uppercase flex items-center justify-center gap-1.5 cursor-pointer shadow-md"
+          className="text-xs font-semibold text-amber-400 hover:text-amber-300 flex items-center gap-1 cursor-pointer transition-colors"
         >
-          <Swords className="w-3.5 h-3.5 text-black" />
-          <span>Open War Ledger</span>
+          <span>War Ledger</span>
+          <ChevronRight className="w-3.5 h-3.5" />
         </button>
       </div>
     </div>

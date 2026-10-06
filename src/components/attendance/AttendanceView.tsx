@@ -17,6 +17,7 @@ import {
   ArrowUpDown,
   Filter,
   RefreshCw,
+  CheckCheck,
 } from 'lucide-react';
 import { sounds } from '../../utils/sound';
 import { safeFormatDate } from '../../utils/date';
@@ -101,15 +102,16 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
     return { total, votedYes, votedNo, joined, flaked, noVote, attRate };
   }, [eventAttendanceRecords]);
 
-  // Filter and sort records
+  // Filtered & sorted attendance list
   const categorizedRecords = useMemo(() => {
     const list = eventAttendanceRecords.filter(record => {
       const member = activeMembersMap.get(record.memberId);
-      if (!member || member.status === 'Archived') return false;
+      if (!member) return false;
 
-      // Search filter
-      if (searchQuery.trim() && !member.name.toLowerCase().includes(searchQuery.toLowerCase().trim())) {
-        return false;
+      // Search query
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        if (!member.name.toLowerCase().includes(q)) return false;
       }
 
       // Rank filter
@@ -154,7 +156,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
         return mA.name.localeCompare(mB.name);
       }
 
-      // Default: rank_desc (R5 -> R1, then alphabetical)
+      // Default: rank_desc
       const rA = rankWeights[mA.currentRank] || 0;
       const rB = rankWeights[mB.currentRank] || 0;
       if (rA !== rB) return rB - rA;
@@ -175,98 +177,95 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
 
   if (!currentEvent) {
     return (
-      <div className="p-8 text-center text-stone-400 bg-[#20150f] rounded-xl border border-[#4d2b14]">
+      <div className="p-8 text-center text-slate-400 bg-slate-900/60 rounded-xl border border-slate-800">
         No events created yet. Create an event to record attendance.
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 animate-fade-in">
       {/* Event Header & Selector */}
-      <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-[#20150f] via-[#1a110b] to-[#20150f] border border-[#4d2b14] flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
+      <div className="p-4 sm:p-5 rounded-xl bg-slate-900/80 border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
         <div className="space-y-1">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-xs text-amber-400 font-bold uppercase tracking-wider">
-              Event Attendance
+            <span className="text-xs text-amber-400 font-semibold uppercase tracking-wider">
+              War Attendance
             </span>
             {!isMainAdmin && (
-              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-950/80 border border-amber-600/60 text-amber-300 text-[10px] font-bold uppercase tracking-wider">
-                <Eye className="w-3 h-3 text-amber-400" />
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-slate-800 border border-slate-700 text-slate-300 text-[10px] font-semibold uppercase tracking-wider">
+                <Eye className="w-3 h-3 text-slate-400" />
                 <span>Officer View-Only</span>
               </span>
             )}
             <span
-              className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase border ${
+              className={`text-[10px] px-2 py-0.5 rounded-md font-semibold uppercase border ${
                 currentEvent.status === 'Completed'
-                  ? 'bg-emerald-950/70 text-emerald-300 border-emerald-700'
+                  ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
                   : currentEvent.status === 'Live'
-                  ? 'bg-red-950/70 text-red-200 border-red-500 animate-pulse'
-                  : 'bg-blue-950/70 text-blue-300 border-blue-700'
+                  ? 'bg-rose-500/15 text-rose-300 border-rose-500/30'
+                  : 'bg-sky-500/15 text-sky-300 border-sky-500/30'
               }`}
             >
               {currentEvent.status}
             </span>
           </div>
 
-          <h1 className="text-xl sm:text-2xl font-fantasy font-black text-[#fffbeb] tracking-tight">
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-100 tracking-tight">
             {currentEvent.eventType} — {currentEvent.eventName}
           </h1>
 
-          <div className="flex items-center gap-3 text-xs text-stone-400 flex-wrap">
-            <span className="flex items-center gap-1">
-              <Calendar className="w-3.5 h-3.5 text-[#ca8a04]" />
+          <div className="flex items-center gap-3 text-xs text-slate-400 flex-wrap">
+            <span className="flex items-center gap-1 font-mono">
+              <Calendar className="w-3.5 h-3.5 text-amber-400" />
               {safeFormatDate(currentEvent.date)}
             </span>
-            <span>•</span>
-            <span>
-              {stats.joined} / {stats.total} joined ({stats.attRate.toFixed(0)}% turnout)
-            </span>
-            {stats.flaked > 0 && (
-              <>
-                <span>•</span>
-                <span className="text-red-400 font-semibold">
-                  {stats.flaked} missed after YES
-                </span>
-              </>
-            )}
           </div>
         </div>
 
-        {/* Event Switcher & Bulk Action (MainAdmin Only) */}
-        <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
+        {/* Event Select Dropdown & Actions */}
+        <div className="flex items-center gap-2.5 flex-wrap sm:flex-nowrap">
           <select
             value={currentEvent.id}
             onChange={e => {
               sounds.playClick();
               setSelectedEventIdForAttendance(e.target.value);
             }}
-            aria-label="Select Event"
-            className="flex-1 sm:flex-initial min-w-[180px] px-3 py-2 rounded-xl bg-[#140c08] border border-[#3d200e] text-[#fbbf24] font-semibold text-xs focus:outline-none focus:border-[#ca8a04] cursor-pointer"
+            aria-label="Select War Event"
+            className="px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-slate-100 font-medium text-xs focus:outline-none focus:border-amber-500 cursor-pointer flex-1 sm:flex-initial"
           >
             {events.map(e => (
               <option key={e.id} value={e.id}>
-                {e.eventType} ({safeFormatDate(e.date, { month: 'numeric', day: 'numeric' })})
+                {e.eventType} - {e.eventName}
               </option>
             ))}
           </select>
 
           {isMainAdmin && (
             <button
-              onClick={() => setShowBulkConfirm(true)}
-              className="btn-kingshot-gold px-3.5 py-2 text-xs font-bold uppercase flex items-center justify-center gap-1.5 cursor-pointer flex-1 sm:flex-initial min-w-0"
+              type="button"
+              onClick={() => {
+                sounds.playClick();
+                setShowBulkConfirm(true);
+              }}
+              disabled={stats.votedYes === 0}
+              className="btn-primary px-3 py-2 text-xs font-semibold flex items-center gap-1.5 cursor-pointer shadow-sm disabled:opacity-40"
+              title="Automatically mark all members who voted YES as Joined"
             >
-              <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
-              <span className="truncate">Mark All YES as Joined</span>
+              <CheckCheck className="w-3.5 h-3.5" />
+              <span>Mark YES as Joined</span>
             </button>
           )}
 
           <button
             type="button"
-            onClick={() => syncGoogleSheetAttendance()}
+            onClick={async () => {
+              sounds.playClick();
+              await syncGoogleSheetAttendance(currentEvent.id);
+            }}
             disabled={isSyncing}
-            className="px-3.5 py-2 rounded-xl bg-[#140c08] border border-[#ca8a04]/40 hover:border-[#ca8a04] text-amber-200 text-xs font-fantasy font-black uppercase flex items-center justify-center gap-1.5 cursor-pointer shadow-md transition-all disabled:opacity-50"
-            title="Sync attendance records from official Google Sheet"
+            className="btn-secondary px-3 py-2 text-xs font-semibold flex items-center gap-1.5 cursor-pointer shadow-sm disabled:opacity-50"
+            title="Import live attendance and votes from Google Sheet"
           >
             <RefreshCw className={`w-3.5 h-3.5 text-amber-400 ${isSyncing ? 'animate-spin' : ''}`} />
             <span>Sync Sheet</span>
@@ -274,98 +273,98 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
         </div>
       </div>
 
-      {/* Turnout Statistics Ribbon (Cartoon Loot Pods) */}
+      {/* Turnout Statistics Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-3">
         {/* Turnout Rate */}
-        <div className="p-3.5 rounded-2xl bg-gradient-to-b from-[#2a1a0e] to-[#180f08] border-[2.5px] border-[#ca8a04] shadow-[0_4px_0_#78350f] flex flex-col justify-between">
-          <span className="text-[11px] font-fantasy font-black text-amber-300 uppercase tracking-wider">Turnout Rate</span>
+        <div className="p-3.5 rounded-xl bg-slate-900/80 border border-amber-500/30 flex flex-col justify-between">
+          <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Turnout Rate</span>
           <div className="mt-1 flex items-baseline justify-between">
-            <span className="text-2xl sm:text-3xl font-fantasy font-black text-[#fde047] gold-text-glow">{stats.attRate.toFixed(0)}%</span>
-            <span className="text-xs text-stone-300 font-mono font-bold">{stats.joined}/{stats.total}</span>
+            <span className="text-2xl sm:text-3xl font-bold font-mono text-amber-400">{stats.attRate.toFixed(0)}%</span>
+            <span className="text-xs text-slate-400 font-mono font-medium">{stats.joined}/{stats.total}</span>
           </div>
-          <div className="w-full bg-[#100804] h-2 rounded-full overflow-hidden mt-2 p-0.5 border border-white/5">
+          <div className="w-full bg-slate-950 h-1.5 rounded-full overflow-hidden mt-2">
             <div
-              className="h-full bg-gradient-to-r from-amber-500 via-yellow-400 to-emerald-400 rounded-full transition-all duration-300"
+              className="h-full bg-amber-400 rounded-full transition-all duration-300"
               style={{ width: `${Math.min(100, stats.attRate)}%` }}
             />
           </div>
         </div>
 
         {/* Joined */}
-        <div className="p-3.5 rounded-2xl bg-gradient-to-b from-[#132418] to-[#0c160e] border-[2.5px] border-emerald-600 shadow-[0_4px_0_#064e3b]">
-          <span className="text-[11px] font-fantasy font-black text-emerald-300 uppercase tracking-wider flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block shadow-sm" /> Joined
+        <div className="p-3.5 rounded-xl bg-slate-900/80 border border-emerald-500/30">
+          <span className="text-xs font-semibold text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block" /> Joined
           </span>
           <div className="mt-1 flex items-baseline justify-between">
-            <span className="text-2xl sm:text-3xl font-fantasy font-black text-emerald-300 game-text-shadow">{stats.joined}</span>
-            <span className="text-[11px] text-emerald-200 font-medium">Warriors</span>
+            <span className="text-2xl sm:text-3xl font-bold font-mono text-emerald-400">{stats.joined}</span>
+            <span className="text-xs text-slate-400 font-medium">Members</span>
           </div>
-          <p className="text-[10px] text-emerald-400/80 font-medium mt-1">Attended battle</p>
+          <p className="text-[11px] text-slate-400 mt-1">Present in battle</p>
         </div>
 
         {/* Voted YES */}
-        <div className="p-3.5 rounded-2xl bg-gradient-to-b from-[#121c29] to-[#0a1017] border-[2.5px] border-blue-600 shadow-[0_4px_0_#0c2340]">
-          <span className="text-[11px] font-fantasy font-black text-blue-300 uppercase tracking-wider flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-blue-400 inline-block shadow-sm" /> Voted YES
+        <div className="p-3.5 rounded-xl bg-slate-900/80 border border-sky-500/30">
+          <span className="text-xs font-semibold text-sky-400 uppercase tracking-wider flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-sky-400 inline-block" /> Voted YES
           </span>
           <div className="mt-1 flex items-baseline justify-between">
-            <span className="text-2xl sm:text-3xl font-fantasy font-black text-blue-300 game-text-shadow">{stats.votedYes}</span>
-            <span className="text-[11px] text-blue-200 font-medium">Pledged</span>
+            <span className="text-2xl sm:text-3xl font-bold font-mono text-sky-400">{stats.votedYes}</span>
+            <span className="text-xs text-slate-400 font-medium">Pledged</span>
           </div>
-          <p className="text-[10px] text-blue-400/80 font-medium mt-1">Committed in poll</p>
+          <p className="text-[11px] text-slate-400 mt-1">Confirmed in poll</p>
         </div>
 
         {/* Flaked */}
-        <div className="p-3.5 rounded-2xl bg-gradient-to-b from-[#291010] to-[#170808] border-[2.5px] border-red-600 shadow-[0_4px_0_#450a0a]">
-          <span className="text-[11px] font-fantasy font-black text-red-300 uppercase tracking-wider flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-red-500 inline-block shadow-sm" /> Flaked
+        <div className="p-3.5 rounded-xl bg-slate-900/80 border border-rose-500/30">
+          <span className="text-xs font-semibold text-rose-400 uppercase tracking-wider flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-rose-400 inline-block" /> Missed after YES
           </span>
           <div className="mt-1 flex items-baseline justify-between">
-            <span className="text-2xl sm:text-3xl font-fantasy font-black text-red-400 game-text-shadow">{stats.flaked}</span>
-            <span className="text-[11px] text-red-300 font-medium">Missed</span>
+            <span className="text-2xl sm:text-3xl font-bold font-mono text-rose-400">{stats.flaked}</span>
+            <span className="text-xs text-slate-400 font-medium">Flaked</span>
           </div>
-          <p className="text-[10px] text-red-400/80 font-medium mt-1">Voted YES, absent</p>
+          <p className="text-[11px] text-slate-400 mt-1">Voted YES, absent</p>
         </div>
 
         {/* No Vote */}
-        <div className="p-3.5 rounded-2xl bg-gradient-to-b from-[#20150d] to-[#140d07] border-[2.5px] border-[#4a2610] shadow-[0_4px_0_#140b06] col-span-2 sm:col-span-1">
-          <span className="text-[11px] font-fantasy font-black text-stone-300 uppercase tracking-wider flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-stone-500 inline-block shadow-sm" /> No Vote
+        <div className="p-3.5 rounded-xl bg-slate-900/80 border border-slate-800 col-span-2 sm:col-span-1">
+          <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-slate-500 inline-block" /> No Vote
           </span>
           <div className="mt-1 flex items-baseline justify-between">
-            <span className="text-2xl sm:text-3xl font-fantasy font-black text-stone-300 game-text-shadow">{stats.noVote}</span>
-            <span className="text-[11px] text-stone-400 font-medium">Silent</span>
+            <span className="text-2xl sm:text-3xl font-bold font-mono text-slate-300">{stats.noVote}</span>
+            <span className="text-xs text-slate-400 font-medium">Silent</span>
           </div>
-          <p className="text-[10px] text-stone-400 font-medium mt-1">No poll response</p>
+          <p className="text-[11px] text-slate-400 mt-1">No poll response</p>
         </div>
       </div>
 
       {/* Filter, Search & Sort Toolbar */}
-      <div className="p-3.5 sm:p-4 rounded-2xl bg-[#180e08] border-[3px] border-[#4a2610] shadow-[0_5px_0_#0f0703] flex flex-col md:flex-row md:items-center justify-between gap-3">
+      <div className="p-3 sm:p-4 rounded-xl bg-slate-900/80 border border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-3">
         {/* Category Tabs */}
-        <div className="flex items-center gap-2 overflow-x-auto scrollbar-none pb-1 md:pb-0">
+        <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pb-1 md:pb-0">
           <button
             onClick={() => {
               sounds.playClick();
               setActiveCategory('ALL');
             }}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-fantasy font-black uppercase cursor-pointer shrink-0 transition-all ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer shrink-0 transition-colors ${
               activeCategory === 'ALL'
-                ? 'bg-gradient-to-b from-[#fde047] to-[#ca8a04] text-[#291304] border-2 border-[#fef08a] shadow-[0_3px_0_#78350f] transform -translate-y-0.5'
-                : 'bg-[#140c08] border-2 border-[#381c0c] text-stone-300 hover:text-white active:translate-y-0.5'
+                ? 'bg-amber-500 text-slate-950 shadow-sm'
+                : 'bg-slate-950 border border-slate-800 text-slate-400 hover:text-white'
             }`}
           >
-            All Warriors ({stats.total})
+            All Members ({stats.total})
           </button>
           <button
             onClick={() => {
               sounds.playClick();
               setActiveCategory('JOINED');
             }}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-fantasy font-black uppercase cursor-pointer shrink-0 transition-all ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer shrink-0 transition-colors ${
               activeCategory === 'JOINED'
-                ? 'bg-gradient-to-b from-[#86efac] to-[#16a34a] text-black border-2 border-[#bbf7d0] shadow-[0_3px_0_#052e16] transform -translate-y-0.5'
-                : 'bg-[#140c08] border-2 border-[#381c0c] text-emerald-400 hover:text-emerald-300 active:translate-y-0.5'
+                ? 'bg-emerald-500 text-slate-950 shadow-sm'
+                : 'bg-slate-950 border border-slate-800 text-emerald-400 hover:text-emerald-300'
             }`}
           >
             Joined ({stats.joined})
@@ -375,10 +374,10 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
               sounds.playClick();
               setActiveCategory('FLAKED');
             }}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-fantasy font-black uppercase cursor-pointer shrink-0 transition-all ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer shrink-0 transition-colors ${
               activeCategory === 'FLAKED'
-                ? 'bg-gradient-to-b from-[#fca5a5] to-[#dc2626] text-white border-2 border-[#fecaca] shadow-[0_3px_0_#450a0a] transform -translate-y-0.5'
-                : 'bg-[#140c08] border-2 border-[#381c0c] text-red-400 hover:text-red-300 active:translate-y-0.5'
+                ? 'bg-rose-500 text-white shadow-sm'
+                : 'bg-slate-950 border border-slate-800 text-rose-400 hover:text-rose-300'
             }`}
           >
             Flaked ({stats.flaked})
@@ -388,10 +387,10 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
               sounds.playClick();
               setActiveCategory('NO_VOTE');
             }}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-fantasy font-black uppercase cursor-pointer shrink-0 transition-all ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer shrink-0 transition-colors ${
               activeCategory === 'NO_VOTE'
-                ? 'bg-gradient-to-b from-[#d6d3d1] to-[#78716c] text-black border-2 border-white shadow-[0_3px_0_#44403c] transform -translate-y-0.5'
-                : 'bg-[#140c08] border-2 border-[#381c0c] text-stone-400 hover:text-white active:translate-y-0.5'
+                ? 'bg-slate-700 text-white shadow-sm'
+                : 'bg-slate-950 border border-slate-800 text-slate-400 hover:text-white'
             }`}
           >
             No Vote ({stats.noVote})
@@ -402,13 +401,13 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
         <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
           {/* Search Input */}
           <div className="relative flex-1 sm:w-48">
-            <Search className="w-3.5 h-3.5 text-stone-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               placeholder="Search member..."
-              className="w-full pl-8 pr-3 py-1.5 rounded-lg bg-[#140c08] border border-[#2d1b11] text-stone-200 text-xs focus:outline-none focus:border-[#ca8a04]"
+              className="w-full pl-8 pr-3 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-slate-200 text-xs focus:outline-none focus:border-amber-500 placeholder:text-slate-500"
             />
           </div>
 
@@ -421,7 +420,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
                 setRankFilter(e.target.value);
               }}
               aria-label="Filter by Rank"
-              className="px-2.5 py-1.5 rounded-lg bg-[#140c08] border border-[#2d1b11] text-stone-300 font-medium text-xs focus:outline-none focus:border-[#ca8a04] cursor-pointer"
+              className="px-2.5 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-slate-300 font-medium text-xs focus:outline-none focus:border-amber-500 cursor-pointer"
             >
               <option value="ALL">All Ranks</option>
               <option value="R5">Rank R5</option>
@@ -442,11 +441,11 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
                 setSortBy(e.target.value);
               }}
               aria-label="Sort by"
-              className="px-2.5 py-1.5 rounded-lg bg-[#140c08] border border-[#2d1b11] text-[#fbbf24] font-semibold text-xs focus:outline-none focus:border-[#ca8a04] cursor-pointer"
+              className="px-2.5 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-amber-300 font-medium text-xs focus:outline-none focus:border-amber-500 cursor-pointer"
             >
-              <option value="rank_desc">Rank (High → Low)</option>
-              <option value="name_asc">Name (A → Z)</option>
-              <option value="name_desc">Name (Z → A)</option>
+              <option value="rank_desc">Rank (High to Low)</option>
+              <option value="name_asc">Name (A to Z)</option>
+              <option value="name_desc">Name (Z to A)</option>
               <option value="attendance">Turnout (Joined first)</option>
               <option value="vote">Vote (YES first)</option>
             </select>
@@ -457,7 +456,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
       {/* MOBILE ATTENDANCE CARDS (< md) */}
       <div className="block md:hidden space-y-3">
         {categorizedRecords.length === 0 ? (
-          <div className="p-8 text-center text-stone-400 bg-[#20150f] rounded-2xl border border-[#4d2b14]">
+          <div className="p-8 text-center text-slate-400 bg-slate-900/60 rounded-xl border border-slate-800">
             No members in this category.
           </div>
         ) : (
@@ -470,8 +469,8 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
             return (
               <div
                 key={record.id}
-                className={`p-3.5 rounded-2xl bg-[#20150f] border-2 space-y-2.5 transition-colors ${
-                  isFlaked ? 'border-red-600/70 bg-[#2a130f]' : 'border-[#4d2b14]'
+                className={`p-3.5 rounded-xl border space-y-2.5 transition-colors ${
+                  isFlaked ? 'border-rose-500/50 bg-rose-500/10' : 'border-slate-800 bg-slate-900/80'
                 }`}
               >
                 {/* Header: Player Name + Rank */}
@@ -482,21 +481,22 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
                         sounds.playClick();
                         setSelectedMemberForProfile(member);
                       }}
-                      className="font-fantasy font-black text-sm text-[#fffbeb] hover:text-[#fbbf24] cursor-pointer truncate"
+                      className="font-semibold text-sm text-slate-100 hover:text-amber-400 cursor-pointer truncate"
                     >
                       {member.name}
                     </span>
                     <RankBadge rank={member.currentRank} size="sm" />
                     {member.status === 'Visitor' && (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-cyan-950 text-cyan-300 border border-cyan-500/60 font-bold shrink-0">
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-sky-950 text-sky-300 border border-sky-500/50 font-semibold shrink-0">
                         Visitor
                       </span>
                     )}
                   </div>
 
                   {isFlaked && (
-                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-red-950 text-red-200 border border-red-500 font-bold shrink-0">
-                      ⚠️ Flaked
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/40 font-semibold shrink-0 flex items-center gap-1">
+                      <AlertTriangle className="w-3 h-3" />
+                      <span>Flaked</span>
                     </span>
                   )}
                 </div>
@@ -506,21 +506,21 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
                   <div className="space-y-2 pt-1">
                     <div className="grid grid-cols-2 gap-2 text-xs">
                       {/* Vote Cast Badge */}
-                      <div className="p-2 rounded-xl bg-[#140c08] border border-[#3d200e] flex flex-col gap-1">
-                        <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider">Vote Cast</span>
+                      <div className="p-2 rounded-lg bg-slate-950 border border-slate-800 flex flex-col gap-1">
+                        <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Vote Cast</span>
                         <div>
                           {record.voteStatus === 'YES' && (
-                            <span className="inline-flex items-center gap-1 text-emerald-400 font-bold">
+                            <span className="inline-flex items-center gap-1 text-emerald-400 font-semibold">
                               <Check className="w-3.5 h-3.5" /> YES
                             </span>
                           )}
                           {record.voteStatus === 'NO' && (
-                            <span className="inline-flex items-center gap-1 text-red-400 font-bold">
+                            <span className="inline-flex items-center gap-1 text-rose-400 font-semibold">
                               <X className="w-3.5 h-3.5" /> NO
                             </span>
                           )}
                           {record.voteStatus === 'NO RESPONSE' && (
-                            <span className="inline-flex items-center gap-1 text-stone-500 font-medium">
+                            <span className="inline-flex items-center gap-1 text-slate-500 font-medium">
                               <Minus className="w-3 h-3" /> No Vote
                             </span>
                           )}
@@ -528,21 +528,21 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
                       </div>
 
                       {/* Attendance Badge */}
-                      <div className="p-2 rounded-xl bg-[#140c08] border border-[#3d200e] flex flex-col gap-1">
-                        <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider">Attendance</span>
+                      <div className="p-2 rounded-lg bg-slate-950 border border-slate-800 flex flex-col gap-1">
+                        <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Attendance</span>
                         <div>
                           {record.attendanceStatus === 'JOINED' && (
-                            <span className="inline-flex items-center gap-1 text-emerald-300 font-bold">
-                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> Joined Battle
+                            <span className="inline-flex items-center gap-1 text-emerald-300 font-semibold">
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> Joined
                             </span>
                           )}
                           {record.attendanceStatus === 'DIDNT_JOIN' && (
-                            <span className="inline-flex items-center gap-1 text-red-400 font-bold">
+                            <span className="inline-flex items-center gap-1 text-rose-400 font-semibold">
                               <X className="w-3.5 h-3.5" /> Missed
                             </span>
                           )}
                           {record.attendanceStatus === 'NOT_APPLICABLE' && (
-                            <span className="inline-flex items-center gap-1 text-stone-500 font-medium">
+                            <span className="inline-flex items-center gap-1 text-slate-500 font-medium">
                               Unrecorded
                             </span>
                           )}
@@ -552,10 +552,6 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
 
                     {isFlaked && (
                       <div className="space-y-1.5 pt-0.5">
-                        <div className="p-2 rounded-xl bg-red-950/50 border border-red-700/60 text-xs text-red-200 flex items-center gap-1.5 font-bold">
-                          <AlertTriangle className="w-3.5 h-3.5 text-red-400 shrink-0" />
-                          <span>Member voted YES but missed battle</span>
-                        </div>
                         <button
                           type="button"
                           onClick={() =>
@@ -564,9 +560,9 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
                               `Missed ${currentEvent.eventType} after voting YES`
                             )
                           }
-                          className="w-full py-1.5 rounded-xl bg-red-950/80 border border-red-600 text-red-200 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer shadow-sm hover:bg-red-900 transition-colors"
+                          className="w-full py-1.5 rounded-lg bg-rose-500/20 border border-rose-500/40 text-rose-200 text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer hover:bg-rose-500/30 transition-colors"
                         >
-                          <Flame className="w-3.5 h-3.5 text-red-400" />
+                          <Flame className="w-3.5 h-3.5 text-rose-400" />
                           <span>Issue Penalty Strike</span>
                         </button>
                       </div>
@@ -576,16 +572,16 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
                   /* MainAdmin Interactive Card Mode */
                   <>
                     {/* Vote Row */}
-                    <div className="p-2 rounded-xl bg-[#140c08] border border-[#3d200e] flex items-center justify-between gap-2">
-                      <span className="text-[11px] font-bold text-stone-400 uppercase">Vote Cast:</span>
+                    <div className="p-2 rounded-lg bg-slate-950 border border-slate-800 flex items-center justify-between gap-2">
+                      <span className="text-[11px] font-semibold text-slate-400 uppercase">Vote Cast:</span>
                       <div className="flex items-center gap-1">
                         <button
                           type="button"
                           onClick={() => updateVote(currentEvent.id, member.id, 'YES')}
-                          className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                          className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-colors cursor-pointer ${
                             record.voteStatus === 'YES'
                               ? 'bg-emerald-600 text-white shadow-sm'
-                              : 'bg-[#20150f] text-stone-400 hover:text-white'
+                              : 'bg-slate-900 text-slate-400 hover:text-white'
                           }`}
                         >
                           YES
@@ -593,10 +589,10 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
                         <button
                           type="button"
                           onClick={() => updateVote(currentEvent.id, member.id, 'NO')}
-                          className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                          className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-colors cursor-pointer ${
                             record.voteStatus === 'NO'
-                              ? 'bg-red-700 text-white shadow-sm'
-                              : 'bg-[#20150f] text-stone-400 hover:text-white'
+                              ? 'bg-rose-600 text-white shadow-sm'
+                              : 'bg-slate-900 text-slate-400 hover:text-white'
                           }`}
                         >
                           NO
@@ -604,10 +600,10 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
                         <button
                           type="button"
                           onClick={() => updateVote(currentEvent.id, member.id, 'NO RESPONSE')}
-                          className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                          className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-colors cursor-pointer ${
                             record.voteStatus === 'NO RESPONSE'
-                              ? 'bg-stone-700 text-stone-200'
-                              : 'bg-[#20150f] text-stone-500 hover:text-white'
+                              ? 'bg-slate-700 text-slate-200'
+                              : 'bg-slate-900 text-slate-500 hover:text-white'
                           }`}
                         >
                           —
@@ -626,14 +622,14 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
                             record.attendanceStatus === 'JOINED' ? 'NOT_APPLICABLE' : 'JOINED'
                           )
                         }
-                        className={`flex-1 py-2 rounded-xl text-xs font-fantasy font-black uppercase flex items-center justify-center gap-1.5 transition-all cursor-pointer select-none active:scale-95 ${
+                        className={`flex-1 py-1.5 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer select-none ${
                           record.attendanceStatus === 'JOINED'
-                            ? 'bg-emerald-600 text-white shadow-md border-2 border-emerald-400'
-                            : 'bg-[#140c08] border border-[#3d200e] text-stone-400 hover:text-emerald-300'
+                            ? 'bg-emerald-600 text-white shadow-sm'
+                            : 'bg-slate-950 border border-slate-800 text-slate-400 hover:text-emerald-300'
                         }`}
                       >
-                        <Check className="w-4 h-4 stroke-[3]" />
-                        <span>Joined Battle</span>
+                        <Check className="w-3.5 h-3.5" />
+                        <span>Joined</span>
                       </button>
 
                       <button
@@ -645,13 +641,13 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
                             record.attendanceStatus === 'DIDNT_JOIN' ? 'NOT_APPLICABLE' : 'DIDNT_JOIN'
                           )
                         }
-                        className={`flex-1 py-2 rounded-xl text-xs font-fantasy font-black uppercase flex items-center justify-center gap-1.5 transition-all cursor-pointer select-none active:scale-95 ${
+                        className={`flex-1 py-1.5 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer select-none ${
                           record.attendanceStatus === 'DIDNT_JOIN'
-                            ? 'bg-red-700 text-white shadow-md border-2 border-red-400'
-                            : 'bg-[#140c08] border border-[#3d200e] text-stone-400 hover:text-red-300'
+                            ? 'bg-rose-600 text-white shadow-sm'
+                            : 'bg-slate-950 border border-slate-800 text-slate-400 hover:text-rose-300'
                         }`}
                       >
-                        <X className="w-4 h-4 stroke-[3]" />
+                        <X className="w-3.5 h-3.5" />
                         <span>Missed</span>
                       </button>
                     </div>
@@ -667,9 +663,9 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
                               `Missed ${currentEvent.eventType} after voting YES`
                             )
                           }
-                          className="w-full py-1.5 rounded-xl bg-red-950/80 border border-red-600 text-red-200 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer shadow-sm"
+                          className="w-full py-1.5 rounded-lg bg-rose-500/20 border border-rose-500/40 text-rose-200 text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer hover:bg-rose-500/30 transition-colors"
                         >
-                          <Flame className="w-3.5 h-3.5 text-red-400" />
+                          <Flame className="w-3.5 h-3.5 text-rose-400" />
                           <span>Issue Penalty Strike</span>
                         </button>
                       </div>
@@ -683,9 +679,9 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
       </div>
 
       {/* DESKTOP ATTENDANCE TABLE (Hidden on screens < md) */}
-      <div className="hidden md:block rounded-xl bg-[#20150f] border border-[#4d2b14] overflow-hidden shadow-sm">
+      <div className="hidden md:block rounded-xl bg-slate-900/80 border border-slate-800 overflow-hidden shadow-sm">
         <table className="w-full text-left text-xs sm:text-sm">
-          <thead className="bg-[#170e09] text-stone-300 font-semibold text-xs border-b border-[#3d200e]">
+          <thead className="bg-slate-950 text-slate-400 font-semibold text-xs border-b border-slate-800">
             <tr>
               <th className="py-3 px-4">Player</th>
               <th className="py-3 px-4">Rank</th>
@@ -696,10 +692,10 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-[#2a170b] text-stone-200">
+          <tbody className="divide-y divide-slate-800/60 text-slate-200">
             {categorizedRecords.length === 0 ? (
               <tr>
-                <td colSpan={5} className="py-8 text-center text-stone-400">
+                <td colSpan={5} className="py-8 text-center text-slate-400">
                   No members match the current filter or search criteria.
                 </td>
               </tr>
@@ -713,7 +709,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
                 return (
                   <tr
                     key={record.id}
-                    className={`hover:bg-[#271a13] transition-colors ${isFlaked ? 'bg-red-950/20' : ''}`}
+                    className={`hover:bg-slate-800/40 transition-colors ${isFlaked ? 'bg-rose-500/5' : ''}`}
                   >
                     {/* Name */}
                     <td className="py-3 px-4">
@@ -723,18 +719,18 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
                             sounds.playClick();
                             setSelectedMemberForProfile(member);
                           }}
-                          className="font-bold text-stone-100 hover:text-[#fbbf24] cursor-pointer"
+                          className="font-semibold text-slate-100 hover:text-amber-400 cursor-pointer"
                         >
                           {member.name}
                         </span>
                         {member.status === 'Visitor' && (
-                          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-cyan-950 text-cyan-300 border border-cyan-500/60 font-bold shrink-0">
+                          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-sky-950 text-sky-300 border border-sky-500/50 font-semibold shrink-0">
                             Visitor
                           </span>
                         )}
                       </div>
                       {isFlaked && (
-                        <span className="block text-[11px] text-red-400 font-medium">
+                        <span className="block text-[11px] text-rose-400 font-medium">
                           Voted YES but missed
                         </span>
                       )}
@@ -752,10 +748,10 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
                           <button
                             type="button"
                             onClick={() => updateVote(currentEvent.id, member.id, 'YES')}
-                            className={`px-2 py-0.5 rounded text-[11px] font-bold cursor-pointer ${
+                            className={`px-2.5 py-1 rounded-md text-xs font-semibold cursor-pointer transition-colors ${
                               record.voteStatus === 'YES'
-                                ? 'bg-emerald-600 text-white'
-                                : 'bg-[#140c08] text-stone-400 hover:text-white'
+                                ? 'bg-emerald-600 text-white shadow-sm'
+                                : 'bg-slate-950 text-slate-400 hover:text-white border border-slate-800'
                             }`}
                           >
                             YES
@@ -763,10 +759,10 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
                           <button
                             type="button"
                             onClick={() => updateVote(currentEvent.id, member.id, 'NO')}
-                            className={`px-2 py-0.5 rounded text-[11px] font-bold cursor-pointer ${
+                            className={`px-2.5 py-1 rounded-md text-xs font-semibold cursor-pointer transition-colors ${
                               record.voteStatus === 'NO'
-                                ? 'bg-red-600 text-white'
-                                : 'bg-[#140c08] text-stone-400 hover:text-white'
+                                ? 'bg-rose-600 text-white shadow-sm'
+                                : 'bg-slate-950 text-slate-400 hover:text-white border border-slate-800'
                             }`}
                           >
                             NO
@@ -774,10 +770,10 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
                           <button
                             type="button"
                             onClick={() => updateVote(currentEvent.id, member.id, 'NO RESPONSE')}
-                            className={`px-2 py-0.5 rounded text-[11px] font-bold cursor-pointer ${
+                            className={`px-2.5 py-1 rounded-md text-xs font-semibold cursor-pointer transition-colors ${
                               record.voteStatus === 'NO RESPONSE'
-                                ? 'bg-stone-700 text-stone-200'
-                                : 'bg-[#140c08] text-stone-500 hover:text-white'
+                                ? 'bg-slate-700 text-slate-200'
+                                : 'bg-slate-950 text-slate-500 hover:text-white border border-slate-800'
                             }`}
                           >
                             —
@@ -787,19 +783,19 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
                         /* SubAdmin View-Only Badge */
                         <div>
                           {record.voteStatus === 'YES' && (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-950/70 border border-emerald-600/60 text-emerald-300 font-bold text-xs">
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 font-semibold text-xs">
                               <Check className="w-3.5 h-3.5 text-emerald-400" />
                               <span>YES</span>
                             </span>
                           )}
                           {record.voteStatus === 'NO' && (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-red-950/70 border border-red-600/60 text-red-300 font-bold text-xs">
-                              <X className="w-3.5 h-3.5 text-red-400" />
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-rose-500/15 border border-rose-500/30 text-rose-300 font-semibold text-xs">
+                              <X className="w-3.5 h-3.5 text-rose-400" />
                               <span>NO</span>
                             </span>
                           )}
                           {record.voteStatus === 'NO RESPONSE' && (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-stone-900 border border-stone-700/60 text-stone-400 text-xs font-semibold">
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-slate-800 text-slate-400 text-xs font-medium">
                               <Minus className="w-3 h-3" />
                               <span>No Vote</span>
                             </span>
@@ -821,10 +817,10 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
                                 record.attendanceStatus === 'JOINED' ? 'NOT_APPLICABLE' : 'JOINED'
                               )
                             }
-                            className={`px-2.5 py-1 rounded text-xs font-bold cursor-pointer flex items-center gap-1 ${
+                            className={`px-2.5 py-1 rounded-md text-xs font-semibold cursor-pointer flex items-center gap-1 transition-colors ${
                               record.attendanceStatus === 'JOINED'
                                 ? 'bg-emerald-600 text-white shadow-sm'
-                                : 'bg-[#140c08] text-stone-400 hover:text-white'
+                                : 'bg-slate-950 border border-slate-800 text-slate-400 hover:text-white'
                             }`}
                           >
                             <Check className="w-3 h-3" />
@@ -840,10 +836,10 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
                                 record.attendanceStatus === 'DIDNT_JOIN' ? 'NOT_APPLICABLE' : 'DIDNT_JOIN'
                               )
                             }
-                            className={`px-2.5 py-1 rounded text-xs font-bold cursor-pointer flex items-center gap-1 ${
+                            className={`px-2.5 py-1 rounded-md text-xs font-semibold cursor-pointer flex items-center gap-1 transition-colors ${
                               record.attendanceStatus === 'DIDNT_JOIN'
-                                ? 'bg-red-700 text-white shadow-sm'
-                                : 'bg-[#140c08] text-stone-400 hover:text-white'
+                                ? 'bg-rose-600 text-white shadow-sm'
+                                : 'bg-slate-950 border border-slate-800 text-slate-400 hover:text-white'
                             }`}
                           >
                             <X className="w-3 h-3" />
@@ -854,19 +850,19 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
                         /* SubAdmin View-Only Badge */
                         <div>
                           {record.attendanceStatus === 'JOINED' && (
-                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-emerald-950/80 border border-emerald-600 text-emerald-200 font-bold text-xs shadow-sm">
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 font-semibold text-xs">
                               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                              <span>Joined Battle</span>
+                              <span>Joined</span>
                             </span>
                           )}
                           {record.attendanceStatus === 'DIDNT_JOIN' && (
-                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-red-950/80 border border-red-600 text-red-200 font-bold text-xs shadow-sm">
-                              <X className="w-3.5 h-3.5 text-red-400" />
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-rose-500/15 border border-rose-500/30 text-rose-300 font-semibold text-xs">
+                              <X className="w-3.5 h-3.5 text-rose-400" />
                               <span>Missed</span>
                             </span>
                           )}
                           {record.attendanceStatus === 'NOT_APPLICABLE' && (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#140c08] border border-[#3d200e] text-stone-500 text-xs">
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-slate-950 border border-slate-800 text-slate-500 text-xs">
                               Unrecorded
                             </span>
                           )}
@@ -885,18 +881,18 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
                               `Missed ${currentEvent.eventType} after voting YES`
                             )
                           }
-                          className="px-2.5 py-1 rounded-lg bg-red-950/70 border border-red-700 text-red-200 hover:bg-red-900 hover:text-white text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer transition-colors shadow-sm"
+                          className="px-2.5 py-1 rounded-md bg-rose-500/20 border border-rose-500/40 text-rose-200 hover:bg-rose-500/30 text-xs font-semibold inline-flex items-center gap-1.5 cursor-pointer transition-colors shadow-sm"
                           title="Issue Penalty Strike"
                         >
-                          <Flame className="w-3.5 h-3.5 text-red-400" />
+                          <Flame className="w-3.5 h-3.5 text-rose-400" />
                           <span>Issue Strike</span>
                         </button>
                       ) : record.attendanceStatus === 'JOINED' ? (
-                        <span className="text-xs font-bold text-emerald-400/90">
-                          Attended Battle
+                        <span className="text-xs font-semibold text-emerald-400">
+                          Attended
                         </span>
                       ) : (
-                        <span className="text-stone-500 text-xs">—</span>
+                        <span className="text-slate-500 text-xs">—</span>
                       )}
                     </td>
                   </tr>

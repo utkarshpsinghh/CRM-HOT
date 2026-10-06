@@ -36,11 +36,11 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
       position={position}
     >
       <div className="space-y-5">
-        <div className="text-sm text-stone-300 leading-relaxed bg-[#120c08] p-4 rounded-xl border border-[#3e2716]">
+        <div className="text-sm text-slate-300 leading-relaxed bg-slate-950 p-4 rounded-xl border border-slate-800">
           {message}
         </div>
 
-        <div className="flex items-center justify-end gap-3 pt-2">
+        <div className="flex items-center justify-end gap-2.5 pt-2">
           <GameButton variant="slate" size="md" onClick={onClose}>
             {cancelLabel}
           </GameButton>

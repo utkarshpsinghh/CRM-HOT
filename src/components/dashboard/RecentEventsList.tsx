@@ -17,20 +17,20 @@ export const RecentEventsList: React.FC = () => {
   };
 
   return (
-    <div className="kingshot-card shadow-lg overflow-hidden">
-      <div className="kingshot-card-header flex items-center justify-between">
+    <div className="rounded-xl border border-slate-800 bg-slate-900/75 overflow-hidden">
+      <div className="px-4 py-3 border-b border-slate-800/80 bg-slate-950/40 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Swords className="w-4 h-4 text-amber-400" />
-          <h3 className="font-fantasy font-black text-sm sm:text-base text-[#fef08a] uppercase tracking-wide">
-            Recent &amp; Upcoming Battle Events
+          <h3 className="font-semibold text-sm text-slate-200">
+            Recent &amp; Upcoming Alliance Wars
           </h3>
         </div>
-        <span className="text-[11px] font-fantasy font-black uppercase text-amber-300/80 tracking-wider">
-          Tap row to enter ledger
+        <span className="text-xs text-slate-400 font-medium hidden sm:inline">
+          Click any row to open ledger
         </span>
       </div>
 
-      <div className="divide-y-2 divide-[#381c0c]">
+      <div className="divide-y divide-slate-800/60">
         {sorted.slice(0, 6).map(evt => {
           const records = attendance.filter(a => a.eventId === evt.id);
           const total = records.length;
@@ -48,38 +48,38 @@ export const RecentEventsList: React.FC = () => {
             <div
               key={evt.id}
               onClick={() => handleSelectEvent(evt.id)}
-              className="px-4 py-3 hover:bg-[#2c1a0e] transition-colors flex items-center justify-between gap-3 cursor-pointer group select-none active:bg-[#382012]"
+              className="px-4 py-3 hover:bg-slate-800/50 transition-colors flex items-center justify-between gap-3 cursor-pointer group select-none active:bg-slate-800/70"
             >
               <div className="min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="font-fantasy font-black text-sm sm:text-base text-[#fffbeb] group-hover:text-[#fde047] transition-colors truncate">
+                  <span className="font-semibold text-sm text-slate-100 group-hover:text-amber-400 transition-colors truncate">
                     {evt.eventType}
                   </span>
                   <span
-                    className={`text-[9px] font-fantasy font-black uppercase px-2 py-0.5 rounded-full border-2 ${
+                    className={`text-[10px] font-semibold uppercase px-2 py-0.5 rounded-md border ${
                       computedStatus === 'Upcoming'
-                        ? 'bg-amber-950 text-amber-300 border-amber-500 animate-pulse'
-                        : 'bg-emerald-950 text-emerald-300 border-emerald-500'
+                        ? 'bg-amber-500/15 text-amber-300 border-amber-500/30'
+                        : 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
                     }`}
                   >
                     {computedStatus}
                   </span>
-                  <span className="text-xs text-stone-400 font-mono font-bold">• {formattedDate}</span>
+                  <span className="text-xs text-slate-400 font-mono">• {formattedDate}</span>
                 </div>
-                <div className="text-xs text-stone-300 font-medium truncate mt-0.5">{evt.eventName}</div>
+                <div className="text-xs text-slate-400 font-medium truncate mt-0.5">{evt.eventName}</div>
               </div>
 
               <div className="flex items-center gap-3 shrink-0">
                 <div className="text-right">
-                  <div className="font-fantasy font-black text-xs text-emerald-300">
+                  <div className="font-semibold text-xs text-emerald-400">
                     {joined}/{total} Joined
                   </div>
-                  <div className="text-[11px] text-amber-400 font-mono font-black">
+                  <div className="text-[11px] text-amber-400 font-mono font-medium">
                     {pct}% Turnout
                   </div>
                 </div>
-                <div className="w-7 h-7 rounded-lg bg-[#27150c] border border-[#52290d] flex items-center justify-center group-hover:border-amber-400 group-hover:bg-[#3d1f0e] transition-all">
-                  <ChevronRight className="w-4 h-4 text-stone-300 group-hover:text-amber-300" />
+                <div className="w-7 h-7 rounded-lg bg-slate-800/50 border border-slate-700/60 flex items-center justify-center group-hover:border-amber-400/50 transition-all">
+                  <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-amber-400" />
                 </div>
               </div>
             </div>

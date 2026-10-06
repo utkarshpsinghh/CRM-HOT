@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
 import { useCRM } from '../../context/CRMContext';
 import { RankBadge } from '../common/RankBadge';
-import { StrikeBadge } from '../common/StrikeBadge';
 import { ConfirmModal } from '../common/ConfirmModal';
 import {
   AlertTriangle,
   Archive,
   Eye,
   Search,
+  Clock,
+  UserX,
 } from 'lucide-react';
 import { sounds } from '../../utils/sound';
 
@@ -42,47 +43,50 @@ export const InactivityTrackerView: React.FC = () => {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 animate-fade-in">
       {/* Clean Header */}
       <div>
-        <h1 className="text-2xl font-bold text-[#fffbeb] tracking-tight">
-          Inactive Members
-        </h1>
-        <p className="text-xs text-stone-300">
-          Members who have missed recent war events and votes.
+        <div className="flex items-center gap-2">
+          <UserX className="w-5 h-5 text-amber-400" />
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-100 tracking-tight">
+            Inactivity Tracker
+          </h1>
+        </div>
+        <p className="text-xs text-slate-400 mt-1">
+          Monitor members who have missed recent war events and communication checks.
         </p>
       </div>
 
-      {/* 3 Simple Stat Cards */}
+      {/* 3 Modern Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div
           onClick={() => setTierFilter('Critical')}
           className={`p-3.5 rounded-xl border transition-all cursor-pointer ${
-            tierFilter === 'Critical' ? 'bg-red-950/60 border-red-500' : 'bg-[#20150f] border-[#4d2b14]'
+            tierFilter === 'Critical' ? 'bg-rose-500/15 border-rose-500/50' : 'bg-slate-900/80 border-slate-800 hover:border-slate-700'
           }`}
         >
-          <div className="text-xs font-semibold text-red-300">14+ Days Inactive</div>
-          <div className="text-2xl font-black text-red-400 mt-1">{criticalCount}</div>
+          <div className="text-xs font-semibold text-rose-400 uppercase tracking-wider">14+ Days Inactive</div>
+          <div className="text-2xl font-bold font-mono text-rose-400 mt-1">{criticalCount}</div>
         </div>
 
         <div
           onClick={() => setTierFilter('Inactive')}
           className={`p-3.5 rounded-xl border transition-all cursor-pointer ${
-            tierFilter === 'Inactive' ? 'bg-amber-950/60 border-amber-500' : 'bg-[#20150f] border-[#4d2b14]'
+            tierFilter === 'Inactive' ? 'bg-amber-500/15 border-amber-500/50' : 'bg-slate-900/80 border-slate-800 hover:border-slate-700'
           }`}
         >
-          <div className="text-xs font-semibold text-amber-300">7–13 Days Inactive</div>
-          <div className="text-2xl font-black text-amber-400 mt-1">{inactiveCount}</div>
+          <div className="text-xs font-semibold text-amber-400 uppercase tracking-wider">7–13 Days Inactive</div>
+          <div className="text-2xl font-bold font-mono text-amber-400 mt-1">{inactiveCount}</div>
         </div>
 
         <div
           onClick={() => setTierFilter('Warning')}
           className={`p-3.5 rounded-xl border transition-all cursor-pointer ${
-            tierFilter === 'Warning' ? 'bg-[#382606] border-yellow-500' : 'bg-[#20150f] border-[#4d2b14]'
+            tierFilter === 'Warning' ? 'bg-yellow-500/15 border-yellow-500/50' : 'bg-slate-900/80 border-slate-800 hover:border-slate-700'
           }`}
         >
-          <div className="text-xs font-semibold text-yellow-300">3–6 Days Silent</div>
-          <div className="text-2xl font-black text-yellow-300 mt-1">{warningCount}</div>
+          <div className="text-xs font-semibold text-yellow-400 uppercase tracking-wider">3–6 Days Silent</div>
+          <div className="text-2xl font-bold font-mono text-yellow-400 mt-1">{warningCount}</div>
         </div>
       </div>
 
@@ -91,16 +95,16 @@ export const InactivityTrackerView: React.FC = () => {
         <div className="flex items-center gap-1.5 flex-wrap">
           <button
             onClick={() => setTierFilter('ALL')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer ${
-              tierFilter === 'ALL' ? 'bg-[#331c0d] text-[#fbbf24]' : 'bg-[#20150f] text-stone-300'
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors ${
+              tierFilter === 'ALL' ? 'bg-amber-500 text-slate-950' : 'bg-slate-900 border border-slate-800 text-slate-400 hover:text-white'
             }`}
           >
             All Flagged ({inactiveInsights.length})
           </button>
           <button
             onClick={() => setTierFilter('Critical')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer ${
-              tierFilter === 'Critical' ? 'bg-red-950 text-red-300 border border-red-700' : 'bg-[#20150f] text-stone-300'
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors ${
+              tierFilter === 'Critical' ? 'bg-rose-500 text-white' : 'bg-slate-900 border border-slate-800 text-slate-400 hover:text-white'
             }`}
           >
             14+ Days ({criticalCount})
@@ -108,21 +112,21 @@ export const InactivityTrackerView: React.FC = () => {
         </div>
 
         <div className="relative w-full sm:w-64 min-w-0">
-          <Search className="w-3.5 h-3.5 text-stone-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
           <input
             type="text"
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
             placeholder="Search member..."
-            className="w-full pl-8 pr-3 py-1.5 rounded-lg bg-[#20150f] border border-[#4d2b14] text-stone-200 text-xs focus:outline-none focus:border-[#fbbf24]"
+            className="w-full pl-8 pr-3 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-slate-200 text-xs focus:outline-none focus:border-amber-500"
           />
         </div>
       </div>
 
-      {/* Mobile Inactive Member Cards (Visible on screens < md) */}
+      {/* Mobile Inactive Member Cards */}
       <div className="block md:hidden space-y-3">
         {filteredInsights.length === 0 ? (
-          <div className="p-8 text-center text-stone-400 bg-[#20150f] rounded-2xl border border-[#4d2b14]">
+          <div className="p-8 text-center text-slate-400 bg-slate-900/60 rounded-xl border border-slate-800">
             No inactive members in this tier.
           </div>
         ) : (
@@ -132,7 +136,7 @@ export const InactivityTrackerView: React.FC = () => {
             return (
               <div
                 key={member.id}
-                className="p-3.5 rounded-2xl bg-[#20150f] border-2 border-[#4d2b14] space-y-2.5 shadow-sm"
+                className="p-3.5 rounded-xl bg-slate-900/80 border border-slate-800 space-y-2.5"
               >
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2 min-w-0">
@@ -141,7 +145,7 @@ export const InactivityTrackerView: React.FC = () => {
                         sounds.playClick();
                         setSelectedMemberForProfile(member);
                       }}
-                      className="font-fantasy font-black text-sm text-[#fffbeb] hover:text-[#fbbf24] cursor-pointer truncate"
+                      className="font-semibold text-sm text-slate-100 hover:text-amber-400 cursor-pointer truncate"
                     >
                       {member.name}
                     </span>
@@ -149,30 +153,30 @@ export const InactivityTrackerView: React.FC = () => {
                   </div>
 
                   <span
-                    className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-full border ${
+                    className={`text-[10px] font-mono font-semibold px-2 py-0.5 rounded-full border ${
                       tier === 'Critical'
-                        ? 'bg-red-950/80 text-red-300 border-red-500'
+                        ? 'bg-rose-500/15 text-rose-300 border-rose-500/30'
                         : tier === 'Inactive'
-                        ? 'bg-amber-950/80 text-amber-300 border-amber-500'
-                        : 'bg-yellow-950/80 text-yellow-300 border-yellow-500'
+                        ? 'bg-amber-500/15 text-amber-300 border-amber-500/30'
+                        : 'bg-yellow-500/15 text-yellow-300 border-yellow-500/30'
                     }`}
                   >
                     {daysInactive} days silent
                   </span>
                 </div>
 
-                <div className="p-2.5 rounded-xl bg-[#140c08] border border-[#3d200e] text-xs text-stone-400">
-                  <span className="text-[10px] font-bold uppercase text-stone-500 block mb-0.5">Last Record</span>
+                <div className="p-2.5 rounded-lg bg-slate-950 border border-slate-800/80 text-xs text-slate-400">
+                  <span className="text-[10px] font-semibold uppercase text-slate-500 block mb-0.5">Last Record</span>
                   <span>{lastActivityDescription}</span>
                 </div>
 
-                <div className="flex items-center justify-end gap-2 pt-1 border-t border-[#3d200e]">
+                <div className="flex items-center justify-end gap-2 pt-1 border-t border-slate-800">
                   <button
                     onClick={() => {
                       sounds.playClick();
                       setSelectedMemberForProfile(member);
                     }}
-                    className="flex-1 py-1.5 px-3 rounded-lg bg-[#170e09] border border-[#3d200e] text-stone-200 hover:text-white text-xs font-semibold flex items-center justify-center gap-1 cursor-pointer"
+                    className="flex-1 py-1.5 px-3 rounded-lg bg-slate-800/60 border border-slate-700/60 text-slate-300 hover:text-white text-xs font-semibold flex items-center justify-center gap-1 cursor-pointer"
                   >
                     <Eye className="w-3.5 h-3.5 text-amber-400" />
                     <span>View Profile</span>
@@ -183,7 +187,7 @@ export const InactivityTrackerView: React.FC = () => {
                       sounds.playClick();
                       setMemberToArchive(member);
                     }}
-                    className="p-1.5 rounded-lg bg-[#170e09] border border-[#3d200e] text-stone-400 hover:text-red-400 cursor-pointer"
+                    className="p-1.5 rounded-lg bg-slate-950 border border-slate-800 text-slate-400 hover:text-rose-400 cursor-pointer"
                     title="Archive"
                   >
                     <Archive className="w-3.5 h-3.5" />
@@ -195,10 +199,10 @@ export const InactivityTrackerView: React.FC = () => {
         )}
       </div>
 
-      {/* Desktop Inactive Members Table (Hidden on screens < md) */}
-      <div className="hidden md:block rounded-xl bg-[#20150f] border border-[#4d2b14] overflow-hidden shadow-sm">
+      {/* Desktop Inactive Members Table */}
+      <div className="hidden md:block rounded-xl bg-slate-900/80 border border-slate-800 overflow-hidden shadow-sm">
         <table className="w-full text-left text-xs sm:text-sm">
-          <thead className="bg-[#170e09] text-stone-300 font-semibold text-xs border-b border-[#3d200e]">
+          <thead className="bg-slate-950 text-slate-400 font-semibold text-xs border-b border-slate-800">
             <tr>
               <th className="py-3 px-4">Player</th>
               <th className="py-3 px-4">Rank</th>
@@ -207,10 +211,10 @@ export const InactivityTrackerView: React.FC = () => {
               <th className="py-3 px-4 text-right">Actions</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-[#2a170b] text-stone-200">
+          <tbody className="divide-y divide-slate-800/60 text-slate-200">
             {filteredInsights.length === 0 ? (
               <tr>
-                <td colSpan={5} className="py-8 text-center text-stone-400">
+                <td colSpan={5} className="py-8 text-center text-slate-400">
                   No inactive members in this tier.
                 </td>
               </tr>
@@ -219,14 +223,14 @@ export const InactivityTrackerView: React.FC = () => {
                 const { member, daysInactive, tier, lastActivityDescription } = item;
 
                 return (
-                  <tr key={member.id} className="hover:bg-[#271a13] transition-colors">
+                  <tr key={member.id} className="hover:bg-slate-800/40 transition-colors">
                     <td className="py-3 px-4">
                       <span
                         onClick={() => {
                           sounds.playClick();
                           setSelectedMemberForProfile(member);
                         }}
-                        className="font-bold text-stone-100 hover:text-[#fbbf24] cursor-pointer"
+                        className="font-semibold text-slate-100 hover:text-amber-400 cursor-pointer"
                       >
                         {member.name}
                       </span>
@@ -236,13 +240,13 @@ export const InactivityTrackerView: React.FC = () => {
                       <RankBadge rank={member.currentRank} size="sm" />
                     </td>
 
-                    <td className="py-3 px-4 font-mono font-bold text-xs">
-                      <span className={tier === 'Critical' ? 'text-red-400' : tier === 'Inactive' ? 'text-amber-400' : 'text-yellow-300'}>
+                    <td className="py-3 px-4 font-mono font-semibold text-xs">
+                      <span className={tier === 'Critical' ? 'text-rose-400' : tier === 'Inactive' ? 'text-amber-400' : 'text-yellow-400'}>
                         {daysInactive} days
                       </span>
                     </td>
 
-                    <td className="py-3 px-4 text-xs text-stone-300">
+                    <td className="py-3 px-4 text-xs text-slate-400">
                       {lastActivityDescription}
                     </td>
 
@@ -253,7 +257,7 @@ export const InactivityTrackerView: React.FC = () => {
                             sounds.playClick();
                             setSelectedMemberForProfile(member);
                           }}
-                          className="px-2.5 py-1 rounded bg-[#170e09] border border-[#3d200e] text-stone-300 hover:text-white text-xs cursor-pointer"
+                          className="px-2.5 py-1 rounded bg-slate-800/60 border border-slate-700/60 text-slate-300 hover:text-white text-xs cursor-pointer"
                         >
                           Profile
                         </button>
@@ -263,7 +267,7 @@ export const InactivityTrackerView: React.FC = () => {
                             sounds.playClick();
                             setMemberToArchive(member);
                           }}
-                          className="p-1 rounded bg-[#170e09] border border-[#3d200e] text-stone-400 hover:text-red-400 cursor-pointer"
+                          className="p-1 rounded bg-slate-950 border border-slate-800 text-slate-400 hover:text-rose-400 cursor-pointer"
                           title="Archive"
                         >
                           <Archive className="w-3.5 h-3.5" />

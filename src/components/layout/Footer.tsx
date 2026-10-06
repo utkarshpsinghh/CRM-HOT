@@ -1,16 +1,18 @@
 import React from 'react';
-import { Castle } from 'lucide-react';
+import { Shield } from 'lucide-react';
 
 export const Footer: React.FC = () => {
   return (
-    <footer className="mt-auto border-t-[3px] border-[#381c0c] bg-[#0c0704] py-4 px-4 text-center text-xs shadow-inner">
+    <footer className="mt-auto border-t border-slate-800/80 bg-slate-950/60 py-4 px-4 text-center text-xs text-slate-400">
       <div className="max-w-7xl mx-auto flex items-center justify-center gap-2 flex-wrap">
-        <Castle className="w-4 h-4 text-[#fde047]" />
-        <span className="font-fantasy font-black text-amber-200 uppercase tracking-wider game-text-shadow">
-          HOT ALLIANCE COMMAND CENTER
+        <Shield className="w-3.5 h-3.5 text-amber-400" />
+        <span className="font-semibold text-slate-300">
+          HOT Alliance Command Center
         </span>
-        <span className="text-stone-600">•</span>
-        <span className="font-medium text-amber-300/70">&quot;Strength Through Unity • Kingdom 1391&quot;</span>
+        <span className="text-slate-600">•</span>
+        <span>Kingdom 1391</span>
+        <span className="text-slate-600">•</span>
+        <span className="text-slate-500">Real-time War Management &amp; Attendance</span>
       </div>
     </footer>
   );

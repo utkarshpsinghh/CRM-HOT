@@ -30,49 +30,41 @@ export const GameButton: React.FC<GameButtonProps> = ({
     onClick?.(e);
   };
 
-  const baseStyles = 'inline-flex items-center justify-center font-black tracking-wide uppercase transition-all duration-100 select-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed game-btn relative font-fantasy rounded-xl active:translate-y-1 active:shadow-none';
+  const baseStyles = 'inline-flex items-center justify-center font-semibold tracking-normal transition-all duration-150 select-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed rounded-lg active:scale-[0.98]';
 
   const sizeStyles = {
-    sm: 'text-xs px-3 py-1.5 gap-1.5 border-2',
-    md: 'text-sm px-4.5 py-2 gap-2 border-2',
-    lg: 'text-base px-6 py-2.5 gap-2.5 border-2',
+    sm: 'text-xs px-3 py-1.5 gap-1.5',
+    md: 'text-xs sm:text-sm px-4 py-2 gap-2',
+    lg: 'text-sm sm:text-base px-5 py-2.5 gap-2.5',
   };
 
   const variantStyles = {
     gold: `
-      bg-gradient-to-b from-[#fef08a] via-[#eab308] to-[#ca8a04]
-      text-[#261103] border-[#fef9c3]
-      hover:from-[#fffbeb] hover:to-[#d97706]
-      shadow-[0_4px_0_#78350f,0_6px_12px_rgba(0,0,0,0.35)]
+      bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 font-bold
+      border border-amber-400/40 hover:from-amber-400 hover:to-amber-500
+      shadow-md shadow-amber-500/20
     `,
     crimson: `
-      bg-gradient-to-b from-[#f87171] via-[#dc2626] to-[#991b1b]
-      text-[#ffffff] border-[#fca5a5]
-      hover:from-[#fca5a5] hover:to-[#b91c1c]
-      shadow-[0_4px_0_#450a0a,0_6px_12px_rgba(0,0,0,0.35)]
+      bg-gradient-to-r from-rose-600 to-rose-700 text-white font-bold
+      border border-rose-500/40 hover:from-rose-500 hover:to-rose-600
+      shadow-md shadow-rose-600/20
     `,
     emerald: `
-      bg-gradient-to-b from-[#4ade80] via-[#16a34a] to-[#15803d]
-      text-[#ffffff] border-[#86efac]
-      hover:from-[#86efac] hover:to-[#166534]
-      shadow-[0_4px_0_#052e16,0_6px_12px_rgba(0,0,0,0.35)]
+      bg-gradient-to-r from-emerald-600 to-emerald-700 text-white font-bold
+      border border-emerald-500/40 hover:from-emerald-500 hover:to-emerald-600
+      shadow-md shadow-emerald-600/20
     `,
     slate: `
-      bg-gradient-to-b from-[#475569] via-[#334155] to-[#1e293b]
-      text-[#f8fafc] border-[#94a3b8]
-      hover:from-[#64748b] hover:to-[#0f172a]
-      shadow-[0_4px_0_#0f172a,0_6px_12px_rgba(0,0,0,0.35)]
+      bg-slate-800 border border-slate-700 text-slate-200
+      hover:bg-slate-700 hover:text-white hover:border-slate-600
     `,
     parchment: `
-      bg-gradient-to-b from-[#fef9c3] via-[#fde047] to-[#eab308]
-      text-[#451a03] border-[#fef08a]
-      hover:brightness-105
-      shadow-[0_4px_0_#854d0e,0_6px_12px_rgba(0,0,0,0.3)]
+      bg-amber-500/15 border border-amber-500/30 text-amber-300
+      hover:bg-amber-500/25
     `,
     outline: `
-      bg-[#241710] text-[#facc15] border-[#ca8a04]
-      hover:bg-[#332014] hover:border-[#facc15]
-      shadow-[0_4px_0_#140b06]
+      bg-slate-900 border border-slate-800 text-slate-300
+      hover:border-amber-500/50 hover:text-amber-300
     `,
   };
 

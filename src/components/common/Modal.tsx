@@ -51,13 +51,13 @@ export const Modal: React.FC<ModalProps> = ({
   return (
     <div
       className={clsx(
-        'fixed inset-0 p-3 sm:p-4 overflow-y-auto',
+        'fixed inset-0 p-3 sm:p-4 overflow-y-auto animate-fade-in',
         isTop ? 'z-[9999] flex items-start justify-center pt-8 sm:pt-16' : 'z-50 flex items-center justify-center'
       )}
     >
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-black/80 backdrop-blur-sm transition-opacity"
+        className="fixed inset-0 bg-black/80 backdrop-blur-md transition-opacity"
         onClick={() => {
           sounds.playClick();
           onClose();
@@ -67,22 +67,22 @@ export const Modal: React.FC<ModalProps> = ({
       {/* Modal Dialog */}
       <div
         className={clsx(
-          'relative w-full rounded-2xl bg-[#1c140e] border-2 border-[#522d14] shadow-[0_10px_40px_rgba(0,0,0,0.8),0_0_15px_rgba(202,138,4,0.15)] z-10 overflow-hidden flex flex-col max-h-[92vh]',
+          'relative w-full rounded-2xl bg-slate-900 border border-slate-800 shadow-2xl shadow-black/80 z-10 overflow-hidden flex flex-col max-h-[92vh]',
           isTop ? 'my-0' : 'my-2 sm:my-8',
           maxWidthClasses
         )}
       >
         {/* Header */}
-        <div className="px-4 sm:px-5 py-3.5 sm:py-4 bg-gradient-to-r from-[#2c190e] via-[#24160f] to-[#1c130d] border-b border-[#3e2716] flex items-center justify-between gap-3 shrink-0">
+        <div className="px-4 sm:px-6 py-4 bg-slate-950/80 border-b border-slate-800 flex items-center justify-between gap-3 shrink-0">
           <div className="flex items-center gap-2.5 min-w-0">
-            <div className="p-1.5 rounded-lg bg-[#522d14]/40 border border-[#ca8a04]/40 text-[#fef08a] shrink-0">
+            <div className="p-1.5 rounded-lg bg-amber-500/10 border border-amber-500/25 text-amber-400 shrink-0">
               {icon || <Shield className="w-5 h-5" />}
             </div>
             <div className="min-w-0">
-              <h3 className="font-fantasy font-black text-sm sm:text-lg text-[#fef08a] tracking-wide truncate">
+              <h3 className="font-bold text-base sm:text-lg text-slate-100 tracking-tight truncate">
                 {title}
               </h3>
-              {subtitle && <p className="text-[11px] sm:text-xs text-stone-400 truncate mt-0.5">{subtitle}</p>}
+              {subtitle && <p className="text-xs text-slate-400 truncate mt-0.5">{subtitle}</p>}
             </div>
           </div>
           <button
@@ -90,7 +90,7 @@ export const Modal: React.FC<ModalProps> = ({
               sounds.playClick();
               onClose();
             }}
-            className="p-1.5 rounded-lg text-stone-400 hover:text-[#fef08a] hover:bg-stone-800/50 transition-colors cursor-pointer shrink-0"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer shrink-0"
             title="Close"
           >
             <X className="w-5 h-5" />
@@ -98,9 +98,10 @@ export const Modal: React.FC<ModalProps> = ({
         </div>
 
         {/* Content */}
-        <div className="p-4 sm:p-5 overflow-y-auto overscroll-contain flex-1">{children}</div>
+        <div className="p-4 sm:p-6 overflow-y-auto space-y-4 text-slate-200">
+          {children}
+        </div>
       </div>
     </div>
   );
 };
-

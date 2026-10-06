@@ -19,12 +19,11 @@ import {
   RefreshCw,
   FileText,
   Upload,
-  Trash2,
   CheckCircle2,
-  AlertCircle,
-  Crown,
   ExternalLink,
   FileSpreadsheet,
+  Shield,
+  Filter,
 } from 'lucide-react';
 import { sounds } from '../../utils/sound';
 
@@ -120,67 +119,60 @@ export const MembersView: React.FC<MembersViewProps> = ({
     R1: 1,
   };
 
-  // Filter members
   const filteredMembers = useMemo(() => {
     return members.filter(m => {
-      if (
-        memberFilter.search &&
-        !m.name.toLowerCase().includes(memberFilter.search.toLowerCase())
-      ) {
-        return false;
+      if (memberFilter.search) {
+        const q = memberFilter.search.toLowerCase();
+        if (!m.name.toLowerCase().includes(q)) return false;
       }
-      if (memberFilter.rank !== 'ALL' && m.currentRank !== memberFilter.rank) {
-        return false;
-      }
-      if (memberFilter.status !== 'ALL') {
-        if (memberFilter.status === 'Archived') {
-          if (m.status !== 'Archived') return false;
-        } else if (memberFilter.status === 'Inactive') {
-          if (m.status !== 'Inactive') return false;
-        } else if (m.status !== memberFilter.status) {
-          return false;
-        }
-      } else {
-        if (m.status === 'Archived') return false;
-      }
-      if (memberFilter.strikeMin > 0 && m.strikes < memberFilter.strikeMin) {
-        return false;
-      }
+      if (memberFilter.rank !== 'ALL' && m.currentRank !== memberFilter.rank) return false;
+      if (memberFilter.comm !== 'ALL' && m.communication !== memberFilter.comm) return false;
+      if (memberFilter.status !== 'ALL' && m.status !== memberFilter.status) return false;
+      if (memberFilter.strikeMin > 0 && m.strikes < memberFilter.strikeMin) return false;
       return true;
     });
   }, [members, memberFilter]);
 
-  // Sort filtered members
   const sortedMembers = useMemo(() => {
     return [...filteredMembers].sort((a, b) => {
-      let comp = 0;
-      if (sortBy === 'rank') {
-        comp = rankWeights[b.currentRank] - rankWeights[a.currentRank];
-      } else if (sortBy === 'name') {
-        comp = a.name.localeCompare(b.name);
-      } else if (sortBy === 'strikes') {
-        comp = b.strikes - a.strikes;
-      } else if (sortBy === 'participation') {
-        const statsA = memberParticipationMap.get(a.id);
-        const statsB = memberParticipationMap.get(b.id);
-        const partA = selectedEventType === 'ALL'
-          ? (statsA?.percentage || 0)
-          : (statsA?.perType[selectedEventType]?.percentage || 0);
-        const partB = selectedEventType === 'ALL'
-          ? (statsB?.percentage || 0)
-          : (statsB?.perType[selectedEventType]?.percentage || 0);
-        comp = partB - partA;
+      if (sortBy === 'name') {
+        const res = a.name.localeCompare(b.name);
+        return sortOrder === 'asc' ? res : -res;
       }
-      return sortOrder === 'asc' ? -comp : comp;
+      if (sortBy === 'rank') {
+        const rA = rankWeights[a.currentRank] || 0;
+        const rB = rankWeights[b.currentRank] || 0;
+        const res = rA - rB;
+        return sortOrder === 'asc' ? res : -res;
+      }
+      if (sortBy === 'strikes') {
+        const res = a.strikes - b.strikes;
+        return sortOrder === 'asc' ? res : -res;
+      }
+      if (sortBy === 'participation') {
+        const pA = memberParticipationMap.get(a.id);
+        const pB = memberParticipationMap.get(b.id);
+        let valA = pA ? pA.percentage : 0;
+        let valB = pB ? pB.percentage : 0;
+
+        if (selectedEventType !== 'ALL') {
+          valA = pA?.perType[selectedEventType]?.percentage ?? 0;
+          valB = pB?.perType[selectedEventType]?.percentage ?? 0;
+        }
+
+        const res = valA - valB;
+        return sortOrder === 'asc' ? res : -res;
+      }
+      return 0;
     });
   }, [filteredMembers, sortBy, sortOrder, memberParticipationMap, selectedEventType]);
 
-  const handleToggleSort = (field: typeof sortBy) => {
+  const handleToggleSort = (column: 'rank' | 'name' | 'strikes' | 'participation') => {
     sounds.playClick();
-    if (sortBy === field) {
+    if (sortBy === column) {
       setSortOrder(prev => (prev === 'asc' ? 'desc' : 'asc'));
     } else {
-      setSortBy(field);
+      setSortBy(column);
       setSortOrder('desc');
     }
   };
@@ -193,15 +185,15 @@ export const MembersView: React.FC<MembersViewProps> = ({
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 animate-fade-in">
       {/* Header and Controls */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-fantasy font-black text-[#fffbeb] tracking-wide">
-            Alliance Members
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-100 tracking-tight">
+            Alliance Roster
           </h1>
-          <p className="text-xs text-stone-300 font-medium">
-            {sortedMembers.length} warriors enrolled
+          <p className="text-xs text-slate-400 font-medium mt-0.5">
+            {sortedMembers.length} warriors registered
           </p>
         </div>
 
@@ -212,11 +204,11 @@ export const MembersView: React.FC<MembersViewProps> = ({
               setIsSyncModalOpen(true);
             }}
             disabled={isSyncing}
-            className="btn-kingshot-cream px-3.5 py-2 text-xs font-fantasy font-black uppercase tracking-wider flex items-center gap-1.5 cursor-pointer shadow-md disabled:opacity-50"
-            title="Update & synchronize member roster for HOT Alliance"
+            className="btn-secondary px-3.5 py-2 text-xs font-semibold flex items-center gap-1.5 cursor-pointer shadow-sm disabled:opacity-50"
+            title="Update & synchronize member roster"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin text-amber-400' : 'text-amber-400'}`} />
-            <span>{isSyncing ? 'Updating...' : 'Sync Roster'}</span>
+            <span>{isSyncing ? 'Syncing...' : 'Sync Roster'}</span>
           </button>
 
           <button
@@ -224,30 +216,30 @@ export const MembersView: React.FC<MembersViewProps> = ({
               sounds.playClick();
               onOpenAddMember();
             }}
-            className="btn-kingshot-gold px-4 py-2 text-xs font-fantasy font-black uppercase tracking-wider flex items-center gap-1.5 cursor-pointer shadow-md"
+            className="btn-primary px-3.5 py-2 text-xs font-semibold flex items-center gap-1.5 cursor-pointer shadow-sm"
           >
-            <UserPlus className="w-4 h-4" />
+            <UserPlus className="w-3.5 h-3.5" />
             <span>Add Member</span>
           </button>
         </div>
       </div>
 
-      {/* Cartoon Search & Tactical Filters */}
-      <div className="p-4 rounded-2xl bg-[#180e08] border-[3px] border-[#4a2610] shadow-[0_5px_0_#0f0703,0_10px_20px_rgba(0,0,0,0.4)] flex flex-wrap gap-3 items-center w-full min-w-0">
-        {/* Search */}
-        <div className="relative w-full sm:flex-1 min-w-0">
-          <Search className="w-4 h-4 text-amber-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+      {/* Modern Search & Tactical Filters Bar */}
+      <div className="p-3 sm:p-4 rounded-xl bg-slate-900/80 border border-slate-800 flex flex-wrap gap-2.5 items-center w-full min-w-0">
+        {/* Search Input */}
+        <div className="relative w-full sm:flex-1 min-w-[200px]">
+          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
           <input
             type="text"
             value={memberFilter.search}
             onChange={e => setMemberFilter(prev => ({ ...prev, search: e.target.value }))}
-            placeholder="Search warrior by name..."
-            className="w-full pl-10 pr-9 py-2 rounded-xl bg-[#100905] border-2 border-[#381c0c] text-stone-100 text-xs font-medium focus:outline-none focus:border-[#fde047] shadow-inner placeholder:text-stone-500"
+            placeholder="Search member by name..."
+            className="w-full pl-9 pr-8 py-2 rounded-lg bg-slate-950/80 border border-slate-800 text-slate-100 text-xs font-medium focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500/30 placeholder:text-slate-500"
           />
           {memberFilter.search && (
             <button
               onClick={() => setMemberFilter(prev => ({ ...prev, search: '' }))}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-white"
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
             >
               <X className="w-3.5 h-3.5" />
             </button>
@@ -258,34 +250,34 @@ export const MembersView: React.FC<MembersViewProps> = ({
         <select
           value={memberFilter.rank}
           onChange={e => setMemberFilter(prev => ({ ...prev, rank: e.target.value }))}
-          className="w-full sm:w-auto min-w-0 px-3 py-2 rounded-xl bg-[#100905] border-2 border-[#381c0c] text-stone-200 text-xs font-fantasy uppercase font-black focus:outline-none focus:border-[#fde047] shadow-inner cursor-pointer"
+          className="w-full sm:w-auto px-3 py-2 rounded-lg bg-slate-950/80 border border-slate-800 text-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500 cursor-pointer"
         >
           <option value="ALL">All Ranks (R5-R1)</option>
-          <option value="R5">👑 R5 — Leader</option>
-          <option value="R4">⚔️ R4 — Officer</option>
-          <option value="R3">🛡️ R3 — Elite</option>
-          <option value="R2">🪓 R2 — Warrior</option>
-          <option value="R1">🛡️ R1 — Recruit</option>
+          <option value="R5">R5 Leader</option>
+          <option value="R4">R4 Officer</option>
+          <option value="R3">R3 Elite</option>
+          <option value="R2">R2 Warrior</option>
+          <option value="R1">R1 Recruit</option>
         </select>
 
         {/* Filter Status */}
         <select
           value={memberFilter.status}
           onChange={e => setMemberFilter(prev => ({ ...prev, status: e.target.value }))}
-          className="w-full sm:w-auto min-w-0 px-3 py-2 rounded-xl bg-[#100905] border-2 border-[#381c0c] text-stone-200 text-xs font-fantasy uppercase font-black focus:outline-none focus:border-[#fde047] shadow-inner cursor-pointer"
+          className="w-full sm:w-auto px-3 py-2 rounded-lg bg-slate-950/80 border border-slate-800 text-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500 cursor-pointer"
         >
           <option value="ALL">All Statuses</option>
-          <option value="Active">🟢 Active Only</option>
-          <option value="Visitor">🔵 Visitor Only</option>
-          <option value="Inactive">🔴 Inactive Only</option>
-          <option value="Archived">⚪ Archived</option>
+          <option value="Active">Active Only</option>
+          <option value="Visitor">Visitor Only</option>
+          <option value="Inactive">Inactive Only</option>
+          <option value="Archived">Archived</option>
         </select>
 
         {/* Specific Event Selector */}
         <select
           value={selectedEventType}
           onChange={e => setSelectedEventType(e.target.value)}
-          className="w-full sm:w-auto min-w-0 px-3 py-2 rounded-xl bg-[#100905] border-2 border-[#ca8a04] text-[#fef08a] text-xs font-fantasy uppercase font-black focus:outline-none focus:border-[#fde047] shadow-inner cursor-pointer"
+          className="w-full sm:w-auto px-3 py-2 rounded-lg bg-slate-950/80 border border-amber-500/40 text-amber-300 text-xs font-medium focus:outline-none focus:border-amber-400 cursor-pointer"
         >
           <option value="ALL">All Wars Turnout</option>
           <option value="BT1">BT1 (Bear Trap 1)</option>
@@ -299,20 +291,21 @@ export const MembersView: React.FC<MembersViewProps> = ({
         {/* Quick Filter for Strikes */}
         <button
           onClick={() => setMemberFilter(prev => ({ ...prev, strikeMin: prev.strikeMin > 0 ? 0 : 1 }))}
-          className={`w-full sm:w-auto px-3.5 py-2 rounded-xl text-xs font-fantasy uppercase font-black border-2 cursor-pointer transition-all shadow-[0_3px_0_rgba(0,0,0,0.4)] active:translate-y-0.5 active:shadow-none ${
+          className={`w-full sm:w-auto px-3 py-2 rounded-lg text-xs font-semibold border flex items-center justify-center gap-1.5 cursor-pointer transition-colors ${
             memberFilter.strikeMin > 0
-              ? 'bg-gradient-to-b from-[#f87171] to-[#dc2626] text-white border-[#fecaca]'
-              : 'bg-[#221308] text-stone-300 border-[#47240f] hover:border-amber-500'
+              ? 'bg-rose-500/15 border-rose-500/40 text-rose-300'
+              : 'bg-slate-950/80 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'
           }`}
         >
-          🔥 With Strikes
+          <Flame className="w-3.5 h-3.5 text-rose-400" />
+          <span>With Strikes</span>
         </button>
       </div>
 
       {/* Mobile Member Cards (Visible on screens < md) */}
       <div className="block md:hidden space-y-3">
         {sortedMembers.length === 0 ? (
-          <div className="p-8 text-center text-stone-400 bg-[#20150f] rounded-2xl border border-[#4d2b14]">
+          <div className="p-8 text-center text-slate-400 bg-slate-900/60 rounded-xl border border-slate-800">
             No members found matching your search.
           </div>
         ) : (
@@ -332,12 +325,12 @@ export const MembersView: React.FC<MembersViewProps> = ({
             const typeStat = selectedEventType !== 'ALL' ? partStats?.perType[selectedEventType] : null;
             const activePct = typeStat ? typeStat.percentage : (partStats ? partStats.percentage : 0);
             const activeRatio = typeStat ? `${typeStat.joined}/${typeStat.total}` : (partStats ? `${partStats.joinedCount}/${partStats.totalEvents}` : '0/0');
-            const activeTitle = selectedEventType === 'ALL' ? 'War Attendance' : `${selectedEventType} Attendance`;
+            const activeTitle = selectedEventType === 'ALL' ? 'War Turnout' : `${selectedEventType} Turnout`;
 
             return (
               <div
                 key={member.id}
-                className="p-3.5 rounded-2xl bg-[#1e130c] border-2 border-[#522d14] space-y-2.5 shadow-[0_4px_0_rgba(0,0,0,0.4)] hover:border-amber-600/80 transition-all"
+                className="p-3.5 rounded-xl bg-slate-900/80 border border-slate-800 space-y-2.5 transition-colors"
               >
                 {/* Top row: Name, Rank, Status */}
                 <div className="flex items-center justify-between gap-2">
@@ -347,7 +340,7 @@ export const MembersView: React.FC<MembersViewProps> = ({
                         sounds.playClick();
                         setSelectedMemberForProfile(member);
                       }}
-                      className="font-fantasy font-black text-sm sm:text-base text-[#fffbeb] hover:text-[#fbbf24] cursor-pointer truncate"
+                      className="font-semibold text-sm text-slate-100 hover:text-amber-400 cursor-pointer truncate"
                     >
                       {member.name}
                     </span>
@@ -357,10 +350,10 @@ export const MembersView: React.FC<MembersViewProps> = ({
                 </div>
 
                 {/* Middle row: Attendance bar & Strikes */}
-                <div className="p-2.5 rounded-xl bg-[#140c08] border border-[#3d200e] space-y-2">
+                <div className="p-2.5 rounded-lg bg-slate-950/60 border border-slate-800/80 space-y-2">
                   <div className="flex items-center justify-between gap-2">
                     <div>
-                      <div className="text-[10px] uppercase font-bold text-amber-300/80">{activeTitle}</div>
+                      <div className="text-[10px] uppercase font-semibold text-slate-400">{activeTitle}</div>
                       <div className="flex items-center gap-1.5 mt-0.5">
                         <span
                           className={`font-mono font-bold text-xs ${
@@ -368,19 +361,19 @@ export const MembersView: React.FC<MembersViewProps> = ({
                               ? 'text-emerald-400'
                               : activePct >= 50
                               ? 'text-amber-400'
-                              : 'text-red-400'
+                              : 'text-rose-400'
                           }`}
                         >
                           {activePct.toFixed(0)}%
                         </span>
-                        <span className="text-[10px] text-stone-400 font-mono">
+                        <span className="text-[10px] text-slate-400 font-mono">
                           ({activeRatio} wars)
                         </span>
                       </div>
                     </div>
 
                     <div className="text-right">
-                      <div className="text-[10px] uppercase font-bold text-stone-400">Strikes</div>
+                      <div className="text-[10px] uppercase font-semibold text-slate-400">Strikes</div>
                       <div className="mt-0.5">
                         <StrikeBadge
                           count={member.strikes}
@@ -395,7 +388,7 @@ export const MembersView: React.FC<MembersViewProps> = ({
                   </div>
 
                   {/* 6 Core Events All-Time Attendance % Mini-Grid */}
-                  <div className="grid grid-cols-3 gap-1 pt-1.5 border-t border-[#24130a] text-[10px]">
+                  <div className="grid grid-cols-3 gap-1 pt-1.5 border-t border-slate-800/80 text-[10px]">
                     {(['BT1', 'BT2', 'Swordland L1', 'Swordland L2', 'Tri Alliance L1', 'Tri Alliance L2'] as const).map(eType => {
                       const s = partStats?.perType[eType];
                       const pct = s ? s.percentage : 0;
@@ -407,15 +400,15 @@ export const MembersView: React.FC<MembersViewProps> = ({
                           onClick={() => setSelectedEventType(prev => prev === eType ? 'ALL' : eType)}
                           className={`px-1.5 py-0.5 rounded flex items-center justify-between font-mono cursor-pointer transition-colors ${
                             isSelected
-                              ? 'bg-amber-950/80 border border-amber-500/70 text-amber-200'
-                              : 'bg-[#180e0a] border border-[#2b160b] text-stone-300 hover:border-stone-600'
+                              ? 'bg-amber-500/20 border border-amber-500/40 text-amber-300'
+                              : 'bg-slate-900 border border-slate-800 text-slate-300 hover:border-slate-700'
                           }`}
                         >
-                          <span className="text-[9px] font-sans text-stone-400">{shortName}:</span>
+                          <span className="text-[9px] text-slate-400">{shortName}:</span>
                           <span className={`text-[10px] ${
                             s && s.total > 0
-                              ? pct >= 75 ? 'text-emerald-400 font-bold' : pct >= 50 ? 'text-amber-400 font-bold' : 'text-red-400 font-bold'
-                              : 'text-stone-600'
+                              ? pct >= 75 ? 'text-emerald-400 font-bold' : pct >= 50 ? 'text-amber-400 font-bold' : 'text-rose-400 font-bold'
+                              : 'text-slate-600'
                           }`}>
                             {s && s.total > 0 ? `${pct.toFixed(0)}%` : '—'}
                           </span>
@@ -426,13 +419,13 @@ export const MembersView: React.FC<MembersViewProps> = ({
                 </div>
 
                 {/* Bottom row: Quick action buttons */}
-                <div className="flex items-center justify-end gap-2 pt-1 border-t border-[#3d200e]">
+                <div className="flex items-center justify-end gap-2 pt-1 border-t border-slate-800">
                   <button
                     onClick={() => {
                       sounds.playClick();
                       setSelectedMemberForProfile(member);
                     }}
-                    className="flex-1 py-1.5 px-2 rounded-xl bg-[#24170d] border border-[#522d14] hover:bg-[#341f12] text-stone-200 hover:text-white text-xs font-fantasy uppercase font-black flex items-center justify-center gap-1 cursor-pointer transition-all shadow-[0_2px_0_rgba(0,0,0,0.3)] active:translate-y-0.5"
+                    className="flex-1 py-1.5 px-2 rounded-lg bg-slate-800/60 hover:bg-slate-800 text-slate-300 hover:text-white text-xs font-semibold flex items-center justify-center gap-1 cursor-pointer transition-colors"
                   >
                     <Eye className="w-3.5 h-3.5 text-amber-400" />
                     <span>Profile</span>
@@ -443,9 +436,9 @@ export const MembersView: React.FC<MembersViewProps> = ({
                       sounds.playClick();
                       onOpenAddStrike(member);
                     }}
-                    className="flex-1 py-1.5 px-2 rounded-xl bg-red-950/60 border border-red-800 hover:bg-red-900 text-red-200 text-xs font-fantasy uppercase font-black flex items-center justify-center gap-1 cursor-pointer transition-all shadow-[0_2px_0_rgba(0,0,0,0.3)] active:translate-y-0.5"
+                    className="flex-1 py-1.5 px-2 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 text-xs font-semibold flex items-center justify-center gap-1 cursor-pointer transition-colors border border-rose-500/20"
                   >
-                    <Flame className="w-3.5 h-3.5 text-red-400" />
+                    <Flame className="w-3.5 h-3.5 text-rose-400" />
                     <span>Strike</span>
                   </button>
 
@@ -454,7 +447,7 @@ export const MembersView: React.FC<MembersViewProps> = ({
                       sounds.playClick();
                       onOpenEditMember(member);
                     }}
-                    className="p-1.5 rounded-xl bg-[#24170d] border border-[#522d14] hover:bg-[#341f12] text-stone-300 hover:text-white cursor-pointer shadow-[0_2px_0_rgba(0,0,0,0.3)] active:translate-y-0.5"
+                    className="p-1.5 rounded-lg bg-slate-800/60 hover:bg-slate-800 text-slate-300 hover:text-white cursor-pointer"
                     title="Edit"
                   >
                     <Edit className="w-3.5 h-3.5 text-amber-300" />
@@ -466,7 +459,7 @@ export const MembersView: React.FC<MembersViewProps> = ({
                         sounds.playClick();
                         setMemberToArchive(member);
                       }}
-                      className="p-1.5 rounded-lg bg-[#170e09] border border-[#3d200e] text-stone-400 hover:text-red-400 cursor-pointer"
+                      className="p-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 hover:text-rose-400 cursor-pointer"
                       title="Archive"
                     >
                       <Archive className="w-3.5 h-3.5" />
@@ -480,63 +473,63 @@ export const MembersView: React.FC<MembersViewProps> = ({
       </div>
 
       {/* Desktop Warrior Table */}
-      <div className="hidden md:block kingshot-card overflow-hidden shadow-xl">
+      <div className="hidden md:block rounded-xl border border-slate-800 bg-slate-900/80 overflow-hidden shadow-lg">
         <table className="w-full text-left text-xs sm:text-sm">
-          <thead className="bg-gradient-to-b from-[#2d180c] to-[#1c0f07] text-[#fef08a] font-fantasy uppercase tracking-wider text-xs border-b-[3px] border-[#4a2610]">
+          <thead className="bg-slate-950/80 text-slate-400 font-semibold uppercase tracking-wider text-xs border-b border-slate-800">
             <tr>
               <th
                 onClick={() => handleToggleSort('name')}
-                className="py-3.5 px-4 cursor-pointer hover:text-white select-none"
+                className="py-3 px-4 cursor-pointer hover:text-slate-200 select-none"
               >
                 <div className="flex items-center gap-1.5">
-                  <span>Warrior Name</span>
-                  <ArrowUpDown className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Member Name</span>
+                  <ArrowUpDown className="w-3.5 h-3.5 text-slate-500" />
                 </div>
               </th>
               <th
                 onClick={() => handleToggleSort('rank')}
-                className="py-3.5 px-4 cursor-pointer hover:text-white select-none"
+                className="py-3 px-4 cursor-pointer hover:text-slate-200 select-none"
               >
                 <div className="flex items-center gap-1.5">
                   <span>Alliance Rank</span>
-                  <ArrowUpDown className="w-3.5 h-3.5 text-amber-400" />
+                  <ArrowUpDown className="w-3.5 h-3.5 text-slate-500" />
                 </div>
               </th>
               <th
                 onClick={() => handleToggleSort('participation')}
-                className="py-3.5 px-4 cursor-pointer hover:text-amber-200 select-none"
+                className="py-3 px-4 cursor-pointer hover:text-amber-300 select-none"
               >
-                <div className="flex items-center gap-1.5 text-amber-300">
+                <div className="flex items-center gap-1.5 text-amber-400">
                   <span>{selectedEventType === 'ALL' ? 'War Turnout %' : `${selectedEventType} %`}</span>
                   <ArrowUpDown className="w-3.5 h-3.5" />
                 </div>
               </th>
               <th
                 onClick={() => handleToggleSort('strikes')}
-                className="py-3.5 px-4 cursor-pointer hover:text-white select-none"
+                className="py-3 px-4 cursor-pointer hover:text-slate-200 select-none"
               >
                 <div className="flex items-center gap-1.5">
                   <span>Strikes</span>
-                  <ArrowUpDown className="w-3.5 h-3.5 text-amber-400" />
+                  <ArrowUpDown className="w-3.5 h-3.5 text-slate-500" />
                 </div>
               </th>
-              <th className="py-3.5 px-4">Status</th>
-              <th className="py-3.5 px-4 text-right">Actions</th>
+              <th className="py-3 px-4">Status</th>
+              <th className="py-3 px-4 text-right">Actions</th>
             </tr>
           </thead>
-          <tbody className="divide-y-2 divide-[#381c0c] text-stone-200">
+          <tbody className="divide-y divide-slate-800/60 text-slate-200">
             {members.length === 0 ? (
               <tr>
                 <td colSpan={6} className="py-14 text-center">
                   <div className="max-w-md mx-auto space-y-3 px-4">
-                    <div className="w-12 h-12 mx-auto rounded-2xl bg-amber-950/60 border border-amber-600/40 flex items-center justify-center text-amber-400 shadow">
+                    <div className="w-12 h-12 mx-auto rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 shadow-sm">
                       <Users className="w-6 h-6" />
                     </div>
-                    <div className="text-base font-fantasy font-black text-[#fef08a] uppercase tracking-wide">
-                      No Alliance Members Loaded
+                    <div className="text-base font-bold text-slate-100">
+                      No Alliance Members Found
                     </div>
-                    <p className="text-xs text-stone-400 leading-relaxed">
-                      All previous manual/mock members have been removed. Use the sync tool below to paste your real HOT alliance roster or connect an API endpoint.
+                    <p className="text-xs text-slate-400 leading-relaxed">
+                      Use the sync tool below to paste your official HOT alliance roster or connect directly to your Google Sheet.
                     </p>
                     <button
                       type="button"
@@ -544,17 +537,17 @@ export const MembersView: React.FC<MembersViewProps> = ({
                         sounds.playClick();
                         setIsSyncModalOpen(true);
                       }}
-                      className="btn-kingshot-gold px-4 py-2 text-xs font-fantasy font-black uppercase tracking-wider inline-flex items-center gap-2 shadow cursor-pointer mt-1"
+                      className="btn-primary px-4 py-2 text-xs font-semibold inline-flex items-center gap-2 shadow cursor-pointer mt-1"
                     >
                       <RefreshCw className="w-3.5 h-3.5" />
-                      <span>Sync / Import Real Members</span>
+                      <span>Sync Roster</span>
                     </button>
                   </div>
                 </td>
               </tr>
             ) : sortedMembers.length === 0 ? (
               <tr>
-                <td colSpan={6} className="py-10 text-center text-stone-400">
+                <td colSpan={6} className="py-10 text-center text-slate-400">
                   No members found matching your search.
                 </td>
               </tr>
@@ -579,7 +572,7 @@ export const MembersView: React.FC<MembersViewProps> = ({
                 return (
                   <tr
                     key={member.id}
-                    className="hover:bg-[#271a13] transition-colors"
+                    className="hover:bg-slate-800/40 transition-colors"
                   >
                     {/* Name */}
                     <td className="py-3 px-4">
@@ -588,7 +581,7 @@ export const MembersView: React.FC<MembersViewProps> = ({
                           sounds.playClick();
                           setSelectedMemberForProfile(member);
                         }}
-                        className="font-bold text-stone-100 hover:text-[#fbbf24] cursor-pointer text-sm"
+                        className="font-semibold text-slate-100 hover:text-amber-400 cursor-pointer text-sm"
                       >
                         {member.name}
                       </span>
@@ -609,12 +602,12 @@ export const MembersView: React.FC<MembersViewProps> = ({
                                 ? 'text-emerald-400'
                                 : activePct >= 50
                                 ? 'text-amber-400'
-                                : 'text-red-400'
+                                : 'text-rose-400'
                             }`}
                           >
                             {activePct.toFixed(0)}%
                           </span>
-                          <span className="text-[11px] text-stone-400 font-mono">
+                          <span className="text-[11px] text-slate-400 font-mono">
                             ({activeRatio})
                           </span>
                         </div>
@@ -638,10 +631,10 @@ export const MembersView: React.FC<MembersViewProps> = ({
                                 title={`${eType}: ${s ? `${s.joined}/${s.total} (${pct.toFixed(0)}%)` : '0/0'}`}
                                 className={`text-[9px] px-1 py-0.5 rounded font-mono border cursor-pointer transition-colors ${
                                   isSelected
-                                    ? 'bg-amber-950 border-amber-500 text-amber-300 font-bold'
+                                    ? 'bg-amber-500/20 border-amber-500 text-amber-300 font-semibold'
                                     : pct > 0
-                                    ? 'bg-[#140c08] border-[#3d200e] text-stone-300 hover:border-amber-600'
-                                    : 'bg-[#140c08] border-[#25140a] text-stone-600 hover:border-stone-500'
+                                    ? 'bg-slate-950/60 border-slate-800 text-slate-300 hover:border-slate-700'
+                                    : 'bg-slate-950/40 border-slate-900 text-slate-600 hover:border-slate-700'
                                 }`}
                               >
                                 {shortLabel}:{s && s.total > 0 ? `${pct.toFixed(0)}%` : '—'}
@@ -677,7 +670,7 @@ export const MembersView: React.FC<MembersViewProps> = ({
                             sounds.playClick();
                             setSelectedMemberForProfile(member);
                           }}
-                          className="p-1.5 rounded bg-[#170e09] border border-[#3d200e] text-stone-300 hover:text-white hover:border-[#fbbf24] transition-colors cursor-pointer"
+                          className="p-1.5 rounded-lg bg-slate-800/60 border border-slate-700/60 text-slate-300 hover:text-white hover:border-amber-400 transition-colors cursor-pointer"
                           title="View Profile"
                         >
                           <Eye className="w-3.5 h-3.5" />
@@ -688,7 +681,7 @@ export const MembersView: React.FC<MembersViewProps> = ({
                             sounds.playClick();
                             onOpenAddStrike(member);
                           }}
-                          className="p-1.5 rounded bg-red-950/40 border border-red-900/60 text-red-300 hover:text-red-100 hover:border-red-500 transition-colors cursor-pointer"
+                          className="p-1.5 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-300 hover:text-rose-100 hover:border-rose-400 transition-colors cursor-pointer"
                           title="Add Strike"
                         >
                           <Flame className="w-3.5 h-3.5" />
@@ -699,7 +692,7 @@ export const MembersView: React.FC<MembersViewProps> = ({
                             sounds.playClick();
                             onOpenEditMember(member);
                           }}
-                          className="p-1.5 rounded bg-[#170e09] border border-[#3d200e] text-stone-300 hover:text-white transition-colors cursor-pointer"
+                          className="p-1.5 rounded-lg bg-slate-800/60 border border-slate-700/60 text-slate-300 hover:text-white transition-colors cursor-pointer"
                           title="Edit"
                         >
                           <Edit className="w-3.5 h-3.5" />
@@ -711,7 +704,7 @@ export const MembersView: React.FC<MembersViewProps> = ({
                               sounds.playClick();
                               setMemberToArchive(member);
                             }}
-                            className="p-1.5 rounded bg-[#170e09] border border-[#3d200e] text-stone-400 hover:text-red-400 transition-colors cursor-pointer"
+                            className="p-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 hover:text-rose-400 transition-colors cursor-pointer"
                             title="Archive"
                           >
                             <Archive className="w-3.5 h-3.5" />
@@ -746,7 +739,7 @@ export const MembersView: React.FC<MembersViewProps> = ({
           setIsWipeConfirmOpen(false);
           await wipeAllMembers();
         }}
-        title="⚠️ Wipe Previous Manual Members"
+        title="Wipe Previous Manual Members"
         message="Are you sure you want to delete all current members? This will permanently remove all previous manual and mock members from both local storage and database, giving you a completely clean slate."
         confirmLabel="Wipe All Members"
         variant="crimson"
@@ -754,19 +747,19 @@ export const MembersView: React.FC<MembersViewProps> = ({
 
       {/* Roster Sync & Import Modal */}
       {isSyncModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
-          <div className="bg-gradient-to-b from-[#1c130d] to-[#140d09] border-2 border-[#3e2716] rounded-3xl shadow-2xl p-6 sm:p-7 w-full max-w-xl text-stone-200 space-y-4 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl p-6 sm:p-7 w-full max-w-xl text-slate-200 space-y-4 max-h-[90vh] overflow-y-auto">
             {/* Header */}
-            <div className="flex items-center justify-between pb-3 border-b border-[#2c1d15]">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
               <div className="flex items-center gap-2.5">
-                <div className="w-10 h-10 rounded-2xl bg-amber-950/60 border border-amber-600/40 flex items-center justify-center text-amber-400 shadow">
-                  <RefreshCw className="w-5 h-5" />
+                <div className="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
+                  <RefreshCw className="w-4 h-4" />
                 </div>
                 <div>
-                  <h2 className="font-fantasy font-black text-lg text-[#fef08a] uppercase tracking-wide">
-                    HOT Alliance Roster Sync
+                  <h2 className="font-bold text-base text-slate-100">
+                    Alliance Roster Synchronization
                   </h2>
-                  <p className="text-xs text-stone-400">
+                  <p className="text-xs text-slate-400">
                     Kingdom #1391 • HOT Alliance
                   </p>
                 </div>
@@ -774,27 +767,27 @@ export const MembersView: React.FC<MembersViewProps> = ({
               <button
                 type="button"
                 onClick={() => setIsSyncModalOpen(false)}
-                className="text-stone-400 hover:text-stone-200 p-1 rounded-lg hover:bg-[#2c1d15] transition-colors cursor-pointer"
+                className="text-slate-400 hover:text-slate-200 p-1 rounded-lg hover:bg-slate-800 transition-colors cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             {/* Sync Tabs */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 p-1 rounded-xl bg-[#120c08] border border-[#2c1d15]">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 p-1 rounded-xl bg-slate-950 border border-slate-800">
               <button
                 type="button"
                 onClick={() => {
                   sounds.playClick();
                   setSyncTab('official');
                 }}
-                className={`py-1.5 px-2 rounded-lg text-xs font-fantasy font-bold uppercase transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                className={`py-1.5 px-2 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                   syncTab === 'official'
-                    ? 'bg-gradient-to-r from-[#ca8a04] to-[#eab308] text-black shadow-md font-black'
-                    : 'text-stone-400 hover:text-stone-200'
+                    ? 'bg-amber-500 text-slate-950 shadow-sm'
+                    : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
-                <Crown className="w-3.5 h-3.5 shrink-0" />
+                <Shield className="w-3.5 h-3.5 shrink-0" />
                 <span className="truncate">Official HOT</span>
               </button>
               <button
@@ -803,13 +796,13 @@ export const MembersView: React.FC<MembersViewProps> = ({
                   sounds.playClick();
                   setSyncTab('sheet');
                 }}
-                className={`py-1.5 px-2 rounded-lg text-xs font-fantasy font-bold uppercase transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                className={`py-1.5 px-2 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                   syncTab === 'sheet'
-                    ? 'bg-gradient-to-r from-[#ca8a04] to-[#eab308] text-black shadow-md font-black'
-                    : 'text-stone-400 hover:text-stone-200'
+                    ? 'bg-amber-500 text-slate-950 shadow-sm'
+                    : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
-                <FileSpreadsheet className="w-3.5 h-3.5 shrink-0 text-emerald-400" />
+                <FileSpreadsheet className="w-3.5 h-3.5 shrink-0" />
                 <span className="truncate">Google Sheet</span>
               </button>
               <button
@@ -818,10 +811,10 @@ export const MembersView: React.FC<MembersViewProps> = ({
                   sounds.playClick();
                   setSyncTab('paste');
                 }}
-                className={`py-1.5 px-2 rounded-lg text-xs font-fantasy font-bold uppercase transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                className={`py-1.5 px-2 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                   syncTab === 'paste'
-                    ? 'bg-gradient-to-r from-[#ca8a04] to-[#eab308] text-black shadow-md font-black'
-                    : 'text-stone-400 hover:text-stone-200'
+                    ? 'bg-amber-500 text-slate-950 shadow-sm'
+                    : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
                 <FileText className="w-3.5 h-3.5 shrink-0" />
@@ -833,10 +826,10 @@ export const MembersView: React.FC<MembersViewProps> = ({
                   sounds.playClick();
                   setSyncTab('file');
                 }}
-                className={`py-1.5 px-2 rounded-lg text-xs font-fantasy font-bold uppercase transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                className={`py-1.5 px-2 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                   syncTab === 'file'
-                    ? 'bg-gradient-to-r from-[#ca8a04] to-[#eab308] text-black shadow-md font-black'
-                    : 'text-stone-400 hover:text-stone-200'
+                    ? 'bg-amber-500 text-slate-950 shadow-sm'
+                    : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
                 <Upload className="w-3.5 h-3.5 shrink-0" />
@@ -846,38 +839,38 @@ export const MembersView: React.FC<MembersViewProps> = ({
 
             {/* TAB 1: OFFICIAL HOT ROSTER */}
             {syncTab === 'official' && (
-              <div className="space-y-3 p-3.5 rounded-2xl bg-[#120c08] border border-[#3e2716]">
+              <div className="space-y-3 p-3.5 rounded-xl bg-slate-950 border border-slate-800">
                 <div className="flex items-center gap-2">
-                  <Crown className="w-4 h-4 text-amber-400 shrink-0" />
-                  <span className="text-xs font-fantasy font-black text-[#fef08a] uppercase tracking-wide">
+                  <Shield className="w-4 h-4 text-amber-400 shrink-0" />
+                  <span className="text-xs font-semibold text-slate-200">
                     Kingdom #1391 [HOT] Roster (94 Members)
                   </span>
                 </div>
-                <div className="text-stone-300 text-xs leading-relaxed space-y-1.5">
+                <div className="text-slate-300 text-xs leading-relaxed space-y-1.5">
                   <p>
-                    <strong className="text-amber-300">Alliance Leader:</strong> Death Comes (R5)
+                    <strong className="text-amber-400">Alliance Leader:</strong> Death Comes (R5)
                   </p>
                   <p>
-                    <strong className="text-amber-300">R4 Officers:</strong> MoonLight, Sally, SnackLemon, Beepers, Panda, Emma, Death Farm, Moha
+                    <strong className="text-amber-400">R4 Officers:</strong> MoonLight, Sally, SnackLemon, Beepers, Panda, Emma, Death Farm, Moha
                   </p>
-                  <p className="text-[11px] text-stone-400">
+                  <p className="text-[11px] text-slate-400">
                     Includes all 94 registered alliance members with live status, former ranks, strikes, and communication records.
                   </p>
                 </div>
-                <div className="pt-2 border-t border-[#2a1a10] text-[11px] text-emerald-400 flex items-center gap-1.5">
+                <div className="pt-2 border-t border-slate-800 text-[11px] text-emerald-400 flex items-center gap-1.5">
                   <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
-                  <span>Ready to sync into local storage and Supabase PostgreSQL.</span>
+                  <span>Ready to synchronize directly into local storage and database.</span>
                 </div>
               </div>
             )}
 
             {/* TAB 2: GOOGLE SHEET */}
             {syncTab === 'sheet' && (
-              <div className="space-y-3 p-3.5 rounded-2xl bg-[#120c08] border border-[#3e2716]">
+              <div className="space-y-3 p-3.5 rounded-xl bg-slate-950 border border-slate-800">
                 <div className="flex items-center justify-between gap-2 flex-wrap">
                   <div className="flex items-center gap-2">
                     <FileSpreadsheet className="w-4 h-4 text-emerald-400 shrink-0" />
-                    <span className="text-xs font-fantasy font-black text-[#fef08a] uppercase tracking-wide">
+                    <span className="text-xs font-semibold text-slate-200">
                       Official HOT Alliance Google Sheet
                     </span>
                   </div>
@@ -885,7 +878,7 @@ export const MembersView: React.FC<MembersViewProps> = ({
                     href={sheetUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-[11px] text-amber-300 hover:text-amber-200 underline flex items-center gap-1 font-semibold"
+                    className="text-[11px] text-amber-400 hover:text-amber-300 underline flex items-center gap-1 font-medium"
                   >
                     <span>Open Sheet</span>
                     <ExternalLink className="w-3 h-3" />
@@ -893,7 +886,7 @@ export const MembersView: React.FC<MembersViewProps> = ({
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="block text-[11px] font-bold text-stone-400 uppercase">
+                  <label className="block text-[11px] font-semibold text-slate-400 uppercase">
                     Google Spreadsheet URL
                   </label>
                   <input
@@ -901,12 +894,12 @@ export const MembersView: React.FC<MembersViewProps> = ({
                     value={sheetUrl}
                     onChange={e => setSheetUrl(e.target.value)}
                     placeholder="https://docs.google.com/spreadsheets/d/..."
-                    className="w-full px-3 py-2 rounded-xl bg-[#1a1410] border border-[#3e2716] text-[#fffbeb] text-xs font-mono focus:outline-none focus:border-[#ca8a04]"
+                    className="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-slate-100 text-xs font-mono focus:outline-none focus:border-amber-500"
                   />
                 </div>
 
-                <div className="text-[11px] text-stone-400 space-y-1 leading-relaxed bg-[#170e09] p-2.5 rounded-xl border border-[#2b180d]">
-                  <p className="text-stone-300 font-semibold flex items-center gap-1">
+                <div className="text-[11px] text-slate-400 space-y-1 leading-relaxed bg-slate-900/60 p-2.5 rounded-lg border border-slate-800">
+                  <p className="text-slate-300 font-semibold flex items-center gap-1">
                     <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
                     <span>Direct Roster Synchronization:</span>
                   </p>
@@ -914,7 +907,7 @@ export const MembersView: React.FC<MembersViewProps> = ({
                     Downloads the live CSV export from your Google Sheet and updates all alliance member ranks, battle power, strikes, and communications.
                   </p>
                   <p className="text-amber-400/90 text-[10px]">
-                    Note: If Google returns restricted/unauthorized, ensure the sheet Sharing permissions are set to "Anyone with the link can view".
+                    Note: If Google returns restricted/unauthorized, ensure the sheet Sharing permissions are set to &quot;Anyone with the link can view&quot;.
                   </p>
                 </div>
               </div>
@@ -923,18 +916,18 @@ export const MembersView: React.FC<MembersViewProps> = ({
             {/* TAB 3: PASTE CSV / TEXT */}
             {syncTab === 'paste' && (
               <div className="space-y-2">
-                <div className="flex items-center justify-between text-[11px] text-stone-400">
-                  <span>Paste CSV or in-game player list:</span>
-                  <span className="text-amber-300 font-mono">Auto-detects CSV &amp; Ranks</span>
+                <div className="flex items-center justify-between text-[11px] text-slate-400">
+                  <span>Paste CSV or player list:</span>
+                  <span className="text-amber-400 font-mono">Auto-detects CSV &amp; Ranks</span>
                 </div>
                 <textarea
                   value={pastedRoster}
                   onChange={e => setPastedRoster(e.target.value)}
                   rows={6}
                   placeholder={`Name,Current Rank,Former Rank,Strikes,Communication,Status\nMoonLight,R4,R5,0,Good,Active\nDeath Comes,R5,R4,0,Good,Active\nSally,R4,R3,0,Good,Active`}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#120c08] border border-[#3e2716] text-[#fffbeb] text-xs font-mono focus:outline-none focus:border-[#ca8a04] placeholder:text-stone-600"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-slate-100 text-xs font-mono focus:outline-none focus:border-amber-500 placeholder:text-slate-600"
                 />
-                <p className="text-[11px] text-stone-500">
+                <p className="text-[11px] text-slate-500">
                   Supports comma-separated values (CSV) or player lines with R1–R5 ranks.
                 </p>
               </div>
@@ -943,46 +936,46 @@ export const MembersView: React.FC<MembersViewProps> = ({
             {/* TAB 4: FILE UPLOAD */}
             {syncTab === 'file' && (
               <div className="space-y-3">
-                <label className="block text-xs font-fantasy font-bold text-stone-300 uppercase">
+                <label className="block text-xs font-semibold text-slate-300 uppercase">
                   Select Roster File (.txt, .csv, .json)
                 </label>
-                <div className="border-2 border-dashed border-[#3e2716] hover:border-amber-500/60 rounded-2xl p-6 text-center cursor-pointer bg-[#120c08] transition-colors">
+                <div className="border border-dashed border-slate-700 hover:border-amber-500/60 rounded-xl p-6 text-center cursor-pointer bg-slate-950 transition-colors">
                   <input
                     type="file"
                     accept=".txt,.csv,.json"
                     onChange={handleFileUpload}
-                    className="w-full text-xs text-stone-400 file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-fantasy file:font-black file:uppercase file:bg-amber-600 file:text-black cursor-pointer"
+                    className="w-full text-xs text-slate-400 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-amber-500 file:text-slate-950 cursor-pointer"
                   />
-                  <p className="text-[11px] text-stone-500 mt-2">
+                  <p className="text-[11px] text-slate-500 mt-2">
                     Upload your roster export file from spreadsheets or Discord.
                   </p>
                 </div>
                 {pastedRoster && (
                   <p className="text-xs text-emerald-400">
-                    ✓ File loaded ({pastedRoster.split('\n').filter(Boolean).length} lines ready)
+                    File loaded ({pastedRoster.split('\n').filter(Boolean).length} lines ready)
                   </p>
                 )}
               </div>
             )}
 
             {/* CLEAN REFRESH OPTION */}
-            <div className="p-3 rounded-xl bg-[#120c08] border border-[#3e2716]">
-              <label className="text-xs font-bold text-amber-200 cursor-pointer flex items-center gap-2">
+            <div className="p-3 rounded-xl bg-slate-950 border border-slate-800">
+              <label className="text-xs font-semibold text-amber-300 cursor-pointer flex items-center gap-2">
                 <input
                   type="checkbox"
                   checked={replaceExisting}
                   onChange={e => setReplaceExisting(e.target.checked)}
-                  className="rounded border-stone-700 text-amber-500 focus:ring-amber-500 w-4 h-4 cursor-pointer"
+                  className="rounded border-slate-700 text-amber-500 focus:ring-amber-500 w-4 h-4 cursor-pointer"
                 />
                 <span>Clean Refresh: Replace All Previous Members</span>
               </label>
-              <p className="text-[11px] text-stone-400 mt-0.5 ml-6">
+              <p className="text-[11px] text-slate-400 mt-0.5 ml-6">
                 Removes any previous manual or mock members and exclusively loads this roster.
               </p>
             </div>
 
             {/* ACTION BUTTONS */}
-            <div className="flex flex-col sm:flex-row gap-2 pt-2 border-t border-[#2c1d15]">
+            <div className="flex flex-col sm:flex-row gap-2 pt-2 border-t border-slate-800">
               <button
                 type="button"
                 onClick={handleExecuteSync}
@@ -991,7 +984,7 @@ export const MembersView: React.FC<MembersViewProps> = ({
                   ((syncTab === 'paste' || syncTab === 'file') && !pastedRoster.trim()) ||
                   (syncTab === 'sheet' && !sheetUrl.trim())
                 }
-                className="btn-kingshot-gold flex-1 py-2.5 text-xs font-fantasy font-black uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer shadow-lg disabled:opacity-50"
+                className="btn-primary flex-1 py-2 text-xs font-semibold flex items-center justify-center gap-2 cursor-pointer shadow-sm disabled:opacity-50"
               >
                 <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
                 <span>
@@ -1008,7 +1001,7 @@ export const MembersView: React.FC<MembersViewProps> = ({
               <button
                 type="button"
                 onClick={() => setIsSyncModalOpen(false)}
-                className="px-4 py-2.5 rounded-xl bg-[#1c130d] hover:bg-[#2c1d15] text-stone-300 text-xs font-fantasy font-bold uppercase transition-colors cursor-pointer"
+                className="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium transition-colors cursor-pointer"
               >
                 Cancel
               </button>
@@ -1022,9 +1015,9 @@ export const MembersView: React.FC<MembersViewProps> = ({
                   setIsSyncModalOpen(false);
                   setIsWipeConfirmOpen(true);
                 }}
-                className="text-[11px] text-red-400 hover:text-red-300 underline font-semibold cursor-pointer"
+                className="text-[11px] text-rose-400 hover:text-rose-300 underline font-medium cursor-pointer"
               >
-                Wipe all previous manual/mock members now (Clean Slate)
+                Wipe all previous manual/mock members (Clean Slate)
               </button>
             </div>
           </div>
