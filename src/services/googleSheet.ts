@@ -198,8 +198,17 @@ export const googleSheetService = {
   // 3. Attendance Parser
   parseAttendance(csvText: string): AttendanceRecord[] {
     const rows = parseCsvRows(csvText);
-    const records: AttendanceRecord[] = [];
+    const byKey = new Map<string, AttendanceRecord>();
     const now = new Date().toISOString();
+
+    const EVENT_ID_ALIASES: Record<string, string> = {
+      'evt-1790607589476-kins': 'evt-c233df90', // BT2 Sep 28
+      'evt-1791048690819-7icl': 'evt-6f6a9d3a', // BT1 Oct 01 16:00
+      'evt-1791048703740-v7b9': 'evt-61922e28', // BT2 Oct 02 16:00
+      'evt-1791049152771-k1qw': 'evt-c031d684', // BT1 Oct 03 16:00
+      'evt-1791049171203-10e5': 'evt-f9234e34', // BT2 Oct 04 02:00
+      'evt-1791223308841-6mkk': 'evt-4eee1101', // BT1 Oct 05 16:00
+    };
 
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
@@ -209,10 +218,12 @@ export const googleSheetService = {
       if (row.length < 3) continue;
 
       // Schema: Attendance ID,Event ID,Member ID,Vote Status,Attendance Status,Updated At
-      const id = row[0] || `att-${row[1]}-${row[2]}`;
-      const eventId = row[1];
-      const memberId = row[2];
-      if (!eventId || !memberId) continue;
+      const rawEventId = (row[1] || '').trim();
+      const memberId = (row[2] || '').trim();
+      if (!rawEventId || !memberId) continue;
+
+      const eventId = EVENT_ID_ALIASES[rawEventId] || rawEventId;
+      const id = row[0] || `att-${eventId}-${memberId}`;
 
       const voteStatus = (['YES', 'NO', 'NO RESPONSE'].includes(row[3]?.toUpperCase())
         ? row[3].toUpperCase()
@@ -222,17 +233,35 @@ export const googleSheetService = {
         : 'NOT_APPLICABLE') as AttendanceStatus;
       const updatedAt = row[5] || now;
 
-      records.push({
-        id,
-        eventId,
-        memberId,
-        voteStatus,
-        attendanceStatus,
-        updatedAt,
-      });
+      const key = `${eventId}::${memberId}`;
+      const existing = byKey.get(key);
+
+      if (!existing) {
+        byKey.set(key, {
+          id,
+          eventId,
+          memberId,
+          voteStatus,
+          attendanceStatus,
+          updatedAt,
+        });
+      } else {
+        // Prioritize actual user votes/attendance over default placeholder records
+        const hasActiveStatus = attendanceStatus === 'JOINED' || attendanceStatus === 'DIDNT_JOIN';
+        const hasActiveVote = voteStatus === 'YES' || voteStatus === 'NO';
+
+        byKey.set(key, {
+          id: existing.id || id,
+          eventId,
+          memberId,
+          voteStatus: hasActiveVote ? voteStatus : existing.voteStatus,
+          attendanceStatus: hasActiveStatus ? attendanceStatus : existing.attendanceStatus,
+          updatedAt: (hasActiveStatus || hasActiveVote) ? updatedAt : existing.updatedAt,
+        });
+      }
     }
 
-    return records;
+    return Array.from(byKey.values());
   },
 
   // 4. Officer Contributions Parser

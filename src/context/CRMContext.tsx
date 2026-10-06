@@ -556,8 +556,14 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       const currentSettings = storageService.getSettings();
       const sheetId = googleSheetService.extractSheetId(customUrl || currentSettings.googleSheetUrl);
-      const csv = await googleSheetService.fetchTabCsv(sheetId, GOOGLE_SHEET_TABS.events);
-      const parsedEvents = googleSheetService.parseEvents(csv);
+      
+      const [eventsCsv, attCsv] = await Promise.all([
+        googleSheetService.fetchTabCsv(sheetId, GOOGLE_SHEET_TABS.events),
+        googleSheetService.fetchTabCsv(sheetId, GOOGLE_SHEET_TABS.attendance).catch(() => ''),
+      ]);
+
+      const parsedEvents = googleSheetService.parseEvents(eventsCsv);
+      const parsedAttendance = attCsv ? googleSheetService.parseAttendance(attCsv) : [];
 
       if (parsedEvents.length === 0) {
         addToast({ type: 'warning', title: 'No Events Found', message: 'No event records parsed from sheet.' });
@@ -567,15 +573,23 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       storageService.setEvents(parsedEvents);
       setEvents(parsedEvents);
 
+      if (parsedAttendance.length > 0) {
+        storageService.setAttendance(parsedAttendance);
+        setAttendance(parsedAttendance);
+      }
+
       if (supabaseService.isConfigured(currentSettings)) {
-        supabaseService.migrateAllToSupabase({ events: parsedEvents }, currentSettings).catch(err => console.warn('Supabase event sync error:', err));
+        supabaseService.migrateAllToSupabase({
+          events: parsedEvents,
+          ...(parsedAttendance.length > 0 ? { attendance: parsedAttendance } : {}),
+        }, currentSettings).catch(err => console.warn('Supabase war sync warning:', err));
       }
 
       sounds.playSuccess();
       addToast({
         type: 'success',
-        title: 'Events Synced',
-        message: `Successfully loaded ${parsedEvents.length} events from Google Sheet.`,
+        title: 'War Operations Synced',
+        message: `Loaded ${parsedEvents.length} events and updated turnout records from Google Sheet.`,
       });
       return { success: true, message: `Loaded ${parsedEvents.length} events.`, count: parsedEvents.length };
     } catch (err: any) {

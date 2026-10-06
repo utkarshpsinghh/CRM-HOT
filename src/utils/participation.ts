@@ -95,7 +95,21 @@ export function calculateAllEventAverages(
   events: AllianceEvent[],
   attendance: AttendanceRecord[]
 ): Record<string, EventTypeAverageStats> {
-  const activeEvents = events.filter(e => e.status === 'Completed' || e.status === 'Live');
+  const activeEvents = events.filter(e => {
+    if (e.status === 'Completed' || e.status === 'Live') return true;
+    const time = new Date(e.date).getTime();
+    return !isNaN(time) && time <= Date.now();
+  });
+
+  const EVENT_ID_ALIASES: Record<string, string> = {
+    'evt-1790607589476-kins': 'evt-c233df90',
+    'evt-1791048690819-7icl': 'evt-6f6a9d3a',
+    'evt-1791048703740-v7b9': 'evt-61922e28',
+    'evt-1791049152771-k1qw': 'evt-c031d684',
+    'evt-1791049171203-10e5': 'evt-f9234e34',
+    'evt-1791223308841-6mkk': 'evt-4eee1101',
+  };
+
   const typeMap: Record<string, { totalEvents: number; totalJoined: number; totalSlots: number }> = {};
 
   activeEvents.forEach(evt => {
@@ -103,7 +117,8 @@ export function calculateAllEventAverages(
     if (!typeMap[type]) {
       typeMap[type] = { totalEvents: 0, totalJoined: 0, totalSlots: 0 };
     }
-    const records = attendance.filter(a => a.eventId === evt.id);
+    const records = attendance.filter(a => a.eventId === evt.id || EVENT_ID_ALIASES[a.eventId] === evt.id);
+    if (records.length === 0) return;
     const joined = records.filter(a => a.attendanceStatus === 'JOINED').length;
     typeMap[type].totalEvents += 1;
     typeMap[type].totalJoined += joined;

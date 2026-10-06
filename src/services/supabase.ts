@@ -116,10 +116,29 @@ export const supabaseService = {
     if (!client) return null;
 
     try {
+      // Helper to fetch all rows across PostgREST's 1000-row limit
+      const fetchAllAttendance = async (): Promise<any[]> => {
+        let allAtt: any[] = [];
+        let from = 0;
+        const pageSize = 1000;
+        while (true) {
+          const { data, error } = await client
+            .from('attendance')
+            .select('*')
+            .range(from, from + pageSize - 1);
+          if (error) throw error;
+          if (!data || data.length === 0) break;
+          allAtt = allAtt.concat(data);
+          if (data.length < pageSize) break;
+          from += pageSize;
+        }
+        return allAtt;
+      };
+
       const [
         membersRes,
         eventsRes,
-        attendanceRes,
+        allAttendanceRows,
         strikesRes,
         commsRes,
         adminsRes,
@@ -127,7 +146,7 @@ export const supabaseService = {
       ] = await Promise.all([
         client.from('members').select('*').order('created_at', { ascending: false }),
         client.from('events').select('*').order('date', { ascending: false }),
-        client.from('attendance').select('*'),
+        fetchAllAttendance(),
         client.from('strikes').select('*').order('created_at', { ascending: false }),
         client.from('communications').select('*').order('created_at', { ascending: false }),
         client.from('admins').select('*').order('created_at', { ascending: true }),
@@ -136,31 +155,30 @@ export const supabaseService = {
 
       if (membersRes.error) throw membersRes.error;
       if (eventsRes.error) throw eventsRes.error;
-      if (attendanceRes.error) throw attendanceRes.error;
 
-        let remoteSettings: Partial<AllianceSettings> | undefined;
-        try {
-          const { data: settingsData } = await client.from('settings').select('*');
-          if (Array.isArray(settingsData)) {
-            const underDevRow = settingsData.find(r => r.key === 'underDevelopment');
-            if (underDevRow) {
-              remoteSettings = { underDevelopment: underDevRow.value === 'true' };
-            }
+      let remoteSettings: Partial<AllianceSettings> | undefined;
+      try {
+        const { data: settingsData } = await client.from('settings').select('*');
+        if (Array.isArray(settingsData)) {
+          const underDevRow = settingsData.find(r => r.key === 'underDevelopment');
+          if (underDevRow) {
+            remoteSettings = { underDevelopment: underDevRow.value === 'true' };
           }
-        } catch {
-          // settings table might not be initialized yet
         }
+      } catch {
+        // settings table might not be initialized yet
+      }
 
-        return {
-          members: (membersRes.data || []).map(this.mapMemberFromRow),
-          events: (eventsRes.data || []).map(this.mapEventFromRow),
-          attendance: (attendanceRes.data || []).map(this.mapAttendanceFromRow),
-          strikes: (strikesRes.data || []).map(this.mapStrikeFromRow),
-          communications: (commsRes.data || []).map(this.mapCommFromRow),
-          admins: (adminsRes.data || []).map(this.mapAdminFromRow),
-          contributions: (contributionsRes.data || []).map(this.mapContributionFromRow),
-          settings: remoteSettings,
-        };
+      return {
+        members: (membersRes.data || []).map(this.mapMemberFromRow),
+        events: (eventsRes.data || []).map(this.mapEventFromRow),
+        attendance: (allAttendanceRows || []).map(this.mapAttendanceFromRow),
+        strikes: (strikesRes.data || []).map(this.mapStrikeFromRow),
+        communications: (commsRes.data || []).map(this.mapCommFromRow),
+        admins: (adminsRes.data || []).map(this.mapAdminFromRow),
+        contributions: (contributionsRes.data || []).map(this.mapContributionFromRow),
+        settings: remoteSettings,
+      };
       } catch (err) {
         console.error('Supabase getAllData error:', err);
         return null;
@@ -408,16 +426,30 @@ export const supabaseService = {
     const client = this.getClient(settings);
     if (!client) return [];
 
-    let query = client.from('attendance').select('*');
     if (eventId) {
-      query = query.eq('event_id', eventId);
+      const { data, error } = await client.from('attendance').select('*').eq('event_id', eventId);
+      if (error) {
+        console.error('getAttendance error:', error);
+        return [];
+      }
+      return (data || []).map(this.mapAttendanceFromRow);
     }
-    const { data, error } = await query;
-    if (error) {
-      console.error('getAttendance error:', error);
-      return [];
+
+    let allAtt: any[] = [];
+    let from = 0;
+    const pageSize = 1000;
+    while (true) {
+      const { data, error } = await client.from('attendance').select('*').range(from, from + pageSize - 1);
+      if (error) {
+        console.error('getAttendance error:', error);
+        break;
+      }
+      if (!data || data.length === 0) break;
+      allAtt = allAtt.concat(data);
+      if (data.length < pageSize) break;
+      from += pageSize;
     }
-    return (data || []).map(this.mapAttendanceFromRow);
+    return allAtt.map(this.mapAttendanceFromRow);
   },
 
   async updateVote(eventId: string, memberId: string, voteStatus: VoteStatus, settings: AllianceSettings): Promise<boolean> {
@@ -989,9 +1021,19 @@ export const supabaseService = {
   },
 
   mapAttendanceFromRow(row: any): AttendanceRecord {
+    const EVENT_ID_ALIASES: Record<string, string> = {
+      'evt-1790607589476-kins': 'evt-c233df90',
+      'evt-1791048690819-7icl': 'evt-6f6a9d3a',
+      'evt-1791048703740-v7b9': 'evt-61922e28',
+      'evt-1791049152771-k1qw': 'evt-c031d684',
+      'evt-1791049171203-10e5': 'evt-f9234e34',
+      'evt-1791223308841-6mkk': 'evt-4eee1101',
+    };
+    const rawEventId = (row.event_id || '').trim();
+    const eventId = EVENT_ID_ALIASES[rawEventId] || rawEventId;
     return {
       id: row.id,
-      eventId: row.event_id,
+      eventId,
       memberId: row.member_id,
       voteStatus: row.vote_status || 'NO RESPONSE',
       attendanceStatus: row.attendance_status || 'NOT_APPLICABLE',

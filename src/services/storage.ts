@@ -232,11 +232,35 @@ export const storageService = {
 
   getAttendance(): AttendanceRecord[] {
     const raw = localStorage.getItem(STORAGE_KEYS.ATTENDANCE);
-    return raw ? JSON.parse(raw) : [];
+    const list: AttendanceRecord[] = raw ? JSON.parse(raw) : [];
+    const EVENT_ID_ALIASES: Record<string, string> = {
+      'evt-1790607589476-kins': 'evt-c233df90',
+      'evt-1791048690819-7icl': 'evt-6f6a9d3a',
+      'evt-1791048703740-v7b9': 'evt-61922e28',
+      'evt-1791049152771-k1qw': 'evt-c031d684',
+      'evt-1791049171203-10e5': 'evt-f9234e34',
+      'evt-1791223308841-6mkk': 'evt-4eee1101',
+    };
+    return list.map(a => {
+      const mapped = EVENT_ID_ALIASES[a.eventId] || a.eventId;
+      return mapped !== a.eventId ? { ...a, eventId: mapped } : a;
+    });
   },
 
   setAttendance(records: AttendanceRecord[]) {
-    localStorage.setItem(STORAGE_KEYS.ATTENDANCE, JSON.stringify(records));
+    const EVENT_ID_ALIASES: Record<string, string> = {
+      'evt-1790607589476-kins': 'evt-c233df90',
+      'evt-1791048690819-7icl': 'evt-6f6a9d3a',
+      'evt-1791048703740-v7b9': 'evt-61922e28',
+      'evt-1791049152771-k1qw': 'evt-c031d684',
+      'evt-1791049171203-10e5': 'evt-f9234e34',
+      'evt-1791223308841-6mkk': 'evt-4eee1101',
+    };
+    const normalized = (records || []).map(a => {
+      const mapped = EVENT_ID_ALIASES[a.eventId] || a.eventId;
+      return mapped !== a.eventId ? { ...a, eventId: mapped } : a;
+    });
+    localStorage.setItem(STORAGE_KEYS.ATTENDANCE, JSON.stringify(normalized));
   },
 
   getStrikes(): StrikeRecord[] {
