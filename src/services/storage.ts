@@ -104,15 +104,18 @@ export const storageService = {
     }
   },
 
-  // Initialization check: clean empty arrays, never seed mock data
   init() {
     this.purgeMockJunk();
+    const rosterVersionKey = 'crm_hot_roster_v2_94members';
+    if (!localStorage.getItem(rosterVersionKey)) {
+      localStorage.setItem(STORAGE_KEYS.MEMBERS, JSON.stringify(initialMembers));
+      localStorage.setItem(rosterVersionKey, 'true');
+    }
     const isInit = localStorage.getItem(STORAGE_KEYS.INITIALIZED);
     if (!isInit) {
       const existingSettings = localStorage.getItem(STORAGE_KEYS.SETTINGS);
       if (!existingSettings) {
         localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(initialSettings));
-        localStorage.setItem(STORAGE_KEYS.MEMBERS, JSON.stringify([]));
         localStorage.setItem(STORAGE_KEYS.EVENTS, JSON.stringify([]));
         localStorage.setItem(STORAGE_KEYS.ATTENDANCE, JSON.stringify([]));
         localStorage.setItem(STORAGE_KEYS.STRIKES, JSON.stringify([]));
@@ -129,7 +132,7 @@ export const storageService = {
   },
 
   resetToDefaults() {
-    localStorage.setItem(STORAGE_KEYS.MEMBERS, JSON.stringify([]));
+    localStorage.setItem(STORAGE_KEYS.MEMBERS, JSON.stringify(initialMembers));
     localStorage.setItem(STORAGE_KEYS.EVENTS, JSON.stringify([]));
     localStorage.setItem(STORAGE_KEYS.ATTENDANCE, JSON.stringify([]));
     localStorage.setItem(STORAGE_KEYS.STRIKES, JSON.stringify([]));
@@ -186,7 +189,14 @@ export const storageService = {
 
   getMembers(): Member[] {
     const raw = localStorage.getItem(STORAGE_KEYS.MEMBERS);
-    return raw ? JSON.parse(raw) : [];
+    if (!raw) return initialMembers;
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      return initialMembers;
+    } catch {
+      return initialMembers;
+    }
   },
 
   setMembers(members: Member[]) {

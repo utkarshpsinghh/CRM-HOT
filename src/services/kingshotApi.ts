@@ -116,8 +116,45 @@ export const kingshotApiService = {
 
     for (const line of lines) {
       // Ignore header or separator lines
-      if (/^(name|rank|player|member|power|troops|level|#|---|kingdom|total)/i.test(line)) {
+      if (/^(,?name|,?rank|,?player|,?member|,?power|,?troops|,?level|,?#|,?---|kingdom|total)/i.test(line)) {
         continue;
+      }
+
+      // Check for comma-separated (CSV) format
+      if (line.includes(',')) {
+        const parts = line.split(',').map(p => p.trim());
+        // Handle optional leading comma like ",MoonLight,R4,R5,0,Good,Active"
+        const offset = parts[0] === '' ? 1 : 0;
+        const csvName = parts[offset];
+        if (csvName && csvName.length >= 2 && !/^(name|rank|former|strikes)/i.test(csvName)) {
+          const rawCurrent = (parts[offset + 1] || 'R1').toUpperCase();
+          const validRank: AllianceRank = ['R5', 'R4', 'R3', 'R2', 'R1'].includes(rawCurrent) ? (rawCurrent as AllianceRank) : 'R1';
+          const rawFormer = (parts[offset + 2] || 'None').toUpperCase();
+          const validFormer = ['R5', 'R4', 'R3', 'R2', 'R1'].includes(rawFormer) ? (rawFormer as AllianceRank) : 'None';
+          const strikesVal = Number(parts[offset + 3]) || 0;
+          const rawComm = parts[offset + 4] || 'Good';
+          const validComm = ['Good', 'Warning', 'Poor', 'Unreachable', 'Unknown'].includes(rawComm) ? rawComm : 'Good';
+          const rawStatus = parts[offset + 5] || 'Active';
+          const validStatus = ['Active', 'Inactive', 'Visitor', 'Archived'].includes(rawStatus) ? rawStatus : 'Active';
+
+          const slug = csvName.toLowerCase().replace(/[^a-z0-9]/g, '');
+          const id = `hot-mem-${slug || Date.now().toString(36)}`;
+
+          if (!parsedMembers.some(m => m.name.toLowerCase() === csvName.toLowerCase())) {
+            parsedMembers.push({
+              id,
+              name: csvName,
+              currentRank: validRank,
+              formerRank: validFormer,
+              strikes: strikesVal,
+              communication: validComm as any,
+              status: validStatus as any,
+              createdAt: now,
+              updatedAt: now,
+            });
+            continue;
+          }
+        }
       }
 
       let detectedRank: AllianceRank = 'R1';

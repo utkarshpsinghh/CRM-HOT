@@ -22,6 +22,7 @@ import {
   Trash2,
   CheckCircle2,
   AlertCircle,
+  Crown,
 } from 'lucide-react';
 import { sounds } from '../../utils/sound';
 
@@ -58,10 +59,8 @@ export const MembersView: React.FC<MembersViewProps> = ({
 
   // Sync Modal & Clean Refresh States
   const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
-  const [syncTab, setSyncTab] = useState<'paste' | 'api' | 'file'>('paste');
+  const [syncTab, setSyncTab] = useState<'official' | 'paste' | 'file'>('official');
   const [pastedRoster, setPastedRoster] = useState('');
-  const [apiUrlInput, setApiUrlInput] = useState(settings?.kingshotApiUrl || '');
-  const [apiKeyInput, setApiKeyInput] = useState(settings?.kingshotApiKey || '');
   const [replaceExisting, setReplaceExisting] = useState(true);
   const [isWipeConfirmOpen, setIsWipeConfirmOpen] = useState(false);
 
@@ -82,12 +81,8 @@ export const MembersView: React.FC<MembersViewProps> = ({
 
   const handleExecuteSync = async () => {
     sounds.playClick();
-    let res;
-    if (syncTab === 'paste' || syncTab === 'file') {
-      res = await syncKingshotRoster(pastedRoster, replaceExisting);
-    } else {
-      res = await syncKingshotRoster(undefined, replaceExisting, apiUrlInput, apiKeyInput);
-    }
+    const textToSync = (syncTab === 'paste' || syncTab === 'file') ? pastedRoster : undefined;
+    const res = await syncKingshotRoster(textToSync, replaceExisting);
     if (res && res.success) {
       setIsSyncModalOpen(false);
       setPastedRoster('');
@@ -777,6 +772,21 @@ export const MembersView: React.FC<MembersViewProps> = ({
                 type="button"
                 onClick={() => {
                   sounds.playClick();
+                  setSyncTab('official');
+                }}
+                className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-fantasy font-bold uppercase transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                  syncTab === 'official'
+                    ? 'bg-gradient-to-r from-[#ca8a04] to-[#eab308] text-black shadow-md font-black'
+                    : 'text-stone-400 hover:text-stone-200'
+                }`}
+              >
+                <Crown className="w-3.5 h-3.5" />
+                <span>Official HOT Roster</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  sounds.playClick();
                   setSyncTab('paste');
                 }}
                 className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-fantasy font-bold uppercase transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
@@ -786,22 +796,7 @@ export const MembersView: React.FC<MembersViewProps> = ({
                 }`}
               >
                 <FileText className="w-3.5 h-3.5" />
-                <span>Paste Roster</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  sounds.playClick();
-                  setSyncTab('api');
-                }}
-                className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-fantasy font-bold uppercase transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                  syncTab === 'api'
-                    ? 'bg-gradient-to-r from-[#ca8a04] to-[#eab308] text-black shadow-md font-black'
-                    : 'text-stone-400 hover:text-stone-200'
-                }`}
-              >
-                <RefreshCw className="w-3.5 h-3.5" />
-                <span>Kingshot API</span>
+                <span>Paste CSV / Text</span>
               </button>
               <button
                 type="button"
@@ -820,68 +815,50 @@ export const MembersView: React.FC<MembersViewProps> = ({
               </button>
             </div>
 
-            {/* TAB 1: PASTE ROSTER */}
+            {/* TAB 1: OFFICIAL HOT ROSTER */}
+            {syncTab === 'official' && (
+              <div className="space-y-3 p-3.5 rounded-2xl bg-[#120c08] border border-[#3e2716]">
+                <div className="flex items-center gap-2">
+                  <Crown className="w-4 h-4 text-amber-400 shrink-0" />
+                  <span className="text-xs font-fantasy font-black text-[#fef08a] uppercase tracking-wide">
+                    Kingdom #1391 [HOT] Roster (94 Members)
+                  </span>
+                </div>
+                <div className="text-stone-300 text-xs leading-relaxed space-y-1.5">
+                  <p>
+                    <strong className="text-amber-300">Alliance Leader:</strong> Death Comes (R5)
+                  </p>
+                  <p>
+                    <strong className="text-amber-300">R4 Officers:</strong> MoonLight, Sally, SnackLemon, Beepers, Panda, Emma, Death Farm, Moha
+                  </p>
+                  <p className="text-[11px] text-stone-400">
+                    Includes all 94 registered alliance members with live status, former ranks, strikes, and communication records.
+                  </p>
+                </div>
+                <div className="pt-2 border-t border-[#2a1a10] text-[11px] text-emerald-400 flex items-center gap-1.5">
+                  <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                  <span>Ready to sync into local storage and Supabase PostgreSQL.</span>
+                </div>
+              </div>
+            )}
+
+            {/* TAB 2: PASTE CSV / TEXT */}
             {syncTab === 'paste' && (
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-[11px] text-stone-400">
-                  <span>Paste copied in-game player list or Discord bot export:</span>
-                  <span className="text-amber-300 font-mono">Auto-detects R1–R5</span>
+                  <span>Paste CSV or in-game player list:</span>
+                  <span className="text-amber-300 font-mono">Auto-detects CSV &amp; Ranks</span>
                 </div>
                 <textarea
                   value={pastedRoster}
                   onChange={e => setPastedRoster(e.target.value)}
                   rows={6}
-                  placeholder={`[HOT] Seoyoon R5 (Leader)\n[HOT] Sally R4\n[HOT] Player1 R3\n[HOT] Player2 R2\n[HOT] Recruit1 R1\n(Or just paste names directly, one per line)`}
+                  placeholder={`Name,Current Rank,Former Rank,Strikes,Communication,Status\nMoonLight,R4,R5,0,Good,Active\nDeath Comes,R5,R4,0,Good,Active\nSally,R4,R3,0,Good,Active`}
                   className="w-full px-3.5 py-2.5 rounded-xl bg-[#120c08] border border-[#3e2716] text-[#fffbeb] text-xs font-mono focus:outline-none focus:border-[#ca8a04] placeholder:text-stone-600"
                 />
                 <p className="text-[11px] text-stone-500">
-                  Supports in-game member lists, Discord commands (<code className="text-amber-300">/roster</code>), Kingshot bots, or CSV lines.
+                  Supports comma-separated values (CSV) or player lines with R1–R5 ranks.
                 </p>
-              </div>
-            )}
-
-            {/* TAB 2: KINGSHOT API */}
-            {syncTab === 'api' && (
-              <div className="space-y-3">
-                <div className="space-y-1">
-                  <label className="block text-xs font-fantasy font-bold text-stone-300 uppercase">
-                    Kingshot API / Webhook Endpoint
-                  </label>
-                  <input
-                    type="url"
-                    value={apiUrlInput}
-                    onChange={e => setApiUrlInput(e.target.value)}
-                    placeholder="https://your-bot-or-api.com/api/alliance/1391/members"
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-[#120c08] border border-[#3e2716] text-[#fffbeb] text-xs font-mono focus:outline-none focus:border-[#ca8a04] placeholder:text-stone-600"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="block text-xs font-fantasy font-bold text-stone-300 uppercase">
-                    API Key / Bearer Token (Optional)
-                  </label>
-                  <input
-                    type="password"
-                    value={apiKeyInput}
-                    onChange={e => setApiKeyInput(e.target.value)}
-                    placeholder="Enter API key or auth token if required by your endpoint"
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-[#120c08] border border-[#3e2716] text-[#fffbeb] text-xs font-mono focus:outline-none focus:border-[#ca8a04] placeholder:text-stone-600"
-                  />
-                </div>
-
-                {/* Info Note on API Key & Century Games */}
-                <div className="p-3 rounded-xl bg-[#120c08]/80 border border-[#3e2716] text-[11px] text-stone-400 space-y-1">
-                  <div className="font-bold text-amber-300">How to get an API Key:</div>
-                  <p>
-                    • <strong>Game Publisher:</strong> Century Games does not provide a public developer API key for Kingshot accounts.
-                  </p>
-                  <p>
-                    • <strong>Discord Bot / Custom Endpoint:</strong> If your alliance runs a Discord bot (e.g., KingshotBot, WOSBot) or webhook service, enter your bot's endpoint URL and its API key here.
-                  </p>
-                  <p>
-                    • <strong>No Bot?</strong> Use the <strong>Paste Roster</strong> tab! Simply copy your member list from the game or Discord, and it syncs immediately without any API key.
-                  </p>
-                </div>
               </div>
             )}
 
@@ -899,7 +876,7 @@ export const MembersView: React.FC<MembersViewProps> = ({
                     className="w-full text-xs text-stone-400 file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-fantasy file:font-black file:uppercase file:bg-amber-600 file:text-black cursor-pointer"
                   />
                   <p className="text-[11px] text-stone-500 mt-2">
-                    Upload your roster export file from Discord or spreadsheets.
+                    Upload your roster export file from spreadsheets or Discord.
                   </p>
                 </div>
                 {pastedRoster && (
@@ -922,7 +899,7 @@ export const MembersView: React.FC<MembersViewProps> = ({
                 <span>Clean Refresh: Replace All Previous Members</span>
               </label>
               <p className="text-[11px] text-stone-400 mt-0.5 ml-6">
-                Removes any previous manual or mock members and exclusively loads the new roster.
+                Removes any previous manual or mock members and exclusively loads this roster.
               </p>
             </div>
 
@@ -931,11 +908,17 @@ export const MembersView: React.FC<MembersViewProps> = ({
               <button
                 type="button"
                 onClick={handleExecuteSync}
-                disabled={isSyncing || (syncTab === 'paste' && !pastedRoster.trim()) || (syncTab === 'api' && !apiUrlInput.trim()) || (syncTab === 'file' && !pastedRoster.trim())}
+                disabled={isSyncing || ((syncTab === 'paste' || syncTab === 'file') && !pastedRoster.trim())}
                 className="btn-kingshot-gold flex-1 py-2.5 text-xs font-fantasy font-black uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer shadow-lg disabled:opacity-50"
               >
                 <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
-                <span>{isSyncing ? 'Synchronizing...' : 'Sync & Save Roster'}</span>
+                <span>
+                  {isSyncing
+                    ? 'Synchronizing...'
+                    : syncTab === 'official'
+                    ? 'Sync Official Roster (94 Members)'
+                    : 'Sync & Save Roster'}
+                </span>
               </button>
 
               <button

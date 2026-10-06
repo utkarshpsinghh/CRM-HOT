@@ -1,6 +1,6 @@
 export type AllianceRank = 'R1' | 'R2' | 'R3' | 'R4' | 'R5';
 
-export type CommunicationStatus = 'Good' | 'Warning' | 'Poor' | 'Unknown';
+export type CommunicationStatus = 'Good' | 'Warning' | 'Poor' | 'Unreachable' | 'Unknown';
 
 export type MemberActivityStatus = 'Active' | 'Inactive' | 'Needs Attention' | 'Visitor' | 'Archived';
 
@@ -78,8 +78,6 @@ export interface AllianceSettings {
   inactivityCriticalDays: number;  // default 14
   kingdomId?: string;              // Kingdom #1391
   allianceTag?: string;            // HOT
-  kingshotApiUrl?: string;         // Kingshot API endpoint or webhook
-  kingshotApiKey?: string;         // Optional API Key / Bearer Token for Kingshot endpoint
   autoSyncRoster?: boolean;        // Automatically sync roster periodically
   autoSyncIntervalMinutes?: number;// Auto-sync frequency (default: 30 minutes)
   supabaseUrl?: string;

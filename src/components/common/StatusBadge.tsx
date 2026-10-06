@@ -25,6 +25,11 @@ export const CommunicationBadge: React.FC<CommunicationBadgeProps> = ({ status, 
       icon: <XCircle className="w-3 h-3 text-red-400" />,
       style: 'bg-red-950/60 text-red-300 border-red-700/60',
     },
+    Unreachable: {
+      label: 'Unreachable',
+      icon: <XCircle className="w-3 h-3 text-rose-500" />,
+      style: 'bg-rose-950/70 text-rose-300 border-rose-800/70',
+    },
     Unknown: {
       label: 'Unknown',
       icon: <HelpCircle className="w-3 h-3 text-stone-400" />,

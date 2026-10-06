@@ -62,11 +62,6 @@ export const SettingsView: React.FC = () => {
   const [supaKey, setSupaKey] = useState(settings.supabaseAnonKey || '');
   const [kingdomId, setKingdomId] = useState(settings.kingdomId || '1391');
   const [allianceTag, setAllianceTag] = useState(settings.allianceTag || 'HOT');
-  const [kingshotApiUrl, setKingshotApiUrl] = useState(settings.kingshotApiUrl || '');
-  const [kingshotApiKey, setKingshotApiKey] = useState(settings.kingshotApiKey || '');
-  const [autoSyncRoster, setAutoSyncRoster] = useState(settings.autoSyncRoster ?? true);
-  const [autoSyncIntervalMinutes, setAutoSyncIntervalMinutes] = useState(settings.autoSyncIntervalMinutes || 30);
-  const [showKingshotKey, setShowKingshotKey] = useState(false);
   const [showSupaKey, setShowSupaKey] = useState(false);
   const [warningDays, setWarningDays] = useState(settings.inactivityWarningDays);
   const [inactiveDays, setInactiveDays] = useState(settings.inactivityInactiveDays);
@@ -81,7 +76,7 @@ export const SettingsView: React.FC = () => {
   const [migrationResult, setMigrationResult] = useState<{ success: boolean; message: string; counts?: Record<string, number> } | null>(null);
   const [schemaCopied, setSchemaCopied] = useState(false);
 
-  // Kingshot roster parser state
+  // Alliance roster parser state
   const [rosterInputText, setRosterInputText] = useState('');
   const [isSyncingKingshot, setIsSyncingKingshot] = useState(false);
   const [kingshotResult, setKingshotResult] = useState<{ success: boolean; message: string; added?: number; updated?: number } | null>(null);
@@ -105,10 +100,6 @@ export const SettingsView: React.FC = () => {
       supabaseAnonKey: supaKey.trim(),
       kingdomId: kingdomId.trim() || '1391',
       allianceTag: allianceTag.trim() || 'HOT',
-      kingshotApiUrl: kingshotApiUrl.trim(),
-      kingshotApiKey: kingshotApiKey.trim(),
-      autoSyncRoster,
-      autoSyncIntervalMinutes: Number(autoSyncIntervalMinutes),
       dbProvider: supaUrl.trim() ? 'supabase' : 'local',
       inactivityWarningDays: Number(warningDays),
       inactivityInactiveDays: Number(inactiveDays),
@@ -181,9 +172,7 @@ export const SettingsView: React.FC = () => {
     try {
       const res = await syncKingshotRoster(
         useText ? rosterInputText : undefined,
-        true,
-        kingshotApiUrl,
-        kingshotApiKey.trim() || undefined
+        true
       );
       setKingshotResult(res);
       if (res.success && useText) {
@@ -408,13 +397,13 @@ export const SettingsView: React.FC = () => {
             </div>
             <div>
               <h2 className="font-fantasy font-bold text-base text-[#fef08a] flex items-center gap-2">
-                <span>Kingshot Roster Sync</span>
+                <span>HOT Alliance Roster &amp; Identification</span>
                 <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-950/80 text-amber-300 border border-amber-500 font-sans font-bold">
                   Kingdom #{kingdomId} [{allianceTag}]
                 </span>
               </h2>
               <p className="text-xs text-stone-400">
-                Synchronize member roster and ranks for Kingdom #1391 [HOT] Alliance directly into your Supabase database.
+                Official roster and member tracking for Kingdom #1391 [HOT] Alliance.
               </p>
             </div>
           </div>
@@ -427,7 +416,7 @@ export const SettingsView: React.FC = () => {
               className="btn-kingshot-gold px-3.5 py-1.5 text-xs font-fantasy font-black uppercase flex items-center gap-1.5 cursor-pointer shadow-md disabled:opacity-50"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isSyncingKingshot ? 'animate-spin' : ''}`} />
-              <span>{isSyncingKingshot ? 'Syncing...' : '1-Click Roster Sync'}</span>
+              <span>{isSyncingKingshot ? 'Syncing...' : 'Restore Official HOT Roster'}</span>
             </button>
           </div>
         </div>
@@ -460,163 +449,31 @@ export const SettingsView: React.FC = () => {
           </div>
         </div>
 
-        {/* Automatic Background Sync Controls */}
-        <div className="p-3.5 rounded-xl bg-[#120c08] border border-[#3e2716] space-y-3">
-          <div className="flex items-center justify-between gap-3 flex-wrap">
-            <div className="flex items-center gap-2">
-              <Clock className="w-4 h-4 text-amber-400 shrink-0" />
-              <div>
-                <div className="text-xs font-fantasy font-bold text-[#fef08a] uppercase">
-                  Automatic Background Roster Sync
-                </div>
-                <div className="text-[11px] text-stone-400">
-                  Periodically poll and sync roster data automatically without needing manual clicks.
-                </div>
-              </div>
-            </div>
-
-            <label className="relative inline-flex items-center cursor-pointer">
-              <input
-                type="checkbox"
-                checked={autoSyncRoster}
-                onChange={e => setAutoSyncRoster(e.target.checked)}
-                className="sr-only peer"
-              />
-              <div className="w-11 h-6 bg-stone-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-stone-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-600"></div>
-              <span className="ml-2 text-xs font-fantasy uppercase font-bold text-stone-300">
-                {autoSyncRoster ? 'Auto-Sync Active' : 'Disabled'}
-              </span>
-            </label>
-          </div>
-
-          {autoSyncRoster && (
-            <div className="pt-2 border-t border-[#2a1a10] flex items-center justify-between gap-3 flex-wrap">
-              <div className="text-[11px] text-stone-300 flex items-center gap-1.5">
-                <span>Sync Interval:</span>
-                <select
-                  value={autoSyncIntervalMinutes}
-                  onChange={e => setAutoSyncIntervalMinutes(Number(e.target.value))}
-                  className="px-2 py-1 rounded bg-[#1a1410] border border-[#3e2716] text-amber-300 font-mono text-xs focus:outline-none focus:border-[#ca8a04]"
-                >
-                  <option value={5}>Every 5 Minutes (Real-Time)</option>
-                  <option value={15}>Every 15 Minutes</option>
-                  <option value={30}>Every 30 Minutes (Recommended)</option>
-                  <option value={60}>Every 1 Hour</option>
-                  <option value={120}>Every 2 Hours</option>
-                  <option value={360}>Every 6 Hours</option>
-                </select>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => handleSaveSettings()}
-                className="px-3 py-1 rounded-lg bg-[#24170d] hover:bg-[#341f12] text-amber-300 border border-[#522d14] text-[11px] font-fantasy uppercase transition-colors"
-              >
-                Save Sync Schedule
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* Optional Kingshot Custom API Endpoint & API Key */}
-        <div className="p-3.5 rounded-xl bg-[#120c08] border border-[#3e2716] space-y-3">
+        {/* Official Roster Summary Card */}
+        <div className="p-3.5 rounded-xl bg-[#120c08] border border-[#3e2716] space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-xs font-fantasy font-bold text-[#fef08a] uppercase flex items-center gap-1.5">
-              <Key className="w-3.5 h-3.5 text-amber-400" />
-              <span>Kingshot Custom Bot Endpoint &amp; API Key (Optional)</span>
+              <Crown className="w-3.5 h-3.5 text-amber-400" />
+              <span>Official HOT Alliance Roster (94 Members)</span>
             </span>
-            <span className="text-[10px] text-stone-400 font-mono">
-              For external Discord bots / webhooks
+            <span className="text-[11px] text-emerald-400 font-mono font-bold">
+              94 Members Active
             </span>
           </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-[11px] font-bold text-stone-400 uppercase mb-1">
-                Custom API / Webhook Endpoint
-              </label>
-              <input
-                type="text"
-                value={kingshotApiUrl}
-                onChange={e => setKingshotApiUrl(e.target.value)}
-                placeholder="https://your-bot.example.com/api/roster"
-                className="w-full px-3 py-1.5 rounded-lg bg-[#1a1410] border border-[#3e2716] text-stone-200 font-mono text-xs focus:outline-none focus:border-[#ca8a04] placeholder:text-stone-600"
-              />
-            </div>
-
-            <div>
-              <label className="block text-[11px] font-bold text-stone-400 uppercase mb-1">
-                Bot / Endpoint API Key / Bearer Token
-              </label>
-              <div className="relative">
-                <input
-                  type={showKingshotKey ? 'text' : 'password'}
-                  value={kingshotApiKey}
-                  onChange={e => setKingshotApiKey(e.target.value)}
-                  placeholder="Secret token (optional)"
-                  className="w-full px-3 py-1.5 pr-8 rounded-lg bg-[#1a1410] border border-[#3e2716] text-stone-200 font-mono text-xs focus:outline-none focus:border-[#ca8a04] placeholder:text-stone-600"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowKingshotKey(!showKingshotKey)}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-stone-500 hover:text-stone-300"
-                >
-                  {showKingshotKey ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between gap-2 flex-wrap pt-1">
-            <p className="text-[11px] text-stone-500">
-              Leave blank to use the built-in Kingdom #1391 [HOT] Roster Engine, or supply an external bot / webhook endpoint.
-            </p>
-            <button
-              type="button"
-              onClick={() => handleSaveSettings()}
-              className="px-3 py-1.5 rounded-lg bg-[#24170d] hover:bg-[#341f12] text-amber-300 border border-[#522d14] text-xs font-fantasy uppercase transition-colors shrink-0"
-            >
-              Save Endpoint &amp; Key
-            </button>
-          </div>
+          <p className="text-[11px] text-stone-300 leading-relaxed">
+            Includes Leader <strong>Death Comes (R5)</strong>, R4 Officers <strong>MoonLight, Sally, SnackLemon, Beepers, Panda, Emma, Death Farm, Moha</strong>, and all 94 registered alliance members with live rank, status, and communication history.
+          </p>
         </div>
 
-        {/* How to Get Kingshot / Century Games Data Guide */}
-        <div className="p-3.5 rounded-xl bg-[#140e09] border border-[#3a2010] space-y-2 text-xs">
-          <div className="flex items-center gap-1.5 text-amber-400 font-fantasy font-bold uppercase text-[11px]">
-            <HelpCircle className="w-3.5 h-3.5 shrink-0" />
-            <span>How to Get Kingshot / Alliance Member Data</span>
-          </div>
-          <div className="text-stone-300 text-[11px] space-y-1.5 leading-relaxed">
-            <p>
-              <strong className="text-amber-200">1. Century Games Policy:</strong> Century Games / Whiteout Survival does <em>not</em> provide an official public developer API key portal.
-            </p>
-            <p>
-              <strong className="text-amber-200">2. How Alliances Sync Roster Data:</strong>
-            </p>
-            <ul className="list-disc list-inside space-y-1 pl-2 text-stone-400">
-              <li>
-                <strong className="text-stone-200">Built-in Roster Engine:</strong> Click <span className="text-amber-300 font-bold">"1-Click Roster Sync"</span> above. It automatically syncs real Kingdom 1391 HOT alliance leadership and members.
-              </li>
-              <li>
-                <strong className="text-stone-200">In-Game Copy &amp; Paste (Smart Parser):</strong> In the Whiteout Survival game, open your Alliance Member list, copy or OCR the player text, and paste it into the box below. It automatically parses R1–R5 ranks and battle power!
-              </li>
-              <li>
-                <strong className="text-stone-200">Discord Bot / Webhook:</strong> If your kingdom uses community Discord bots (such as Kingshot bot), enter the bot's webhook URL and secret API key in the fields above.
-              </li>
-            </ul>
-          </div>
-        </div>
-
-        {/* Smart In-Game Roster Parser & Importer */}
+        {/* Smart In-Game / CSV Roster Parser & Importer */}
         <div className="p-3.5 rounded-xl bg-[#120c08] border border-[#3e2716] space-y-2.5">
           <div className="flex items-center justify-between">
             <span className="text-xs font-fantasy font-bold text-[#fef08a] uppercase flex items-center gap-1.5">
               <FileText className="w-3.5 h-3.5 text-amber-400" />
-              <span>Smart Roster Parser (In-Game Roster Copy-Paste)</span>
+              <span>Smart Roster Parser (CSV / In-Game Copy-Paste)</span>
             </span>
             <span className="text-[11px] text-stone-400 font-mono">
-              Auto-detects R5, R4, R3, R2, R1 &amp; Power
+              Auto-detects CSV format, R1–R5 &amp; status
             </span>
           </div>
 
@@ -624,7 +481,7 @@ export const SettingsView: React.FC = () => {
             value={rosterInputText}
             onChange={e => setRosterInputText(e.target.value)}
             rows={4}
-            placeholder={`Paste in-game roster export, OCR text, or player list here...\nExample:\n[HOT] LordVader - R4 (Power: 45,200,000)\n[HOT] Valkyrie - R4 (Power: 38,900,000)\n[HOT] ShadowBlade - R3 (Power: 22,400,000)`}
+            placeholder={`Paste CSV or player lines here...\nExample:\nName,Current Rank,Former Rank,Strikes,Communication,Status\nMoonLight,R4,R5,0,Good,Active\nDeath Comes,R5,R4,0,Good,Active`}
             className="w-full px-3 py-2 rounded-xl bg-[#1a1410] border border-[#3e2716] text-stone-200 text-xs font-mono focus:outline-none focus:border-[#ca8a04] placeholder:text-stone-600"
           />
 
