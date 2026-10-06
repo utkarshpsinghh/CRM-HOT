@@ -165,7 +165,7 @@ export const SettingsView: React.FC = () => {
     setIsSyncingKingshot(true);
     setKingshotResult(null);
     try {
-      const res = await syncKingshotRoster(useText ? rosterInputText : undefined);
+      const res = await syncKingshotRoster(useText ? rosterInputText : undefined, true, kingshotApiUrl);
       setKingshotResult(res);
       if (res.success && useText) {
         setRosterInputText('');

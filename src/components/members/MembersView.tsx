@@ -17,6 +17,11 @@ import {
   ArrowUpDown,
   X,
   RefreshCw,
+  FileText,
+  Upload,
+  Trash2,
+  CheckCircle2,
+  AlertCircle,
 } from 'lucide-react';
 import { sounds } from '../../utils/sound';
 
@@ -41,6 +46,8 @@ export const MembersView: React.FC<MembersViewProps> = ({
     memberFilter,
     setMemberFilter,
     syncKingshotRoster,
+    wipeAllMembers,
+    settings,
     isSyncing,
   } = useCRM();
 
@@ -48,6 +55,43 @@ export const MembersView: React.FC<MembersViewProps> = ({
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [selectedEventType, setSelectedEventType] = useState<string>('ALL');
   const [memberToArchive, setMemberToArchive] = useState<Member | null>(null);
+
+  // Sync Modal & Clean Refresh States
+  const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
+  const [syncTab, setSyncTab] = useState<'paste' | 'api' | 'file'>('paste');
+  const [pastedRoster, setPastedRoster] = useState('');
+  const [apiUrlInput, setApiUrlInput] = useState(settings?.kingshotApiUrl || '');
+  const [replaceExisting, setReplaceExisting] = useState(true);
+  const [isWipeConfirmOpen, setIsWipeConfirmOpen] = useState(false);
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = ev => {
+        const text = ev.target?.result as string;
+        if (text) {
+          setPastedRoster(text);
+          setSyncTab('paste');
+        }
+      };
+      reader.readAsText(file);
+    }
+  };
+
+  const handleExecuteSync = async () => {
+    sounds.playClick();
+    let res;
+    if (syncTab === 'paste' || syncTab === 'file') {
+      res = await syncKingshotRoster(pastedRoster, replaceExisting);
+    } else {
+      res = await syncKingshotRoster(undefined, replaceExisting, apiUrlInput);
+    }
+    if (res && res.success) {
+      setIsSyncModalOpen(false);
+      setPastedRoster('');
+    }
+  };
 
   // Pre-calculate participation stats for each member
   const memberParticipationMap = useMemo(() => {
@@ -153,10 +197,13 @@ export const MembersView: React.FC<MembersViewProps> = ({
 
         <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
           <button
-            onClick={() => syncKingshotRoster()}
+            onClick={() => {
+              sounds.playClick();
+              setIsSyncModalOpen(true);
+            }}
             disabled={isSyncing}
             className="px-3.5 py-2 rounded-xl bg-[#24170d] hover:bg-[#341f12] text-amber-300 border border-[#522d14] hover:border-amber-500/60 text-xs font-fantasy uppercase tracking-wider flex items-center gap-1.5 cursor-pointer transition-all shadow-sm disabled:opacity-50"
-            title="Update & synchronize member roster for Kingdom #1391 [HOT]"
+            title="Update & synchronize member roster for HOT Alliance"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin text-amber-400' : 'text-amber-400'}`} />
             <span>{isSyncing ? 'Updating...' : 'Sync Roster'}</span>
@@ -468,7 +515,34 @@ export const MembersView: React.FC<MembersViewProps> = ({
             </tr>
           </thead>
           <tbody className="divide-y divide-[#2a170b] text-stone-200">
-            {sortedMembers.length === 0 ? (
+            {members.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="py-14 text-center">
+                  <div className="max-w-md mx-auto space-y-3 px-4">
+                    <div className="w-12 h-12 mx-auto rounded-2xl bg-amber-950/60 border border-amber-600/40 flex items-center justify-center text-amber-400 shadow">
+                      <Users className="w-6 h-6" />
+                    </div>
+                    <div className="text-base font-fantasy font-black text-[#fef08a] uppercase tracking-wide">
+                      No Alliance Members Loaded
+                    </div>
+                    <p className="text-xs text-stone-400 leading-relaxed">
+                      All previous manual/mock members have been removed. Use the sync tool below to paste your real HOT alliance roster or connect an API endpoint.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        sounds.playClick();
+                        setIsSyncModalOpen(true);
+                      }}
+                      className="btn-kingshot-gold px-4 py-2 text-xs font-fantasy font-black uppercase tracking-wider inline-flex items-center gap-2 shadow cursor-pointer mt-1"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5" />
+                      <span>Sync / Import Real Members</span>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ) : sortedMembers.length === 0 ? (
               <tr>
                 <td colSpan={6} className="py-10 text-center text-stone-400">
                   No members found matching your search.
@@ -653,6 +727,217 @@ export const MembersView: React.FC<MembersViewProps> = ({
         confirmLabel="Archive"
         variant="crimson"
       />
+
+      {/* Confirmation Modal for Wiping Previous Manual Members */}
+      <ConfirmModal
+        isOpen={isWipeConfirmOpen}
+        onClose={() => setIsWipeConfirmOpen(false)}
+        onConfirm={async () => {
+          setIsWipeConfirmOpen(false);
+          await wipeAllMembers();
+        }}
+        title="⚠️ Wipe Previous Manual Members"
+        message="Are you sure you want to delete all current members? This will permanently remove all previous manual and mock members from both local storage and database, giving you a completely clean slate."
+        confirmLabel="Wipe All Members"
+        variant="crimson"
+      />
+
+      {/* Roster Sync & Import Modal */}
+      {isSyncModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+          <div className="bg-gradient-to-b from-[#1c130d] to-[#140d09] border-2 border-[#3e2716] rounded-3xl shadow-2xl p-6 sm:p-7 w-full max-w-xl text-stone-200 space-y-4 max-h-[90vh] overflow-y-auto">
+            {/* Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-[#2c1d15]">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-2xl bg-amber-950/60 border border-amber-600/40 flex items-center justify-center text-amber-400 shadow">
+                  <RefreshCw className="w-5 h-5" />
+                </div>
+                <div>
+                  <h2 className="font-fantasy font-black text-lg text-[#fef08a] uppercase tracking-wide">
+                    HOT Alliance Roster Sync
+                  </h2>
+                  <p className="text-xs text-stone-400">
+                    Kingdom #1391 • HOT Alliance
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsSyncModalOpen(false)}
+                className="text-stone-400 hover:text-stone-200 p-1 rounded-lg hover:bg-[#2c1d15] transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Sync Tabs */}
+            <div className="flex gap-1.5 p-1 rounded-xl bg-[#120c08] border border-[#2c1d15]">
+              <button
+                type="button"
+                onClick={() => {
+                  sounds.playClick();
+                  setSyncTab('paste');
+                }}
+                className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-fantasy font-bold uppercase transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                  syncTab === 'paste'
+                    ? 'bg-gradient-to-r from-[#ca8a04] to-[#eab308] text-black shadow-md font-black'
+                    : 'text-stone-400 hover:text-stone-200'
+                }`}
+              >
+                <FileText className="w-3.5 h-3.5" />
+                <span>Paste Roster</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  sounds.playClick();
+                  setSyncTab('api');
+                }}
+                className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-fantasy font-bold uppercase transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                  syncTab === 'api'
+                    ? 'bg-gradient-to-r from-[#ca8a04] to-[#eab308] text-black shadow-md font-black'
+                    : 'text-stone-400 hover:text-stone-200'
+                }`}
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+                <span>Kingshot API</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  sounds.playClick();
+                  setSyncTab('file');
+                }}
+                className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-fantasy font-bold uppercase transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                  syncTab === 'file'
+                    ? 'bg-gradient-to-r from-[#ca8a04] to-[#eab308] text-black shadow-md font-black'
+                    : 'text-stone-400 hover:text-stone-200'
+                }`}
+              >
+                <Upload className="w-3.5 h-3.5" />
+                <span>Upload File</span>
+              </button>
+            </div>
+
+            {/* TAB 1: PASTE ROSTER */}
+            {syncTab === 'paste' && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-[11px] text-stone-400">
+                  <span>Paste copied in-game player list or Discord bot export:</span>
+                  <span className="text-amber-300 font-mono">Auto-detects R1–R5</span>
+                </div>
+                <textarea
+                  value={pastedRoster}
+                  onChange={e => setPastedRoster(e.target.value)}
+                  rows={6}
+                  placeholder={`[HOT] Seoyoon R5 (Leader)\n[HOT] Sally R4\n[HOT] Player1 R3\n[HOT] Player2 R2\n[HOT] Recruit1 R1\n(Or just paste names directly, one per line)`}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#120c08] border border-[#3e2716] text-[#fffbeb] text-xs font-mono focus:outline-none focus:border-[#ca8a04] placeholder:text-stone-600"
+                />
+                <p className="text-[11px] text-stone-500">
+                  Supports in-game member lists, Discord commands (<code className="text-amber-300">/roster</code>), Kingshot bots, or CSV lines.
+                </p>
+              </div>
+            )}
+
+            {/* TAB 2: KINGSHOT API */}
+            {syncTab === 'api' && (
+              <div className="space-y-3">
+                <div className="space-y-1">
+                  <label className="block text-xs font-fantasy font-bold text-stone-300 uppercase">
+                    Kingshot API / Webhook Endpoint
+                  </label>
+                  <input
+                    type="url"
+                    value={apiUrlInput}
+                    onChange={e => setApiUrlInput(e.target.value)}
+                    placeholder="https://your-bot-or-api.com/api/alliance/1391/members"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-[#120c08] border border-[#3e2716] text-[#fffbeb] text-xs font-mono focus:outline-none focus:border-[#ca8a04] placeholder:text-stone-600"
+                  />
+                  <p className="text-[11px] text-stone-500">
+                    Endpoint should return a JSON array of member names or objects.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* TAB 3: FILE UPLOAD */}
+            {syncTab === 'file' && (
+              <div className="space-y-3">
+                <label className="block text-xs font-fantasy font-bold text-stone-300 uppercase">
+                  Select Roster File (.txt, .csv, .json)
+                </label>
+                <div className="border-2 border-dashed border-[#3e2716] hover:border-amber-500/60 rounded-2xl p-6 text-center cursor-pointer bg-[#120c08] transition-colors">
+                  <input
+                    type="file"
+                    accept=".txt,.csv,.json"
+                    onChange={handleFileUpload}
+                    className="w-full text-xs text-stone-400 file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-fantasy file:font-black file:uppercase file:bg-amber-600 file:text-black cursor-pointer"
+                  />
+                  <p className="text-[11px] text-stone-500 mt-2">
+                    Upload your roster export file from Discord or spreadsheets.
+                  </p>
+                </div>
+                {pastedRoster && (
+                  <p className="text-xs text-emerald-400">
+                    ✓ File loaded ({pastedRoster.split('\n').filter(Boolean).length} lines ready)
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* CLEAN REFRESH OPTION */}
+            <div className="p-3 rounded-xl bg-[#120c08] border border-[#3e2716]">
+              <label className="text-xs font-bold text-amber-200 cursor-pointer flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={replaceExisting}
+                  onChange={e => setReplaceExisting(e.target.checked)}
+                  className="rounded border-stone-700 text-amber-500 focus:ring-amber-500 w-4 h-4 cursor-pointer"
+                />
+                <span>Clean Refresh: Replace All Previous Members</span>
+              </label>
+              <p className="text-[11px] text-stone-400 mt-0.5 ml-6">
+                Removes any previous manual or mock members and exclusively loads the new roster.
+              </p>
+            </div>
+
+            {/* ACTION BUTTONS */}
+            <div className="flex flex-col sm:flex-row gap-2 pt-2 border-t border-[#2c1d15]">
+              <button
+                type="button"
+                onClick={handleExecuteSync}
+                disabled={isSyncing || (syncTab === 'paste' && !pastedRoster.trim()) || (syncTab === 'api' && !apiUrlInput.trim()) || (syncTab === 'file' && !pastedRoster.trim())}
+                className="btn-kingshot-gold flex-1 py-2.5 text-xs font-fantasy font-black uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer shadow-lg disabled:opacity-50"
+              >
+                <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
+                <span>{isSyncing ? 'Synchronizing...' : 'Sync & Save Roster'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setIsSyncModalOpen(false)}
+                className="px-4 py-2.5 rounded-xl bg-[#1c130d] hover:bg-[#2c1d15] text-stone-300 text-xs font-fantasy font-bold uppercase transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+            </div>
+
+            {/* WIPE PREVIOUS MANUAL MEMBERS ACTION */}
+            <div className="pt-2 text-center">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsSyncModalOpen(false);
+                  setIsWipeConfirmOpen(true);
+                }}
+                className="text-[11px] text-red-400 hover:text-red-300 underline font-semibold cursor-pointer"
+              >
+                Wipe all previous manual/mock members now (Clean Slate)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

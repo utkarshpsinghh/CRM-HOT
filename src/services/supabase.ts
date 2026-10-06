@@ -290,6 +290,21 @@ export const supabaseService = {
     return true;
   },
 
+  async wipeAllMembers(settings: AllianceSettings): Promise<boolean> {
+    const client = this.getClient(settings);
+    if (!client) return false;
+    try {
+      await client.from('attendance').delete().neq('id', '___empty___');
+      await client.from('strikes').delete().neq('id', '___empty___');
+      await client.from('communications').delete().neq('id', '___empty___');
+      await client.from('members').delete().neq('id', '___empty___');
+      return true;
+    } catch (err) {
+      console.error('wipeAllMembers error:', err);
+      return false;
+    }
+  },
+
   // ==========================================================================
   // EVENTS
   // ==========================================================================

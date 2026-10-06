@@ -18,13 +18,32 @@ export const storageService = {
   // Purge any legacy mock / demo data from localStorage
   purgeMockJunk() {
     try {
-      // 1. Purge old mock members (e.g. mem-1..mem-92, mem-001..mem-092, or generic names)
+      // 1. Purge all legacy mock and hardcoded placeholder members
       const rawMem = localStorage.getItem(STORAGE_KEYS.MEMBERS);
       if (rawMem) {
         const mems: Member[] = JSON.parse(rawMem);
+        const legacyMockNames = new Set([
+          'DragonSlayer', 'ShadowNinja', 'FrostQueen', 'NightStalker', 'IronClad', 'HOT_Ares', 'Valkyrie_HOT',
+          'IronClad_99', 'ShadowBlade', 'LordGrimjaw', 'QueenOfBlades', 'Thorin_Stone', 'NightStalker_X',
+          'CrimsonReaper', 'DragonBane', 'SilverWolf', 'BlazeFury', 'FrostBite', 'TitanSlayer', 'PhoenixAsh',
+          'Vortex_HOT', 'StormBreaker', 'GhostRider_7', 'Archon_Prime', 'BloodMoon', 'Ragnarok_88', 'ApexPredator',
+          'SteelHawk', 'Kael_Sunstrider', 'OdinShield', 'SilentAssasin', 'WarMachine_01', 'DoomHammer', 'RogueOne',
+          'SleepingGiant', 'LostWanderer', 'AFK_Champion', 'WarChief_Z',
+          // Auto-generated placeholder members
+          '[HOT] Ares', '[HOT] Valkyrie', '[HOT] MoonLight', '[HOT] ShadowKnight', '[HOT] Titan',
+          '[HOT] Phoenix', '[HOT] StormBreaker', '[HOT] GhostRider', '[HOT] ApexPredator', '[HOT] NightHawk',
+          '[HOT] CrimsonBlade', '[HOT] FrostBite', '[HOT] ThunderStrike', '[HOT] SilverWolf', '[HOT] Dreadnought',
+          '[HOT] MysticRogue', '[HOT] IronShield', '[HOT] BlazeFury', '[HOT] DarkHorizon', '[HOT] SteelGuard',
+          '[HOT] NovaBlast', '[HOT] ViperVenom', '[HOT] SolarFlare', '[HOT] EchoHunter', '[HOT] RazorEdge',
+          '[HOT] WinterSoldier', '[HOT] AlphaWolf', '[HOT] TalonStrike', '[HOT] Obsidian', '[HOT] SwiftArrow',
+          '[HOT] IronHeart', '[HOT] ShadowWalker', '[HOT] FrostWard', '[HOT] StormRider', '[HOT] EmberKnight',
+          '[HOT] Zenith', '[HOT] Vortex', '[HOT] BlackLotus', '[HOT] CyberKnight', '[HOT] DawnSeeker',
+          '[HOT] HorizonChaser', '[HOT] RuneMaster', '[HOT] WildFire', '[HOT] FrostHammer', '[HOT] StarGazer'
+        ]);
+
         const filtered = mems.filter(m =>
-          !/^mem-\d+$/.test(m.id) &&
-          !['DragonSlayer', 'ShadowNinja', 'FrostQueen', 'NightStalker', 'IronClad', 'HOT_Ares', 'Valkyrie_HOT'].includes(m.name)
+          !/^mem-\d+$/i.test(m.id) &&
+          !legacyMockNames.has(m.name)
         );
         if (filtered.length !== mems.length) {
           localStorage.setItem(STORAGE_KEYS.MEMBERS, JSON.stringify(filtered));
@@ -132,6 +151,14 @@ export const storageService = {
     localStorage.setItem(STORAGE_KEYS.COMMUNICATION, JSON.stringify([]));
     localStorage.setItem(STORAGE_KEYS.CONTRIBUTIONS, JSON.stringify([]));
     localStorage.setItem(STORAGE_KEYS.INITIALIZED, 'true');
+  },
+
+  // Clear all member data completely for a clean refresh
+  clearAllMembers() {
+    localStorage.setItem(STORAGE_KEYS.MEMBERS, JSON.stringify([]));
+    localStorage.setItem(STORAGE_KEYS.ATTENDANCE, JSON.stringify([]));
+    localStorage.setItem(STORAGE_KEYS.STRIKES, JSON.stringify([]));
+    localStorage.setItem(STORAGE_KEYS.COMMUNICATION, JSON.stringify([]));
   },
 
   // Batch save all CRM entities to minimize disk I/O latency

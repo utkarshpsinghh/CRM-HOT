@@ -2,21 +2,13 @@
  * ============================================================================
  * KINGSHOT ALLIANCE MEMBER AUTOMATION — KINGDOM #1391 [HOT] ALLIANCE
  * ============================================================================
- * Configuration:
- * - Kingdom ID: #1391
- * - Alliance Tag: HOT
- * - Alliance Name: HOT Alliance
- *
  * Capabilities:
- * 1. Live Kingdom #1391 [HOT] Alliance Roster Provider:
- *    Generates and synchronizes official Kingdom #1391 [HOT] alliance members,
- *    eliminating all legacy starter/mock names.
- * 2. External Kingshot API / Webhook Integration:
- *    Allows fetching live members from custom Kingshot bot endpoints or APIs.
- * 3. Smart In-Game Roster Parser:
- *    Parses in-game player lists, chat exports, discord bot outputs, or OCR.
- * 4. Supabase Integration:
- *    Upserts synchronized members directly into Supabase PostgreSQL.
+ * 1. Live Kingshot API / Webhook Integration:
+ *    Fetches live members from custom Kingshot bot endpoints, discord bots, or APIs.
+ * 2. Universal In-Game & Discord Roster Parser:
+ *    Parses in-game player lists, discord bot exports (/roster), CSV, or OCR text.
+ * 3. Supabase & Local Database Synchronization:
+ *    Performs clean replacement or smart merging of members.
  * ============================================================================
  */
 
@@ -38,83 +30,11 @@ export interface KingshotFetchResult {
   updatedCount?: number;
 }
 
-/**
- * Official Kingdom #1391 [HOT] Alliance Base Roster
- */
-export const KINGDOM_1391_HOT_ROSTER_DEFAULTS: Array<{ name: string; rank: AllianceRank }> = [
-  // R5 Alliance Leader
-  { name: '[HOT] Seoyoon', rank: 'R5' },
-
-  // R4 War Officers & Command
-  { name: '[HOT] Ares', rank: 'R4' },
-  { name: '[HOT] Valkyrie', rank: 'R4' },
-  { name: '[HOT] MoonLight', rank: 'R4' },
-  { name: '[HOT] ShadowKnight', rank: 'R4' },
-  { name: '[HOT] Titan', rank: 'R4' },
-
-  // R3 Elite Battle Commanders
-  { name: '[HOT] Phoenix', rank: 'R3' },
-  { name: '[HOT] StormBreaker', rank: 'R3' },
-  { name: '[HOT] GhostRider', rank: 'R3' },
-  { name: '[HOT] ApexPredator', rank: 'R3' },
-  { name: '[HOT] NightHawk', rank: 'R3' },
-  { name: '[HOT] CrimsonBlade', rank: 'R3' },
-  { name: '[HOT] FrostBite', rank: 'R3' },
-  { name: '[HOT] ThunderStrike', rank: 'R3' },
-  { name: '[HOT] SilverWolf', rank: 'R3' },
-  { name: '[HOT] Dreadnought', rank: 'R3' },
-  { name: '[HOT] MysticRogue', rank: 'R3' },
-  { name: '[HOT] IronShield', rank: 'R3' },
-
-  // R2 Core Defenders & Rally Fillers
-  { name: '[HOT] BlazeFury', rank: 'R2' },
-  { name: '[HOT] DarkHorizon', rank: 'R2' },
-  { name: '[HOT] SteelGuard', rank: 'R2' },
-  { name: '[HOT] NovaBlast', rank: 'R2' },
-  { name: '[HOT] ViperVenom', rank: 'R2' },
-  { name: '[HOT] SolarFlare', rank: 'R2' },
-  { name: '[HOT] EchoHunter', rank: 'R2' },
-  { name: '[HOT] RazorEdge', rank: 'R2' },
-  { name: '[HOT] WinterSoldier', rank: 'R2' },
-  { name: '[HOT] AlphaWolf', rank: 'R2' },
-  { name: '[HOT] TalonStrike', rank: 'R2' },
-  { name: '[HOT] Obsidian', rank: 'R2' },
-
-  // R1 Alliance Members & Recruits
-  { name: '[HOT] SwiftArrow', rank: 'R1' },
-  { name: '[HOT] IronHeart', rank: 'R1' },
-  { name: '[HOT] ShadowWalker', rank: 'R1' },
-  { name: '[HOT] FrostWard', rank: 'R1' },
-  { name: '[HOT] StormRider', rank: 'R1' },
-  { name: '[HOT] EmberKnight', rank: 'R1' },
-  { name: '[HOT] Zenith', rank: 'R1' },
-  { name: '[HOT] Vortex', rank: 'R1' },
-  { name: '[HOT] BlackLotus', rank: 'R1' },
-  { name: '[HOT] CyberKnight', rank: 'R1' },
-  { name: '[HOT] DawnSeeker', rank: 'R1' },
-  { name: '[HOT] HorizonChaser', rank: 'R1' },
-  { name: '[HOT] RuneMaster', rank: 'R1' },
-  { name: '[HOT] WildFire', rank: 'R1' },
-  { name: '[HOT] FrostHammer', rank: 'R1' },
-  { name: '[HOT] StarGazer', rank: 'R1' },
-];
+// Clean baseline — no hardcoded fake/mock members
+export const KINGDOM_1391_HOT_ROSTER_DEFAULTS: Array<{ name: string; rank: AllianceRank }> = [];
 
 export function generateKingdom1391HOTMembers(): Member[] {
-  const now = new Date().toISOString();
-  return KINGDOM_1391_HOT_ROSTER_DEFAULTS.map((def, idx) => {
-    const slug = def.name.toLowerCase().replace(/[^a-z0-9]/g, '');
-    return {
-      id: `ks-1391-hot-${idx + 1}-${slug}`,
-      name: def.name,
-      currentRank: def.rank,
-      formerRank: 'None',
-      strikes: 0,
-      communication: 'Good',
-      status: 'Active',
-      createdAt: now,
-      updatedAt: now,
-    };
-  });
+  return [];
 }
 
 export const kingshotApiService = {
@@ -127,10 +47,10 @@ export const kingshotApiService = {
   },
 
   /**
-   * Smart Roster Parser: Converts raw copied game text, discord bot output,
-   * or OCR text from Kingdom #1391 into valid CRM Member records.
+   * Universal Roster Parser: Converts raw copied game text, discord bot exports,
+   * CSV, JSON, or OCR text from Kingdom #1391 into valid CRM Member records.
    */
-  parseRosterText(rawText: string): KingshotFetchResult {
+  parseRosterText(rawText: string, allianceTag: string = ALLIANCE_TAG): KingshotFetchResult {
     if (!rawText || !rawText.trim()) {
       return {
         success: false,
@@ -140,55 +60,136 @@ export const kingshotApiService = {
       };
     }
 
-    const lines = rawText.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+    const trimmed = rawText.trim();
+    const now = new Date().toISOString();
     const parsedMembers: Member[] = [];
     const unparsedLines: string[] = [];
-    const now = new Date().toISOString();
+
+    // 1. Try parsing as JSON first (in case user pasted JSON from API/bot)
+    if ((trimmed.startsWith('[') && trimmed.endsWith(']')) || (trimmed.startsWith('{') && trimmed.endsWith('}'))) {
+      try {
+        const json = JSON.parse(trimmed);
+        const list: any[] = Array.isArray(json) ? json : json.members || json.players || json.data || [];
+        if (list.length > 0) {
+          for (let i = 0; i < list.length; i++) {
+            const item = list[i];
+            const rawName = typeof item === 'string'
+              ? item
+              : item.name || item.player || item.username || item.nickname;
+            if (rawName && String(rawName).trim().length > 0) {
+              const clean = String(rawName).trim();
+              const formattedName = clean.startsWith('[') ? clean : `[${allianceTag}] ${clean}`;
+              const rawRank = typeof item === 'object' ? (item.rank || item.currentRank || 'R1') : 'R1';
+              const validRank: AllianceRank = ['R5', 'R4', 'R3', 'R2', 'R1'].includes(String(rawRank).toUpperCase())
+                ? (String(rawRank).toUpperCase() as AllianceRank)
+                : 'R1';
+              const slug = clean.toLowerCase().replace(/[^a-z0-9]/g, '');
+              parsedMembers.push({
+                id: (typeof item === 'object' && item.id) ? String(item.id) : `ks-1391-hot-${slug || i + 1}`,
+                name: formattedName,
+                currentRank: validRank,
+                formerRank: 'None',
+                strikes: Number(item?.strikes) || 0,
+                communication: item?.communication || 'Good',
+                status: item?.status || 'Active',
+                createdAt: item?.createdAt || now,
+                updatedAt: now,
+              });
+            }
+          }
+          if (parsedMembers.length > 0) {
+            return {
+              success: true,
+              message: `Successfully parsed ${parsedMembers.length} members from JSON.`,
+              source: 'parser',
+              members: parsedMembers,
+            };
+          }
+        }
+      } catch {
+        // Not valid JSON, continue with line-by-line parsing
+      }
+    }
+
+    // 2. Line-by-line parsing (Handles in-game copy, Discord bots, CSV, OCR)
+    const lines = trimmed.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
 
     for (const line of lines) {
-      // Ignore header lines or separator lines
-      if (/^(name|rank|player|member|power|troops|level|#|---|kingdom)/i.test(line)) {
+      // Ignore header or separator lines
+      if (/^(name|rank|player|member|power|troops|level|#|---|kingdom|total)/i.test(line)) {
         continue;
       }
 
-      let name = '';
-      let rank: AllianceRank = 'R1';
+      let detectedRank: AllianceRank = 'R1';
 
-      // Detect rank R1..R5
-      const rankMatch = line.match(/\b(R[1-5]|r[1-5]|Leader|Officer)\b/i);
+      // Detect rank R1..R5, Leader, Officer
+      const rankMatch = line.match(/\b(R[1-5]|r[1-5]|Leader|Officer|Recruit|Warrior|Elite)\b/i);
       if (rankMatch) {
-        const rawRank = rankMatch[1].toUpperCase();
-        if (rawRank === 'LEADER') rank = 'R5';
-        else if (rawRank === 'OFFICER') rank = 'R4';
-        else rank = rawRank as AllianceRank;
+        const raw = rankMatch[1].toUpperCase();
+        if (raw === 'LEADER') detectedRank = 'R5';
+        else if (raw === 'OFFICER') detectedRank = 'R4';
+        else if (raw === 'ELITE') detectedRank = 'R3';
+        else if (raw === 'WARRIOR') detectedRank = 'R2';
+        else if (raw === 'RECRUIT') detectedRank = 'R1';
+        else if (['R1', 'R2', 'R3', 'R4', 'R5'].includes(raw)) detectedRank = raw as AllianceRank;
       }
 
-      // Extract cleaned member name
-      const cleanLine = line
-        .replace(/\[[^\]]+\]/g, '') // remove tags like [HOT] or [1391]
-        .replace(/\b(R[1-5]|r[1-5]|Leader|Officer)\b/gi, '') // remove rank indicator
-        .replace(/[-•:,|()]/g, ' ') // remove delimiters
+      // Clean the line to isolate player name
+      let cleanLine = line
+        // Remove leading numbering like "1.", "1 -", "#1", "•", etc.
+        .replace(/^(\d+[\.\)\-:]|\#\d+|[•\-\*])\s*/, '')
+        // Remove power indicators like "(Power: 45,200,000)" or "45.2M Power"
+        .replace(/\bpower\s*[:=]?\s*[\d,\.mkb]+/gi, '')
+        .replace(/\b[\d,\.mkb]+\s*power\b/gi, '')
+        // Remove rank indicators
+        .replace(/\b(R[1-5]|r[1-5]|Leader|Officer|Recruit|Warrior|Elite)\b/gi, '')
+        // Remove brackets around rank e.g. (R4) or [R4]
+        .replace(/[\(\[\{]\s*[\)\]\}]/g, '')
+        // Remove unwanted punctuation
+        .replace(/[-•:;|,]/g, ' ')
         .replace(/\s+/g, ' ')
         .trim();
 
+      // Extract existing tag or clean name
+      let finalName = '';
       if (cleanLine.length >= 2) {
-        const token = cleanLine.split(' ')[0] || cleanLine;
-        name = `[${ALLIANCE_TAG}] ${token}`;
-        const id = `ks-1391-hot-${token.toLowerCase().replace(/[^a-z0-9]/g, '')}-${Date.now().toString(36).slice(-3)}`;
+        // If line has multiple tokens, first token or everything before spaces might be name
+        // Strip existing tags like [HOT] or [1391] to get raw name
+        const tagMatch = cleanLine.match(/^\[([^\]]+)\]\s*(.*)$/);
+        let playerName = '';
+        if (tagMatch) {
+          playerName = tagMatch[2].trim() || tagMatch[1].trim();
+        } else {
+          playerName = cleanLine.split(/\s{2,}|\t/)[0].trim();
+          // If still contains spaces, take first 1-2 words if short
+          if (playerName.split(' ').length > 3) {
+            playerName = playerName.split(' ').slice(0, 2).join(' ');
+          }
+        }
 
-        // Avoid duplicates within the parsed batch
-        if (!parsedMembers.some(m => m.name.toLowerCase() === name.toLowerCase())) {
-          parsedMembers.push({
-            id,
-            name,
-            currentRank: rank,
-            formerRank: 'None',
-            strikes: 0,
-            communication: 'Good',
-            status: 'Active',
-            createdAt: now,
-            updatedAt: now,
-          });
+        playerName = playerName.replace(/[\[\]]/g, '').trim();
+
+        if (playerName.length >= 2) {
+          finalName = `[${allianceTag}] ${playerName}`;
+          const slug = playerName.toLowerCase().replace(/[^a-z0-9]/g, '');
+          const id = `ks-1391-hot-${slug || Date.now().toString(36)}`;
+
+          // Deduplicate within the batch
+          if (!parsedMembers.some(m => m.name.toLowerCase() === finalName.toLowerCase())) {
+            parsedMembers.push({
+              id,
+              name: finalName,
+              currentRank: detectedRank,
+              formerRank: 'None',
+              strikes: 0,
+              communication: 'Good',
+              status: 'Active',
+              createdAt: now,
+              updatedAt: now,
+            });
+          }
+        } else {
+          unparsedLines.push(line);
         }
       } else {
         unparsedLines.push(line);
@@ -198,7 +199,7 @@ export const kingshotApiService = {
     return {
       success: parsedMembers.length > 0,
       message: parsedMembers.length > 0
-        ? `Successfully parsed ${parsedMembers.length} members for Kingdom #1391 [HOT].`
+        ? `Successfully parsed ${parsedMembers.length} members for Kingdom #${KINGDOM_ID} [${allianceTag}].`
         : 'Could not extract valid member names from the provided text.',
       source: 'parser',
       members: parsedMembers,
@@ -207,123 +208,162 @@ export const kingshotApiService = {
   },
 
   /**
-   * Fetches live alliance members for Kingdom #1391 [HOT] Alliance.
-   * If a custom Kingshot API URL is configured in settings, queries it;
-   * otherwise loads the authentic Kingdom #1391 [HOT] Alliance roster.
+   * Fetches live alliance members from an external Kingshot API or Webhook endpoint.
+   * If no API endpoint is supplied, returns clear guidance.
    */
   async fetchAllianceMembers(
     kingdomId: string = KINGDOM_ID,
     allianceTag: string = ALLIANCE_TAG,
     apiUrl?: string
   ): Promise<KingshotFetchResult> {
-    // 1. Try external Kingshot API or webhook if configured
     if (apiUrl && apiUrl.trim().startsWith('http')) {
       try {
-        const resp = await fetch(apiUrl.trim(), { method: 'GET', headers: { Accept: 'application/json' } });
-        if (resp.ok) {
-          const data = await resp.json();
-          const memberList: any[] = Array.isArray(data) ? data : data.members || data.players || [];
-          if (memberList.length > 0) {
-            const mapped: Member[] = memberList.map((item, idx) => {
-              const rawName = item.name || item.player || item.username || `Player_${idx + 1}`;
-              const formattedName = rawName.startsWith('[') ? rawName : `[${allianceTag}] ${rawName}`;
-              const rankVal = (item.rank || 'R1').toString().toUpperCase();
-              const validRank: AllianceRank = ['R5', 'R4', 'R3', 'R2', 'R1'].includes(rankVal) ? rankVal : 'R1';
-              return {
-                id: item.id || `ks-1391-hot-${idx + 1}-${rawName.toLowerCase().replace(/[^a-z0-9]/g, '')}`,
-                name: formattedName,
-                currentRank: validRank,
-                formerRank: 'None',
-                strikes: Number(item.strikes) || 0,
-                communication: item.communication || 'Good',
-                status: item.status || 'Active',
-                createdAt: item.createdAt || new Date().toISOString(),
-                updatedAt: new Date().toISOString(),
-              };
-            });
-            return {
-              success: true,
-              message: `Fetched ${mapped.length} members from Kingshot API for Kingdom #${kingdomId} [${allianceTag}].`,
-              source: 'api',
-              members: mapped,
-            };
-          }
+        const resp = await fetch(apiUrl.trim(), {
+          method: 'GET',
+          headers: { Accept: 'application/json' },
+        });
+
+        if (!resp.ok) {
+          return {
+            success: false,
+            message: `API endpoint returned HTTP ${resp.status} (${resp.statusText}).`,
+            source: 'api',
+            members: [],
+          };
         }
-      } catch (apiErr) {
-        console.warn('External Kingshot API fetch error, using Kingdom #1391 [HOT] engine:', apiErr);
+
+        const data = await resp.json();
+        const memberList: any[] = Array.isArray(data)
+          ? data
+          : data.members || data.players || data.data || data.roster || [];
+
+        if (memberList.length === 0) {
+          return {
+            success: false,
+            message: `API responded successfully, but returned 0 member records for Kingdom #${kingdomId} [${allianceTag}].`,
+            source: 'api',
+            members: [],
+          };
+        }
+
+        const now = new Date().toISOString();
+        const mapped: Member[] = memberList.map((item, idx) => {
+          const rawName = typeof item === 'string'
+            ? item
+            : item.name || item.player || item.username || item.nickname || `Member_${idx + 1}`;
+          const cleanName = String(rawName).trim();
+          const formattedName = cleanName.startsWith('[') ? cleanName : `[${allianceTag}] ${cleanName}`;
+          const rawRank = typeof item === 'object' ? (item.rank || item.currentRank || 'R1') : 'R1';
+          const validRank: AllianceRank = ['R5', 'R4', 'R3', 'R2', 'R1'].includes(String(rawRank).toUpperCase())
+            ? (String(rawRank).toUpperCase() as AllianceRank)
+            : 'R1';
+          const slug = cleanName.toLowerCase().replace(/[^a-z0-9]/g, '');
+          const id = (typeof item === 'object' && item.id)
+            ? String(item.id)
+            : `ks-${kingdomId}-${allianceTag.toLowerCase()}-${slug || idx + 1}`;
+
+          return {
+            id,
+            name: formattedName,
+            currentRank: validRank,
+            formerRank: 'None',
+            strikes: Number(item?.strikes) || 0,
+            communication: item?.communication || 'Good',
+            status: item?.status || 'Active',
+            createdAt: item?.createdAt || now,
+            updatedAt: now,
+          };
+        });
+
+        return {
+          success: true,
+          message: `Successfully fetched ${mapped.length} real members from API for Kingdom #${kingdomId} [${allianceTag}].`,
+          source: 'api',
+          members: mapped,
+        };
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        return {
+          success: false,
+          message: `Failed to connect to Kingshot API endpoint: ${msg}`,
+          source: 'api',
+          members: [],
+        };
       }
     }
 
-    // 2. Generate authentic Kingdom #1391 [HOT] Alliance roster
-    const hotMembers = generateKingdom1391HOTMembers();
     return {
-      success: true,
-      message: `Retrieved ${hotMembers.length} verified members for Kingdom #${kingdomId} [${allianceTag}] Alliance.`,
+      success: false,
+      message: 'No Kingshot API URL configured. Please enter your bot / API endpoint or paste your alliance roster.',
       source: 'api',
-      members: hotMembers,
+      members: [],
     };
   },
 
   /**
-   * Syncs Kingshot members directly with Supabase PostgreSQL and local storage.
-   * Completely purges obsolete starter/mock records (mem-1..mem-92).
+   * Synchronizes members directly into Supabase PostgreSQL and local storage.
+   * When `replaceExisting` is true (default), wipes all previous manual/mock members
+   * and populates the database strictly with the new roster.
    */
   async syncMembersToDatabase(
     newMembers: Member[],
-    settings: AllianceSettings
+    settings: AllianceSettings,
+    replaceExisting: boolean = true
   ): Promise<{ success: boolean; message: string; added: number; updated: number; total: number }> {
     if (!newMembers || newMembers.length === 0) {
       return { success: false, message: 'No members to sync.', added: 0, updated: 0, total: 0 };
     }
 
-    // Purge any legacy mock records from memory
-    const currentMembers = storageService.getMembers().filter(m =>
-      !/^mem-\d+$/.test(m.id) &&
-      !['DragonSlayer', 'ShadowNinja', 'FrostQueen', 'NightStalker', 'IronClad', 'HOT_Ares', 'Valkyrie_HOT'].includes(m.name)
-    );
-
-    const existingMap = new Map(currentMembers.map(m => [m.name.toLowerCase(), m]));
-
+    let finalRoster: Member[];
     let addedCount = 0;
     let updatedCount = 0;
 
-    const finalRoster: Member[] = [...currentMembers];
+    if (replaceExisting) {
+      // Clean refresh: Replace entire roster with the newly provided members
+      finalRoster = [...newMembers];
+      addedCount = newMembers.length;
+      updatedCount = 0;
+    } else {
+      // Smart merge: Update ranks of existing members, add new ones
+      const currentMembers = storageService.getMembers().filter(m => !/^mem-\d+$/.test(m.id));
+      const existingMap = new Map(currentMembers.map(m => [m.name.toLowerCase(), m]));
+      finalRoster = [...currentMembers];
 
-    for (const member of newMembers) {
-      const existing = existingMap.get(member.name.toLowerCase());
-      if (existing) {
-        if (existing.currentRank !== member.currentRank) {
-          existing.formerRank = existing.currentRank;
-          existing.currentRank = member.currentRank;
-          existing.updatedAt = new Date().toISOString();
-          updatedCount++;
+      for (const member of newMembers) {
+        const existing = existingMap.get(member.name.toLowerCase());
+        if (existing) {
+          if (existing.currentRank !== member.currentRank) {
+            existing.formerRank = existing.currentRank;
+            existing.currentRank = member.currentRank;
+            existing.updatedAt = new Date().toISOString();
+            updatedCount++;
+          }
+        } else {
+          finalRoster.push(member);
+          existingMap.set(member.name.toLowerCase(), member);
+          addedCount++;
         }
-      } else {
-        finalRoster.push(member);
-        existingMap.set(member.name.toLowerCase(), member);
-        addedCount++;
       }
     }
 
-    // Persist clean Kingdom #1391 HOT roster to local storage
+    // Persist to local storage
     storageService.setMembers(finalRoster);
 
-    // Persist clean Kingdom #1391 HOT roster to Supabase PostgreSQL
+    // Persist to Supabase if configured
     if (supabaseService.isConfigured(settings)) {
       try {
         const client = supabaseService.getClient(settings);
         if (client) {
-          // Remove old mock members and their dependent records from Supabase if present
-          try {
-            await client.from('attendance').delete().like('member_id', 'mem-%');
-            await client.from('strikes').delete().like('member_id', 'mem-%');
-            await client.from('communications').delete().like('member_id', 'mem-%');
-            await client.from('members').delete().like('id', 'mem-%');
-          } catch (delErr) {
-            console.warn('Supabase legacy cleanup notice:', delErr);
+          if (replaceExisting) {
+            // Delete all previous members from Supabase for a clean refresh
+            try {
+              await client.from('members').delete().neq('id', '___empty___');
+            } catch (delErr) {
+              console.warn('Supabase cleanup notice:', delErr);
+            }
           }
 
-          // Upsert genuine Kingdom #1391 HOT members
+          // Upsert new members in chunks of 100
           const rows = finalRoster.map(supabaseService.mapMemberToRow);
           for (let i = 0; i < rows.length; i += 100) {
             const chunk = rows.slice(i, i + 100);
@@ -337,7 +377,7 @@ export const kingshotApiService = {
 
     return {
       success: true,
-      message: `Kingdom #1391 [HOT] Roster Synchronized: ${addedCount} new members added, ${updatedCount} ranks updated.`,
+      message: `HOT Alliance Roster Synchronized: ${finalRoster.length} real members updated.`,
       added: addedCount,
       updated: updatedCount,
       total: finalRoster.length,

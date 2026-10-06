@@ -17,7 +17,7 @@ import {
 import { storageService } from '../services/storage';
 import { apiService } from '../services/api';
 import { supabaseService, normalizeSupabaseUrl } from '../services/supabase';
-import { kingshotApiService, generateKingdom1391HOTMembers } from '../services/kingshotApi';
+import { kingshotApiService } from '../services/kingshotApi';
 import { sounds } from '../utils/sound';
 import { useAuth } from './AuthContext';
 
@@ -68,7 +68,8 @@ interface CRMContextType {
   activeDbProvider: 'supabase' | 'local';
   // Operations
   refreshData: () => Promise<void>;
-  syncKingshotRoster: (rosterText?: string) => Promise<{ success: boolean; message: string; added: number; updated: number }>;
+  syncKingshotRoster: (rosterText?: string, replaceExisting?: boolean, customUrl?: string) => Promise<{ success: boolean; message: string; added: number; updated: number; total?: number }>;
+  wipeAllMembers: () => Promise<boolean>;
   logContribution: (action: ContributionActionType, desc: string, targetName?: string, count?: number) => Promise<void>;
   updateMyPassword: (newPass: string) => Promise<boolean>;
   updateMyProfileName: (newName: string) => Promise<boolean>;
@@ -103,13 +104,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const { admin, updateCurrentAdmin } = useAuth();
   const [members, setMembers] = useState<Member[]>(() => {
     storageService.purgeMockJunk();
-    const clean = storageService.getMembers().filter(m => !/^mem-\d+$/.test(m.id) && !['DragonSlayer', 'ShadowNinja', 'FrostQueen', 'NightStalker', 'IronClad'].includes(m.name));
-    if (clean.length === 0) {
-      const defaults = generateKingdom1391HOTMembers();
-      storageService.setMembers(defaults);
-      return defaults;
-    }
-    return clean;
+    return storageService.getMembers().filter(m => !/^mem-\d+$/.test(m.id));
   });
   const [events, setEvents] = useState<AllianceEvent[]>(() => storageService.getEvents());
   const [attendance, setAttendance] = useState<AttendanceRecord[]>(() => storageService.getAttendance());
@@ -178,19 +173,9 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         try {
           const allData = await apiService.getAllData(currentSettings);
           if (allData && typeof allData === 'object') {
-            let remoteMembers = Array.isArray(allData.members)
-              ? allData.members.filter((m: Member) => !/^mem-\d+$/.test(m.id) && !['DragonSlayer', 'ShadowNinja', 'FrostQueen', 'NightStalker', 'IronClad'].includes(m.name))
+            const remoteMembers = Array.isArray(allData.members)
+              ? allData.members.filter((m: Member) => !/^mem-\d+$/.test(m.id))
               : [];
-
-            // If Supabase has no valid Kingdom #1391 [HOT] members, auto-populate immediately
-            if (remoteMembers.length === 0) {
-              const hotMembers = generateKingdom1391HOTMembers();
-              remoteMembers = hotMembers;
-              // Auto-seed Supabase in background
-              kingshotApiService.syncMembersToDatabase(hotMembers, currentSettings).catch(err => {
-                console.warn('Background Supabase member auto-seed error:', err);
-              });
-            }
 
             storageService.saveAllData({ ...allData, members: remoteMembers });
 
@@ -203,18 +188,14 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             if (Array.isArray(allData.contributions)) setContributions(allData.contributions);
 
             setSyncStatus('connected');
-            setSyncMessage('Alliance Records Synchronized (Kingdom #1391 [HOT])');
+            setSyncMessage('Alliance Records Synchronized (HOT Command Center)');
             setLastSyncTime(new Date().toLocaleTimeString());
           }
         } catch (err) {
           console.warn('Supabase sync warning:', err);
           setSyncStatus('error');
           setSyncMessage('Using cached alliance records.');
-          let cleanLocal = storageService.getMembers().filter(m => !/^mem-\d+$/.test(m.id) && !['DragonSlayer', 'ShadowNinja', 'FrostQueen', 'NightStalker', 'IronClad'].includes(m.name));
-          if (cleanLocal.length === 0) {
-            cleanLocal = generateKingdom1391HOTMembers();
-            storageService.setMembers(cleanLocal);
-          }
+          const cleanLocal = storageService.getMembers().filter(m => !/^mem-\d+$/.test(m.id));
           setMembers(cleanLocal);
           setEvents(storageService.getEvents());
           setAttendance(storageService.getAttendance());
@@ -225,13 +206,8 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
       } else {
         setSyncStatus('demo');
-        setSyncMessage('Local Mode (Kingdom #1391 [HOT])');
-        let currentRoster = storageService.getMembers().filter(m => !/^mem-\d+$/.test(m.id) && !['DragonSlayer', 'ShadowNinja', 'FrostQueen', 'NightStalker', 'IronClad'].includes(m.name));
-        if (currentRoster.length === 0) {
-          const defaultHOT = generateKingdom1391HOTMembers();
-          storageService.setMembers(defaultHOT);
-          currentRoster = defaultHOT;
-        }
+        setSyncMessage('Local Mode (HOT Command Center)');
+        const currentRoster = storageService.getMembers().filter(m => !/^mem-\d+$/.test(m.id));
         setMembers(currentRoster);
         setEvents(storageService.getEvents());
         setAttendance(storageService.getAttendance());
@@ -245,35 +221,66 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, []);
 
-  const syncKingshotRoster = useCallback(async (rosterText?: string): Promise<{ success: boolean; message: string; added: number; updated: number }> => {
+  const syncKingshotRoster = useCallback(async (
+    rosterText?: string,
+    replaceExisting: boolean = true,
+    customUrl?: string
+  ): Promise<{ success: boolean; message: string; added: number; updated: number; total?: number }> => {
     sounds.playClick();
     setIsSyncing(true);
     try {
       const currentSettings = storageService.getSettings();
       let fetchedMembers: Member[] = [];
+      const effectiveUrl = customUrl?.trim() || currentSettings.kingshotApiUrl?.trim();
+
       if (rosterText && rosterText.trim()) {
-        const parsed = kingshotApiService.parseRosterText(rosterText);
+        const parsed = kingshotApiService.parseRosterText(rosterText, currentSettings.allianceTag || 'HOT');
+        if (!parsed.success || parsed.members.length === 0) {
+          sounds.playAlert();
+          addToast({
+            type: 'warning',
+            title: 'No Valid Members Found',
+            message: parsed.message || 'Could not parse player names from text.',
+          });
+          return { success: false, message: parsed.message, added: 0, updated: 0 };
+        }
         fetchedMembers = parsed.members;
-      } else {
+      } else if (effectiveUrl) {
         const fetched = await kingshotApiService.fetchAllianceMembers(
           currentSettings.kingdomId,
           currentSettings.allianceTag,
-          currentSettings.kingshotApiUrl
+          effectiveUrl
         );
+        if (!fetched.success || fetched.members.length === 0) {
+          sounds.playAlert();
+          addToast({
+            type: 'error',
+            title: 'API Sync Failed',
+            message: fetched.message,
+          });
+          return { success: false, message: fetched.message, added: 0, updated: 0 };
+        }
         fetchedMembers = fetched.members;
-      }
-
-      if (fetchedMembers.length === 0) {
+      } else {
         sounds.playAlert();
         addToast({
           type: 'warning',
-          title: 'No Members Extracted',
-          message: 'Could not extract valid member records from input or API.',
+          title: 'No API or Roster Input',
+          message: 'Please paste your in-game roster or provide an API endpoint to fetch members.',
         });
-        return { success: false, message: 'No valid member records found.', added: 0, updated: 0 };
+        return {
+          success: false,
+          message: 'No Kingshot API endpoint or roster text provided.',
+          added: 0,
+          updated: 0,
+        };
       }
 
-      const result = await kingshotApiService.syncMembersToDatabase(fetchedMembers, currentSettings);
+      const result = await kingshotApiService.syncMembersToDatabase(
+        fetchedMembers,
+        currentSettings,
+        replaceExisting
+      );
 
       // Refresh memory & state strictly with clean members
       const cleanRoster = storageService.getMembers().filter(m => !/^mem-\d+$/.test(m.id));
@@ -282,10 +289,10 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       sounds.playSuccess();
       addToast({
         type: 'success',
-        title: 'Kingdom #1391 [HOT] Roster Synced',
-        message: `Synced ${result.total} members (${result.added} added, ${result.updated} updated) for Kingdom #${currentSettings.kingdomId || '1391'} [${currentSettings.allianceTag || 'HOT'}].`,
+        title: 'HOT Alliance Roster Synced',
+        message: `Successfully synchronized ${result.total} real members (${result.added} added, ${result.updated} updated).`,
       });
-      return { success: true, message: 'Roster synced successfully!', added: result.added, updated: result.updated };
+      return { success: true, message: result.message, added: result.added, updated: result.updated, total: result.total };
     } catch (err: unknown) {
       sounds.playAlert();
       const msg = err instanceof Error ? err.message : String(err);
@@ -297,6 +304,32 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return { success: false, message: msg, added: 0, updated: 0 };
     } finally {
       setIsSyncing(false);
+    }
+  }, [addToast]);
+
+  const wipeAllMembers = useCallback(async (): Promise<boolean> => {
+    sounds.playAlert();
+    try {
+      storageService.clearAllMembers();
+      setMembers([]);
+      setAttendance([]);
+      setStrikes([]);
+      setCommunications([]);
+
+      const currentSettings = storageService.getSettings();
+      if (supabaseService.isConfigured(currentSettings)) {
+        await supabaseService.wipeAllMembers(currentSettings);
+      }
+
+      addToast({
+        type: 'info',
+        title: 'Roster Cleared',
+        message: 'All previous manual and mock members have been removed. Ready for fresh import.',
+      });
+      return true;
+    } catch (err) {
+      console.error('Error wiping members:', err);
+      return false;
     }
   }, [addToast]);
 
@@ -1219,6 +1252,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         activeDbProvider: apiService.getActiveProvider(settings),
         refreshData,
         syncKingshotRoster,
+        wipeAllMembers,
         logContribution,
         updateMyPassword,
         updateMyProfileName,
