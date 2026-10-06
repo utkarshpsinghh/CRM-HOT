@@ -310,13 +310,10 @@ export const MembersView: React.FC<MembersViewProps> = ({
           </div>
         ) : (
           sortedMembers.map(member => {
-            const isInactive = inactiveInsights.some(i => i.member.id === member.id);
             const activityStatus: MemberActivityStatus = member.status === 'Archived'
               ? 'Archived'
               : member.status === 'Visitor'
               ? 'Visitor'
-              : isInactive
-              ? 'Needs Attention'
               : member.status === 'Inactive'
               ? 'Inactive'
               : 'Active';
@@ -553,13 +550,10 @@ export const MembersView: React.FC<MembersViewProps> = ({
               </tr>
             ) : (
               sortedMembers.map(member => {
-                const isInactive = inactiveInsights.some(i => i.member.id === member.id);
                 const activityStatus: MemberActivityStatus = member.status === 'Archived'
                   ? 'Archived'
                   : member.status === 'Visitor'
                   ? 'Visitor'
-                  : isInactive
-                  ? 'Needs Attention'
                   : member.status === 'Inactive'
                   ? 'Inactive'
                   : 'Active';

@@ -43,7 +43,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCreateEvent }) => {
     if (next) sounds.playClick();
   };
 
-  const navLinks = [
+  const navLinks: Array<{ id: string; label: string; icon: React.ReactNode; count?: number; badge?: string | null }> = [
     { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-4 h-4" /> },
     { id: 'members', label: 'Roster', count: stats.totalMembers, icon: <Users className="w-4 h-4" /> },
     { id: 'events', label: 'Wars', icon: <Swords className="w-4 h-4" /> },
@@ -52,7 +52,6 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCreateEvent }) => {
     {
       id: 'activity',
       label: 'Activity',
-      badge: inactiveInsights.length > 0 ? `${inactiveInsights.length}` : null,
       icon: <AlertTriangle className="w-4 h-4" />,
     },
     ...(isMainAdmin ? [{ id: 'contributions', label: 'Treasury', icon: <Award className="w-4 h-4" /> }] : []),

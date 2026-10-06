@@ -412,20 +412,22 @@ export const apiService = {
     members: Member[],
     events: AllianceEvent[],
     attendance: AttendanceRecord[],
-    settings: AllianceSettings
+    _settings: AllianceSettings
   ): InactiveMemberInsight[] {
     const now = Date.now();
     const eventMap = new Map(events.map(e => [e.id, e]));
 
     const insights: InactiveMemberInsight[] = [];
-    const activeRoster = members.filter(m => m.status !== 'Archived');
+    // Inactivity is strictly manual as requested by alliance leadership.
+    // Only members explicitly marked with status === 'Inactive' are included.
+    const inactiveMembers = members.filter(m => m.status === 'Inactive');
 
-    activeRoster.forEach(member => {
+    inactiveMembers.forEach(member => {
       const memberAtt = attendance.filter(a => a.memberId === member.id);
       let latestTimestamp = 0;
-      let activityDescription = 'No recorded activity';
+      let activityDescription = 'Marked inactive in roster';
 
-      // 1. Check event attendance & votes
+      // Check event attendance & votes to show helpful context
       memberAtt.forEach(rec => {
         const evt = eventMap.get(rec.eventId);
         if (!evt) return;
@@ -434,45 +436,31 @@ export const apiService = {
         if (rec.attendanceStatus === 'JOINED') {
           if (evtTime > latestTimestamp) {
             latestTimestamp = evtTime;
-            activityDescription = `Joined ${evt.eventType || evt.eventName}`;
+            activityDescription = `Last joined: ${evt.eventType || evt.eventName}`;
           }
         } else if (rec.voteStatus === 'YES' || rec.voteStatus === 'NO') {
           if (evtTime > latestTimestamp) {
             latestTimestamp = evtTime;
-            activityDescription = `Voted on ${evt.eventType || evt.eventName}`;
+            activityDescription = `Last voted: ${evt.eventType || evt.eventName}`;
           }
         }
       });
 
-      // 2. Check member manual update / creation timestamp if no events
       if (latestTimestamp === 0) {
         const memTime = new Date(member.updatedAt || member.createdAt).getTime();
         latestTimestamp = memTime;
-        activityDescription = 'Roster enrollment';
       }
 
-      // Compute days inactive
       const diffMs = Math.max(0, now - latestTimestamp);
       const daysInactive = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 
-      let tier: 'Warning' | 'Inactive' | 'Critical' | null = null;
-      if (daysInactive >= settings.inactivityCriticalDays) {
-        tier = 'Critical';
-      } else if (daysInactive >= settings.inactivityInactiveDays) {
-        tier = 'Inactive';
-      } else if (daysInactive >= settings.inactivityWarningDays) {
-        tier = 'Warning';
-      }
-
-      if (tier) {
-        insights.push({
-          member,
-          daysInactive,
-          tier,
-          lastActivityDescription: activityDescription,
-          lastActivityDate: new Date(latestTimestamp).toISOString().split('T')[0],
-        });
-      }
+      insights.push({
+        member,
+        daysInactive,
+        tier: 'Inactive',
+        lastActivityDescription: activityDescription,
+        lastActivityDate: new Date(latestTimestamp).toISOString().split('T')[0],
+      });
     });
 
     return insights.sort((a, b) => b.daysInactive - a.daysInactive);

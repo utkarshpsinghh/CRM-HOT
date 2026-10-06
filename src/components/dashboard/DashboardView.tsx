@@ -117,13 +117,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         />
 
         <StatCard
-          title="Inactive (7d+)"
+          title="Inactive Members"
           value={stats.inactiveMembers}
-          subtitle="Needs review"
+          subtitle="Manual roster status"
           icon={<UserX className="w-4 h-4" />}
           variant="crimson"
           onClick={() => {
-            setActiveTab('activity');
+            setMemberFilter({ search: '', rank: 'ALL', comm: 'ALL', status: 'Inactive', strikeMin: 0 });
+            setActiveTab('members');
           }}
         />
 

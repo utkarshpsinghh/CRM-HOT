@@ -14,7 +14,7 @@ import {
   OfficerContribution,
   ContributionActionType,
 } from '../types/crm';
-import { storageService } from '../services/storage';
+import { storageService, deduplicateMembers } from '../services/storage';
 import { apiService } from '../services/api';
 import { supabaseService, normalizeSupabaseUrl } from '../services/supabase';
 import { kingshotApiService } from '../services/kingshotApi';
@@ -112,7 +112,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const { admin, updateCurrentAdmin } = useAuth();
   const [members, setMembers] = useState<Member[]>(() => {
     storageService.purgeMockJunk();
-    return storageService.getMembers().filter(m => !/^mem-\d+$/.test(m.id));
+    return deduplicateMembers(storageService.getMembers().filter(m => !/^mem-\d+$/.test(m.id)));
   });
   const [events, setEvents] = useState<AllianceEvent[]>(() => storageService.getEvents());
   const [attendance, setAttendance] = useState<AttendanceRecord[]>(() => storageService.getAttendance());
@@ -199,7 +199,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           const allData = await apiService.getAllData(currentSettings);
           if (allData && typeof allData === 'object') {
             let remoteMembers = Array.isArray(allData.members)
-              ? allData.members.filter((m: Member) => !/^mem-\d+$/.test(m.id))
+              ? deduplicateMembers(allData.members.filter((m: Member) => !/^mem-\d+$/.test(m.id)))
               : [];
 
             if (remoteMembers.length === 0) {
@@ -234,7 +234,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           setSyncStatus('error');
           setSyncMessage('Using cached alliance records.');
           const rawLocal = storageService.getMembers().filter(m => !/^mem-\d+$/.test(m.id));
-          const cleanLocal = rawLocal.length > 0 ? rawLocal : initialMembers;
+          const cleanLocal = deduplicateMembers(rawLocal.length > 0 ? rawLocal : initialMembers);
           setMembers(cleanLocal);
           setEvents(storageService.getEvents());
           setAttendance(storageService.getAttendance());
@@ -247,7 +247,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setSyncStatus('demo');
         setSyncMessage('Local Mode (HOT Command Center)');
         const rawRoster = storageService.getMembers().filter(m => !/^mem-\d+$/.test(m.id));
-        const currentRoster = rawRoster.length > 0 ? rawRoster : initialMembers;
+        const currentRoster = deduplicateMembers(rawRoster.length > 0 ? rawRoster : initialMembers);
         setMembers(currentRoster);
         setEvents(storageService.getEvents());
         setAttendance(storageService.getAttendance());

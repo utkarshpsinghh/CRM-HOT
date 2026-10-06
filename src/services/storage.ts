@@ -18,6 +18,24 @@ const STORAGE_KEYS = {
   INITIALIZED: 'crm_hot_initialized_v2',
 };
 
+export function deduplicateMembers(members: Member[]): Member[] {
+  const seen = new Map<string, Member>();
+  for (const m of members) {
+    if (!m || !m.name) continue;
+    const key = m.name.trim().toLowerCase();
+    const existing = seen.get(key);
+    if (!existing) {
+      seen.set(key, m);
+    } else {
+      // Prioritize canonical 'mem-' ID which holds all attendance records
+      if (m.id.startsWith('mem-') && !existing.id.startsWith('mem-')) {
+        seen.set(key, m);
+      }
+    }
+  }
+  return Array.from(seen.values());
+}
+
 export const storageService = {
   // Purge any legacy mock / demo data from localStorage
   purgeMockJunk() {
@@ -45,13 +63,13 @@ export const storageService = {
           '[HOT] HorizonChaser', '[HOT] RuneMaster', '[HOT] WildFire', '[HOT] FrostHammer', '[HOT] StarGazer'
         ]);
 
-        const filtered = mems.filter(m =>
-          !/^mem-\d+$/i.test(m.id) &&
-          !legacyMockNames.has(m.name)
+        const filtered = deduplicateMembers(
+          mems.filter(m =>
+            !/^mem-\d+$/i.test(m.id) &&
+            !legacyMockNames.has(m.name)
+          )
         );
-        if (filtered.length !== mems.length) {
-          localStorage.setItem(STORAGE_KEYS.MEMBERS, JSON.stringify(filtered));
-        }
+        localStorage.setItem(STORAGE_KEYS.MEMBERS, JSON.stringify(filtered));
       }
 
       // 2. Purge old mock events (e.g. evt-1..evt-99, evt-001..evt-006 or Tri Alliance Level 1 Showdown)
@@ -124,7 +142,7 @@ export const storageService = {
 
   init() {
     this.purgeMockJunk();
-    const rosterVersionKey = 'crm_hot_roster_v2_94members';
+    const rosterVersionKey = 'crm_hot_roster_v3_canonical94';
     if (!localStorage.getItem(rosterVersionKey)) {
       localStorage.setItem(STORAGE_KEYS.MEMBERS, JSON.stringify(initialMembers));
       localStorage.setItem(rosterVersionKey, 'true');
@@ -193,7 +211,7 @@ export const storageService = {
     contributions?: OfficerContribution[];
   }) {
     try {
-      if (Array.isArray(bundle.members)) localStorage.setItem(STORAGE_KEYS.MEMBERS, JSON.stringify(bundle.members));
+      if (Array.isArray(bundle.members)) localStorage.setItem(STORAGE_KEYS.MEMBERS, JSON.stringify(deduplicateMembers(bundle.members)));
       if (Array.isArray(bundle.events)) localStorage.setItem(STORAGE_KEYS.EVENTS, JSON.stringify(bundle.events));
       if (Array.isArray(bundle.attendance)) localStorage.setItem(STORAGE_KEYS.ATTENDANCE, JSON.stringify(bundle.attendance));
       if (Array.isArray(bundle.strikes)) localStorage.setItem(STORAGE_KEYS.STRIKES, JSON.stringify(bundle.strikes));
@@ -210,7 +228,7 @@ export const storageService = {
     if (!raw) return initialMembers;
     try {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      if (Array.isArray(parsed) && parsed.length > 0) return deduplicateMembers(parsed);
       return initialMembers;
     } catch {
       return initialMembers;
@@ -218,7 +236,7 @@ export const storageService = {
   },
 
   setMembers(members: Member[]) {
-    localStorage.setItem(STORAGE_KEYS.MEMBERS, JSON.stringify(members));
+    localStorage.setItem(STORAGE_KEYS.MEMBERS, JSON.stringify(deduplicateMembers(members)));
   },
 
   getEvents(): AllianceEvent[] {

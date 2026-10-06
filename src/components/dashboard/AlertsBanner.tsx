@@ -4,10 +4,9 @@ import { AlertCircle, Clock, ChevronRight } from 'lucide-react';
 import { sounds } from '../../utils/sound';
 
 export const AlertsBanner: React.FC = () => {
-  const { members, inactiveInsights, setActiveTab, setMemberFilter } = useCRM();
+  const { members, setActiveTab, setMemberFilter } = useCRM();
 
   const criticalStrikes = members.filter(m => m.strikes >= 2 && m.status !== 'Archived');
-  const inactiveCount = inactiveInsights.filter(i => i.tier === 'Inactive' || i.tier === 'Critical').length;
 
   const alerts = [
     {
@@ -23,20 +22,6 @@ export const AlertsBanner: React.FC = () => {
       action: () => {
         setMemberFilter({ search: '', rank: 'ALL', comm: 'ALL', status: 'ALL', strikeMin: 2 });
         setActiveTab('members');
-      },
-    },
-    {
-      id: 'inactive',
-      show: inactiveCount > 0,
-      icon: <Clock className="w-5 h-5 text-amber-400 shrink-0" />,
-      title: 'Inactivity Alert',
-      text: `${inactiveCount} member${inactiveCount > 1 ? 's' : ''} inactive for 7+ days`,
-      actionLabel: 'View Activity',
-      borderClass: 'border-amber-500/30 hover:border-amber-500/50',
-      bgClass: 'bg-amber-500/10',
-      btnClass: 'bg-amber-500 text-slate-950 hover:bg-amber-400',
-      action: () => {
-        setActiveTab('activity');
       },
     },
   ].filter(a => a.show);

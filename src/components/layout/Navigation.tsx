@@ -33,7 +33,6 @@ export const Navigation: React.FC = () => {
       id: 'activity',
       label: 'Activity',
       icon: <AlertTriangle className="w-4 h-4" />,
-      badge: inactiveInsights.length > 0 ? `${inactiveInsights.length}` : null,
     },
     ...(isMainAdmin ? [{ id: 'contributions', label: 'Treasury', icon: <Award className="w-4 h-4" /> }] : []),
     { id: 'profile', label: 'Profile', icon: <User className="w-4 h-4" /> },

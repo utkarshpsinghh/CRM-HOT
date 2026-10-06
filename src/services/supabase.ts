@@ -13,6 +13,7 @@ import {
   AttendanceStatus,
 } from '../types/crm';
 import { hashPasswordSha256 } from '../utils/security';
+import { deduplicateMembers } from './storage';
 
 // Helper to strip any trailing slashes or /rest/v1 paths from Supabase Project URL
 export function normalizeSupabaseUrl(url: string): string {
@@ -170,7 +171,7 @@ export const supabaseService = {
       }
 
       return {
-        members: (membersRes.data || []).map(this.mapMemberFromRow),
+        members: deduplicateMembers((membersRes.data || []).map(this.mapMemberFromRow)),
         events: (eventsRes.data || []).map(this.mapEventFromRow),
         attendance: (allAttendanceRows || []).map(this.mapAttendanceFromRow),
         strikes: (strikesRes.data || []).map(this.mapStrikeFromRow),
@@ -314,7 +315,7 @@ export const supabaseService = {
       console.error('getMembers error:', error);
       return [];
     }
-    return (data || []).map(this.mapMemberFromRow);
+    return deduplicateMembers((data || []).map(this.mapMemberFromRow));
   },
 
   async createMember(member: Member, settings: AllianceSettings): Promise<boolean> {
