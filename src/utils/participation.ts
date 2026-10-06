@@ -1,4 +1,5 @@
 import { AllianceEvent, AttendanceRecord } from '../types/crm';
+import { getComputedEventStatus } from './date';
 
 export interface MemberParticipationStats {
   memberId: string;
@@ -32,8 +33,11 @@ export function calculateMemberParticipation(
   events: AllianceEvent[],
   attendance: AttendanceRecord[]
 ): MemberParticipationStats {
-  // Only count completed or live events for fair evaluation
-  const activeEvents = events.filter(e => e.status === 'Completed' || e.status === 'Live');
+  // Count completed, live, or past events for fair and accurate evaluation
+  const activeEvents = events.filter(e => {
+    if (e.status === 'Completed' || e.status === 'Live') return true;
+    return getComputedEventStatus(e.date) === 'Completed';
+  });
   const totalEvents = activeEvents.length;
 
   let joinedCount = 0;
@@ -97,8 +101,7 @@ export function calculateAllEventAverages(
 ): Record<string, EventTypeAverageStats> {
   const activeEvents = events.filter(e => {
     if (e.status === 'Completed' || e.status === 'Live') return true;
-    const time = new Date(e.date).getTime();
-    return !isNaN(time) && time <= Date.now();
+    return getComputedEventStatus(e.date) === 'Completed';
   });
 
   const EVENT_ID_ALIASES: Record<string, string> = {

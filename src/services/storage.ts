@@ -1,6 +1,7 @@
 import { Member, AllianceEvent, AttendanceRecord, StrikeRecord, CommunicationRecord, AllianceSettings, AdminAccount, OfficerContribution } from '../types/crm';
 import { initialMembers, initialEvents, generateInitialAttendance, initialStrikes, initialCommunications, initialSettings, initialAdmins, initialContributions } from './mockData';
 import { DEFAULT_SUPABASE_URL, DEFAULT_SUPABASE_ANON_KEY } from '../config';
+import { getComputedEventStatus } from '../utils/date';
 
 const STORAGE_KEYS = {
   MEMBERS: 'crm_hot_members_v1',
@@ -72,12 +73,22 @@ export const storageService = {
         localStorage.setItem(STORAGE_KEYS.MEMBERS, JSON.stringify(filtered));
       }
 
-      // 2. Purge old mock events (e.g. evt-1..evt-99, evt-001..evt-006 or Tri Alliance Level 1 Showdown)
+      // 2. Purge old mock events & auto-complete past scheduled events
       const rawEvt = localStorage.getItem(STORAGE_KEYS.EVENTS);
       if (rawEvt) {
         const evts: AllianceEvent[] = JSON.parse(rawEvt);
+        let modified = false;
         const filtered = evts.filter(e => !/^evt-\d+$/.test(e.id) && !e.eventName.includes('Showdown') && !e.eventName.includes('Siege'));
         if (filtered.length !== evts.length) {
+          modified = true;
+        }
+        filtered.forEach(e => {
+          if (e.status === 'Scheduled' && getComputedEventStatus(e.date) === 'Completed') {
+            e.status = 'Completed';
+            modified = true;
+          }
+        });
+        if (modified) {
           localStorage.setItem(STORAGE_KEYS.EVENTS, JSON.stringify(filtered));
         }
       }
@@ -241,7 +252,21 @@ export const storageService = {
 
   getEvents(): AllianceEvent[] {
     const raw = localStorage.getItem(STORAGE_KEYS.EVENTS);
-    return raw ? JSON.parse(raw) : [];
+    if (!raw) return [];
+    try {
+      const parsed: AllianceEvent[] = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        return parsed.map(e => {
+          if (e.status === 'Scheduled' && getComputedEventStatus(e.date) === 'Completed') {
+            return { ...e, status: 'Completed' };
+          }
+          return e;
+        });
+      }
+      return [];
+    } catch {
+      return [];
+    }
   },
 
   setEvents(events: AllianceEvent[]) {

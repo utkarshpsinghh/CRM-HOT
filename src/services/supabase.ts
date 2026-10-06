@@ -13,6 +13,7 @@ import {
   AttendanceStatus,
 } from '../types/crm';
 import { hashPasswordSha256 } from '../utils/security';
+import { getComputedEventStatus } from '../utils/date';
 import { deduplicateMembers } from './storage';
 
 // Helper to strip any trailing slashes or /rest/v1 paths from Supabase Project URL
@@ -1017,12 +1018,17 @@ export const supabaseService = {
   },
 
   mapEventFromRow(row: any): AllianceEvent {
+    const rawDate = row.date || new Date().toISOString();
+    let status = row.status || 'Scheduled';
+    if (status === 'Scheduled' && getComputedEventStatus(rawDate) === 'Completed') {
+      status = 'Completed';
+    }
     return {
       id: row.id,
-      eventType: row.event_type,
-      eventName: row.event_name,
-      date: row.date,
-      status: row.status || 'Scheduled',
+      eventType: row.event_type || row.type || 'BT1',
+      eventName: row.event_name || row.name || 'Alliance Event',
+      date: rawDate,
+      status: status,
       notes: row.notes || undefined,
       createdAt: row.created_at || new Date().toISOString(),
     };

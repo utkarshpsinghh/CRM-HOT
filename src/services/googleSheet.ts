@@ -15,6 +15,7 @@ import {
   AdminRole,
   ContributionActionType,
 } from '../types/crm';
+import { getComputedEventStatus } from '../utils/date';
 
 export const DEFAULT_GOOGLE_SHEET_ID = '1z_oPJgwZ2TE05MNe6DFa7-XBw9o1N-3eaLWEoDFCt8c';
 
@@ -172,13 +173,23 @@ export const googleSheetService = {
 
       // Schema: Event ID,Event Type,Event Name,Date,Created At,Status,Notes
       const id = row[0] || `evt-${Date.now()}-${i}`;
-      const eventType = (row[1] || 'BT1') as EventType;
-      const eventName = row[2] || 'Alliance Event';
+      let rawType = (row[1] || 'BT1').trim();
+      if (/swordland.*1/i.test(rawType)) rawType = 'Swordland L1';
+      else if (/swordland.*2/i.test(rawType)) rawType = 'Swordland L2';
+      else if (/tri.*alliance.*1/i.test(rawType)) rawType = 'Tri Alliance L1';
+      else if (/tri.*alliance.*2/i.test(rawType)) rawType = 'Tri Alliance L2';
+      else if (/bt.*1/i.test(rawType)) rawType = 'BT1';
+      else if (/bt.*2/i.test(rawType)) rawType = 'BT2';
+      const eventType = rawType as EventType;
+      const eventName = row[2] || rawType || 'Alliance Event';
       const date = row[3] || now;
       const createdAt = row[4] || now;
-      const status = (['Scheduled', 'Live', 'Completed'].includes(row[5])
+      let status = (['Scheduled', 'Live', 'Completed'].includes(row[5])
         ? row[5]
         : 'Completed') as EventStatus;
+      if (status === 'Scheduled' && getComputedEventStatus(date) === 'Completed') {
+        status = 'Completed';
+      }
       const notes = row[6] || undefined;
 
       events.push({

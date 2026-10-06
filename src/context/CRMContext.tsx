@@ -21,7 +21,7 @@ import { kingshotApiService } from '../services/kingshotApi';
 import { googleSheetService, GOOGLE_SHEET_TABS, SheetSyncResult } from '../services/googleSheet';
 import { initialMembers } from '../services/mockData';
 import { sounds } from '../utils/sound';
-import { formatCurrentUtcTime } from '../utils/date';
+import { formatCurrentUtcTime, getComputedEventStatus } from '../utils/date';
 import { useAuth } from './AuthContext';
 
 export interface ToastNotice {
@@ -722,7 +722,9 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const needsAttention = inactiveInsights.length;
 
     // Fast O(N) calculation across completed events using Set lookup
-    const completedEventIds = new Set(events.filter(e => e.status === 'Completed').map(e => e.id));
+    const completedEventIds = new Set(
+      events.filter(e => e.status === 'Completed' || getComputedEventStatus(e.date) === 'Completed').map(e => e.id)
+    );
     let totalJoined = 0;
     let totalExpected = 0;
     let totalVotes = 0;
