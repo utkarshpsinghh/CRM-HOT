@@ -11,41 +11,41 @@ interface CommunicationBadgeProps {
 export const CommunicationBadge: React.FC<CommunicationBadgeProps> = ({ status, size = 'md' }) => {
   const config = {
     Good: {
-      label: 'Good',
-      icon: <CheckCircle2 className="w-3 h-3 text-emerald-400" />,
-      style: 'bg-emerald-950/60 text-emerald-300 border-emerald-700/60',
+      label: 'Good Comms',
+      icon: <CheckCircle2 className="w-3 h-3 text-emerald-300" />,
+      style: 'bg-emerald-950 text-emerald-300 border-2 border-emerald-600 shadow-[0_2px_0_#064e3b]',
     },
     Warning: {
       label: 'Warning',
-      icon: <AlertTriangle className="w-3 h-3 text-amber-400" />,
-      style: 'bg-amber-950/60 text-amber-300 border-amber-600/60',
+      icon: <AlertTriangle className="w-3 h-3 text-amber-300" />,
+      style: 'bg-amber-950 text-amber-300 border-2 border-amber-600 shadow-[0_2px_0_#78350f]',
     },
     Poor: {
-      label: 'Poor',
-      icon: <XCircle className="w-3 h-3 text-red-400" />,
-      style: 'bg-red-950/60 text-red-300 border-red-700/60',
+      label: 'Poor Comms',
+      icon: <XCircle className="w-3 h-3 text-red-300" />,
+      style: 'bg-red-950 text-red-300 border-2 border-red-600 shadow-[0_2px_0_#450a0a]',
     },
     Unreachable: {
       label: 'Unreachable',
-      icon: <XCircle className="w-3 h-3 text-rose-500" />,
-      style: 'bg-rose-950/70 text-rose-300 border-rose-800/70',
+      icon: <XCircle className="w-3 h-3 text-rose-300" />,
+      style: 'bg-rose-950 text-rose-300 border-2 border-rose-700 shadow-[0_2px_0_#4c0519]',
     },
     Unknown: {
       label: 'Unknown',
-      icon: <HelpCircle className="w-3 h-3 text-stone-400" />,
-      style: 'bg-stone-900/60 text-stone-400 border-stone-700/60',
+      icon: <HelpCircle className="w-3 h-3 text-stone-300" />,
+      style: 'bg-stone-900 text-stone-300 border-2 border-stone-600 shadow-[0_2px_0_#1c1917]',
     },
   }[status] || {
     label: status,
-    icon: <HelpCircle className="w-3 h-3 text-stone-400" />,
-    style: 'bg-stone-900 text-stone-400 border-stone-700',
+    icon: <HelpCircle className="w-3 h-3 text-stone-300" />,
+    style: 'bg-stone-900 text-stone-300 border-2 border-stone-600 shadow-[0_2px_0_#1c1917]',
   };
 
   return (
     <span
       className={clsx(
-        'inline-flex items-center gap-1.5 rounded-full border font-semibold select-none shrink-0',
-        size === 'sm' ? 'text-[11px] px-2 py-0.5' : 'text-xs px-2.5 py-1',
+        'inline-flex items-center gap-1.5 rounded-full font-fantasy uppercase tracking-wider select-none shrink-0',
+        size === 'sm' ? 'text-[10px] px-2 py-0.5' : 'text-xs px-2.5 py-1',
         config.style
       )}
     >
@@ -63,45 +63,45 @@ interface ActivityBadgeProps {
 export const ActivityBadge: React.FC<ActivityBadgeProps> = ({ status, size = 'md' }) => {
   const config = {
     Active: {
-      label: 'Active',
-      style: 'bg-emerald-950/70 text-emerald-300 border-emerald-500/70 shadow-[0_0_8px_rgba(16,185,129,0.2)]',
+      label: 'Active Warrior',
+      style: 'bg-emerald-950 text-emerald-300 border-2 border-emerald-500 shadow-[0_2px_0_#064e3b]',
       dot: 'bg-emerald-400',
     },
     'Needs Attention': {
       label: 'Needs Attention',
-      style: 'bg-amber-950/70 text-amber-300 border-amber-500/70 shadow-[0_0_8px_rgba(245,158,11,0.2)]',
+      style: 'bg-amber-950 text-amber-300 border-2 border-amber-500 shadow-[0_2px_0_#78350f]',
       dot: 'bg-amber-400 animate-pulse',
     },
     Inactive: {
-      label: 'Inactive',
-      style: 'bg-red-950/70 text-red-300 border-red-500/70 shadow-[0_0_8px_rgba(239,68,68,0.2)]',
-      dot: 'bg-red-500',
+      label: 'Slacker',
+      style: 'bg-red-950 text-red-300 border-2 border-red-500 shadow-[0_2px_0_#450a0a]',
+      dot: 'bg-red-400',
     },
     Visitor: {
-      label: 'Visitor',
-      style: 'bg-cyan-950/70 text-cyan-300 border-cyan-500/70 shadow-[0_0_8px_rgba(6,182,212,0.25)]',
+      label: 'Guest',
+      style: 'bg-cyan-950 text-cyan-300 border-2 border-cyan-500 shadow-[0_2px_0_#083344]',
       dot: 'bg-cyan-400',
     },
     Archived: {
       label: 'Archived',
-      style: 'bg-stone-900/80 text-stone-400 border-stone-700',
+      style: 'bg-stone-900 text-stone-400 border-2 border-stone-700 shadow-[0_2px_0_#1c1917]',
       dot: 'bg-stone-500',
     },
   }[status] || {
     label: status,
-    style: 'bg-stone-900 text-stone-300 border-stone-600',
+    style: 'bg-stone-900 text-stone-300 border-2 border-stone-600 shadow-[0_2px_0_#1c1917]',
     dot: 'bg-stone-400',
   };
 
   return (
     <span
       className={clsx(
-        'inline-flex items-center gap-1.5 rounded-full border font-semibold select-none shrink-0',
-        size === 'sm' ? 'text-[11px] px-2 py-0.5' : 'text-xs px-2.5 py-1',
+        'inline-flex items-center gap-1.5 rounded-full font-fantasy uppercase tracking-wider select-none shrink-0',
+        size === 'sm' ? 'text-[10px] px-2 py-0.5' : 'text-xs px-2.5 py-1',
         config.style
       )}
     >
-      <span className={clsx('w-1.5 h-1.5 rounded-full', config.dot)} />
+      <span className={clsx('w-2 h-2 rounded-full shadow-sm', config.dot)} />
       <span>{config.label}</span>
     </span>
   );
@@ -115,27 +115,27 @@ interface VoteBadgeProps {
 export const VoteBadge: React.FC<VoteBadgeProps> = ({ status, size = 'md' }) => {
   const config = {
     YES: {
-      label: 'YES',
-      icon: <Check className="w-3 h-3" />,
-      style: 'bg-emerald-900/40 text-emerald-300 border-emerald-600/60',
+      label: 'VOTED YES',
+      icon: <Check className="w-3 h-3 text-black stroke-[3]" />,
+      style: 'bg-gradient-to-b from-[#86efac] to-[#22c55e] text-black border-2 border-[#bbf7d0] shadow-[0_2px_0_#15803d]',
     },
     NO: {
-      label: 'NO',
-      icon: <X className="w-3 h-3" />,
-      style: 'bg-red-900/40 text-red-300 border-red-600/60',
+      label: 'VOTED NO',
+      icon: <X className="w-3 h-3 text-white stroke-[3]" />,
+      style: 'bg-gradient-to-b from-[#fca5a5] to-[#ef4444] text-white border-2 border-[#fecaca] shadow-[0_2px_0_#991b1b]',
     },
     'NO RESPONSE': {
       label: 'NO VOTE',
-      icon: <Minus className="w-3 h-3 text-stone-500" />,
-      style: 'bg-stone-900/40 text-stone-400 border-stone-700/50',
+      icon: <Minus className="w-3 h-3 text-stone-300 stroke-[3]" />,
+      style: 'bg-[#29170c] text-stone-400 border-2 border-[#452714] shadow-[0_2px_0_#140b05]',
     },
   }[status];
 
   return (
     <span
       className={clsx(
-        'inline-flex items-center gap-1 rounded border font-bold uppercase select-none shrink-0',
-        size === 'sm' ? 'text-[10px] px-1.5 py-0.5' : 'text-xs px-2 py-0.5',
+        'inline-flex items-center gap-1 rounded-xl font-fantasy font-black uppercase select-none shrink-0 tracking-wider',
+        size === 'sm' ? 'text-[10px] px-2 py-0.5' : 'text-xs px-2.5 py-1',
         config.style
       )}
     >
@@ -153,27 +153,27 @@ interface AttendanceBadgeProps {
 export const AttendanceBadge: React.FC<AttendanceBadgeProps> = ({ status, size = 'md' }) => {
   const config = {
     JOINED: {
-      label: 'JOINED',
-      icon: <Check className="w-3 h-3" />,
-      style: 'bg-emerald-900/50 text-emerald-200 border-emerald-500/70 font-semibold shadow-[0_0_6px_rgba(16,185,129,0.3)]',
+      label: 'JOINED WAR',
+      icon: <Check className="w-3.5 h-3.5 text-black stroke-[3]" />,
+      style: 'bg-gradient-to-b from-[#86efac] to-[#16a34a] text-black border-2 border-[#bbf7d0] shadow-[0_3px_0_#052e16]',
     },
     DIDNT_JOIN: {
-      label: "DIDN'T JOIN",
-      icon: <X className="w-3 h-3" />,
-      style: 'bg-red-950/70 text-red-200 border-red-600/70 font-semibold shadow-[0_0_6px_rgba(239,68,68,0.3)]',
+      label: 'MISSED WAR',
+      icon: <X className="w-3.5 h-3.5 text-white stroke-[3]" />,
+      style: 'bg-gradient-to-b from-[#f87171] to-[#dc2626] text-white border-2 border-[#fecaca] shadow-[0_3px_0_#450a0a]',
     },
     NOT_APPLICABLE: {
-      label: 'ABSENT',
-      icon: <Minus className="w-3 h-3" />,
-      style: 'bg-stone-900/40 text-stone-400 border-stone-700/50',
+      label: 'NO PARTICIPATION',
+      icon: <Minus className="w-3.5 h-3.5 text-stone-300 stroke-[3]" />,
+      style: 'bg-[#24150b] text-stone-400 border-2 border-[#472511] shadow-[0_2px_0_#120803]',
     },
   }[status];
 
   return (
     <span
       className={clsx(
-        'inline-flex items-center gap-1 rounded border uppercase select-none shrink-0 font-fantasy tracking-wider',
-        size === 'sm' ? 'text-[10px] px-1.5 py-0.5' : 'text-xs px-2.5 py-1',
+        'inline-flex items-center gap-1 rounded-xl uppercase select-none shrink-0 font-fantasy font-black tracking-wider',
+        size === 'sm' ? 'text-[10px] px-2 py-0.5' : 'text-xs px-3 py-1',
         config.style
       )}
     >

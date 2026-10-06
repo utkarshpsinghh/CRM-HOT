@@ -218,45 +218,45 @@ export const LeaderboardView: React.FC = () => {
         </div>
       </div>
 
-      {/* Summary KPI Strip */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div className="p-3.5 rounded-xl bg-[#1a1410] border border-[#3e2716] flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
-            <Swords className="w-5 h-5" />
+      {/* Summary KPI Strip (Cartoon Loot Pods) */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+        <div className="p-4 rounded-2xl bg-gradient-to-b from-[#2a1a0e] to-[#180f08] border-[2.5px] border-[#ca8a04] shadow-[0_5px_0_#78350f] flex items-center gap-3.5">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-b from-[#fde047] to-[#ca8a04] border-2 border-[#fef08a] flex items-center justify-center text-black shadow-md shrink-0">
+            <Swords className="w-6 h-6 text-black drop-shadow" />
           </div>
           <div>
-            <div className="text-[11px] font-bold text-stone-400 uppercase tracking-wider">
+            <div className="text-[11px] font-fantasy font-black text-amber-300 uppercase tracking-wider">
               {timeframe === 'month' ? 'Wars Evaluated (Month)' : 'Total All-Time Wars'}
             </div>
-            <div className="text-xl font-fantasy font-black text-[#fef08a]">
-              {summaryMetrics.totalWars} Events
+            <div className="text-2xl font-fantasy font-black text-[#fef08a] gold-text-glow">
+              {summaryMetrics.totalWars} Battles
             </div>
           </div>
         </div>
 
-        <div className="p-3.5 rounded-xl bg-[#1a1410] border border-[#3e2716] flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
-            <Crown className="w-5 h-5" />
+        <div className="p-4 rounded-2xl bg-gradient-to-b from-[#132418] to-[#0c160e] border-[2.5px] border-emerald-600 shadow-[0_5px_0_#064e3b] flex items-center gap-3.5">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-b from-[#86efac] to-[#16a34a] border-2 border-[#bbf7d0] flex items-center justify-center text-black shadow-md shrink-0">
+            <Crown className="w-6 h-6 text-black drop-shadow" />
           </div>
           <div>
-            <div className="text-[11px] font-bold text-stone-400 uppercase tracking-wider">
+            <div className="text-[11px] font-fantasy font-black text-emerald-300 uppercase tracking-wider">
               100% Perfect Attendance
             </div>
-            <div className="text-xl font-fantasy font-black text-emerald-400">
+            <div className="text-2xl font-fantasy font-black text-emerald-300 game-text-shadow">
               {summaryMetrics.perfectAttendanceCount} Champions
             </div>
           </div>
         </div>
 
-        <div className="p-3.5 rounded-xl bg-[#1a1410] border border-[#3e2716] flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-blue-400">
-            <TrendingUp className="w-5 h-5" />
+        <div className="p-4 rounded-2xl bg-gradient-to-b from-[#121c29] to-[#0a1017] border-[2.5px] border-blue-600 shadow-[0_5px_0_#0c2340] flex items-center gap-3.5">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-b from-[#93c5fd] to-[#2563eb] border-2 border-[#bfdbfe] flex items-center justify-center text-black shadow-md shrink-0">
+            <TrendingUp className="w-6 h-6 text-black drop-shadow" />
           </div>
           <div>
-            <div className="text-[11px] font-bold text-stone-400 uppercase tracking-wider">
+            <div className="text-[11px] font-fantasy font-black text-blue-300 uppercase tracking-wider">
               Alliance Turnout Avg
             </div>
-            <div className="text-xl font-fantasy font-black text-blue-300">
+            <div className="text-2xl font-fantasy font-black text-blue-300 game-text-shadow">
               {summaryMetrics.allianceAverageTurnout.toFixed(1)}%
             </div>
           </div>
@@ -265,30 +265,30 @@ export const LeaderboardView: React.FC = () => {
 
       {/* TOP 3 PODIUM SECTION */}
       {filteredEntries.length >= 3 && !searchQuery.trim() && selectedRank === 'ALL' && (
-        <div className="p-4 sm:p-6 rounded-2xl bg-gradient-to-b from-[#241710] to-[#170e0a] border-2 border-[#ca8a04]/40 shadow-xl space-y-4">
+        <div className="p-5 sm:p-6 rounded-3xl bg-gradient-to-b from-[#241710] to-[#140d07] border-[3px] border-[#ca8a04] shadow-[0_8px_0_#451a03,0_16px_32px_rgba(0,0,0,0.6)] space-y-4">
           <div className="text-center">
-            <span className="text-[11px] font-fantasy font-bold uppercase tracking-widest text-[#ca8a04]">
-              ★ Alliance Champions Podiums ★
+            <span className="text-xs font-fantasy font-black uppercase tracking-widest text-[#fde047] gold-text-glow">
+              ★ ALLIANCE WAR HEROES PODIUM ★
             </span>
-            <h2 className="text-lg sm:text-xl font-fantasy font-black text-[#fef08a]">
-              {timeframe === 'month' ? 'Top War Warriors This Month' : 'All-Time Roster Legends'}
+            <h2 className="text-xl sm:text-2xl font-fantasy font-black text-[#fffbeb] game-text-shadow mt-1">
+              {timeframe === 'month' ? 'Top War Warriors This Month' : 'All-Time Alliance Legends'}
             </h2>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2 items-end">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-3 items-end">
             {/* 2nd Place: Silver */}
             {top2 && (
               <div
                 onClick={() => handleMemberClick(top2.member)}
-                className="order-2 md:order-1 p-4 rounded-2xl bg-[#191410] border-2 border-slate-400/50 hover:border-slate-300 transition-all cursor-pointer shadow-md hover:scale-[1.02] text-center space-y-2 group"
+                className="order-2 md:order-1 p-4 rounded-2xl bg-gradient-to-b from-[#1e242d] to-[#11161d] border-[3px] border-slate-300 shadow-[0_6px_0_#334155] hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer text-center space-y-2 group select-none"
               >
-                <div className="w-12 h-12 rounded-full bg-slate-300/20 border-2 border-slate-400 mx-auto flex items-center justify-center text-slate-300 shadow">
-                  <Medal className="w-6 h-6 text-slate-300" />
+                <div className="w-12 h-12 rounded-full bg-slate-300/20 border-2 border-slate-200 mx-auto flex items-center justify-center text-slate-200 shadow-md">
+                  <Medal className="w-6 h-6 text-slate-200" />
                 </div>
-                <div className="inline-block px-2.5 py-0.5 rounded-full bg-slate-800 border border-slate-500 text-slate-200 text-[10px] font-black uppercase font-mono">
+                <div className="inline-block px-3 py-0.5 rounded-full bg-slate-800 border-2 border-slate-400 text-slate-100 text-[10px] font-fantasy font-black uppercase shadow-sm">
                   #2 Silver Champion
                 </div>
-                <h3 className="font-fantasy font-bold text-base text-white group-hover:text-amber-300 truncate">
+                <h3 className="font-fantasy font-black text-base text-white group-hover:text-amber-300 truncate">
                   {top2.member.name}
                 </h3>
                 <div className="flex items-center justify-center gap-1.5">
@@ -297,10 +297,10 @@ export const LeaderboardView: React.FC = () => {
                     {top2.eventsJoined}/{top2.totalEligibleEvents} Wars
                   </span>
                 </div>
-                <div className="text-2xl font-fantasy font-black text-slate-200">
+                <div className="text-2xl font-fantasy font-black text-slate-200 game-text-shadow">
                   {top2.attendanceRate.toFixed(0)}%
                 </div>
-                <div className="text-[11px] text-stone-400">
+                <div className="text-[11px] text-stone-400 font-medium">
                   Vote Reliability: {top2.voteRate.toFixed(0)}%
                 </div>
               </div>
@@ -310,16 +310,16 @@ export const LeaderboardView: React.FC = () => {
             {top1 && (
               <div
                 onClick={() => handleMemberClick(top1.member)}
-                className="order-1 md:order-2 p-5 rounded-2xl bg-gradient-to-b from-[#38200d] to-[#1c1109] border-2 border-[#f59e0b] hover:border-[#fef08a] transition-all cursor-pointer shadow-2xl hover:scale-[1.03] text-center space-y-2.5 relative -mt-2 group"
+                className="order-1 md:order-2 p-5 rounded-2xl bg-gradient-to-b from-[#3a200b] to-[#1e1106] border-[3.5px] border-[#fde047] shadow-[0_8px_0_#78350f,0_16px_36px_rgba(250,204,21,0.35)] hover:scale-[1.03] active:scale-[0.98] transition-all cursor-pointer text-center space-y-2.5 relative -mt-3 group select-none"
               >
-                <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 px-3 py-0.5 rounded-full bg-gradient-to-r from-amber-500 to-yellow-400 text-black text-[10px] font-black uppercase tracking-wider shadow-lg flex items-center gap-1">
-                  <Crown className="w-3 h-3 text-black fill-black" />
+                <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 px-3.5 py-0.5 rounded-full bg-gradient-to-r from-amber-400 to-yellow-300 text-black text-[10px] font-fantasy font-black uppercase tracking-wider shadow-lg flex items-center gap-1 border border-white">
+                  <Crown className="w-3.5 h-3.5 text-black fill-black" />
                   <span>#1 Supreme Champion</span>
                 </div>
-                <div className="w-16 h-16 rounded-full bg-gradient-to-b from-[#f59e0b] to-[#b45309] mx-auto flex items-center justify-center text-black shadow-lg border-2 border-[#fef08a]">
+                <div className="w-16 h-16 rounded-full bg-gradient-to-b from-[#fde047] to-[#ca8a04] mx-auto flex items-center justify-center text-black shadow-lg border-2 border-white">
                   <Trophy className="w-8 h-8 text-black fill-black/20" />
                 </div>
-                <h3 className="font-fantasy font-black text-lg text-[#fef08a] group-hover:text-white truncate pt-1">
+                <h3 className="font-fantasy font-black text-xl text-[#fef08a] group-hover:text-white truncate pt-1 game-text-shadow">
                   {top1.member.name}
                 </h3>
                 <div className="flex items-center justify-center gap-1.5">
@@ -328,10 +328,10 @@ export const LeaderboardView: React.FC = () => {
                     {top1.eventsJoined}/{top1.totalEligibleEvents} Wars Joined
                   </span>
                 </div>
-                <div className="text-3xl font-fantasy font-black text-[#fbbf24] drop-shadow-sm">
+                <div className="text-3xl font-fantasy font-black text-[#fde047] gold-text-glow">
                   {top1.attendanceRate.toFixed(0)}% Turnout
                 </div>
-                <div className="text-[11px] text-amber-300/80 font-medium">
+                <div className="text-xs text-amber-300/90 font-medium">
                   {top1.member.strikes === 0 ? '🎖️ Clean Honor Record (0 Strikes)' : `${top1.member.strikes} Strikes`}
                 </div>
               </div>
@@ -341,15 +341,15 @@ export const LeaderboardView: React.FC = () => {
             {top3 && (
               <div
                 onClick={() => handleMemberClick(top3.member)}
-                className="order-3 p-4 rounded-2xl bg-[#191410] border-2 border-amber-700/50 hover:border-amber-600 transition-all cursor-pointer shadow-md hover:scale-[1.02] text-center space-y-2 group"
+                className="order-3 p-4 rounded-2xl bg-gradient-to-b from-[#241309] to-[#150a04] border-[3px] border-amber-700 shadow-[0_6px_0_#451a03] hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer text-center space-y-2 group select-none"
               >
-                <div className="w-12 h-12 rounded-full bg-amber-700/20 border-2 border-amber-600 mx-auto flex items-center justify-center text-amber-500 shadow">
-                  <Award className="w-6 h-6 text-amber-500" />
+                <div className="w-12 h-12 rounded-full bg-amber-700/20 border-2 border-amber-600 mx-auto flex items-center justify-center text-amber-400 shadow-md">
+                  <Award className="w-6 h-6 text-amber-400" />
                 </div>
-                <div className="inline-block px-2.5 py-0.5 rounded-full bg-amber-950 border border-amber-700 text-amber-300 text-[10px] font-black uppercase font-mono">
+                <div className="inline-block px-3 py-0.5 rounded-full bg-amber-950 border-2 border-amber-700 text-amber-200 text-[10px] font-fantasy font-black uppercase shadow-sm">
                   #3 Bronze Warrior
                 </div>
-                <h3 className="font-fantasy font-bold text-base text-white group-hover:text-amber-300 truncate">
+                <h3 className="font-fantasy font-black text-base text-white group-hover:text-amber-300 truncate">
                   {top3.member.name}
                 </h3>
                 <div className="flex items-center justify-center gap-1.5">
@@ -358,10 +358,10 @@ export const LeaderboardView: React.FC = () => {
                     {top3.eventsJoined}/{top3.totalEligibleEvents} Wars
                   </span>
                 </div>
-                <div className="text-2xl font-fantasy font-black text-amber-400">
+                <div className="text-2xl font-fantasy font-black text-amber-400 game-text-shadow">
                   {top3.attendanceRate.toFixed(0)}%
                 </div>
-                <div className="text-[11px] text-stone-400">
+                <div className="text-[11px] text-stone-400 font-medium">
                   Vote Reliability: {top3.voteRate.toFixed(0)}%
                 </div>
               </div>

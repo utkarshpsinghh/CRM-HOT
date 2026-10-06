@@ -1,7 +1,6 @@
 import React from 'react';
 import { useCRM } from '../../context/CRMContext';
 import { useAuth } from '../../context/AuthContext';
-import { Shield, Users, Swords, BarChart3, AlertTriangle, Settings, Award, User, Trophy } from 'lucide-react';
 import { sounds } from '../../utils/sound';
 
 export const Navigation: React.FC = () => {
@@ -9,20 +8,20 @@ export const Navigation: React.FC = () => {
   const { isMainAdmin } = useAuth();
 
   const navItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: <Shield className="w-3.5 h-3.5" /> },
-    { id: 'members', label: 'Members', icon: <Users className="w-3.5 h-3.5" />, badge: stats.membersWithStrikes > 0 ? `${stats.membersWithStrikes}` : null },
-    { id: 'events', label: 'Events', icon: <Swords className="w-3.5 h-3.5" /> },
-    { id: 'attendance', label: 'Attendance', icon: <BarChart3 className="w-3.5 h-3.5" /> },
-    { id: 'leaderboard', label: 'Leaderboard', icon: <Trophy className="w-3.5 h-3.5" /> },
-    { id: 'activity', label: 'Inactive', icon: <AlertTriangle className="w-3.5 h-3.5" />, badge: inactiveInsights.length > 0 ? `${inactiveInsights.length}` : null },
-    ...(isMainAdmin ? [{ id: 'contributions', label: 'Contributions', icon: <Award className="w-3.5 h-3.5" /> }] : []),
-    { id: 'profile', label: 'Profile', icon: <User className="w-3.5 h-3.5" /> },
-    ...(isMainAdmin ? [{ id: 'settings', label: 'Settings', icon: <Settings className="w-3.5 h-3.5" /> }] : []),
+    { id: 'dashboard', label: 'Headquarters', icon: '🏰' },
+    { id: 'members', label: 'Roster', icon: '👥', badge: stats.membersWithStrikes > 0 ? `${stats.membersWithStrikes}` : null },
+    { id: 'events', label: 'War Room', icon: '⚔️' },
+    { id: 'attendance', label: 'War Ledger', icon: '📋' },
+    { id: 'leaderboard', label: 'Hall of Fame', icon: '🏆' },
+    { id: 'activity', label: 'Slacker Watch', icon: '⚠️', badge: inactiveInsights.length > 0 ? `${inactiveInsights.length}` : null },
+    ...(isMainAdmin ? [{ id: 'contributions', label: 'Treasury', icon: '🎖️' }] : []),
+    { id: 'profile', label: 'Officer Profile', icon: '👤' },
+    ...(isMainAdmin ? [{ id: 'settings', label: 'Alliance Vault', icon: '⚙️' }] : []),
   ];
 
   return (
-    <div className="md:hidden bg-[#1a120b] border-b border-[#3e2716] px-2 py-1.5 overflow-x-auto scrollbar-none sticky top-16 z-30 shadow-md">
-      <div className="flex items-center gap-1.5 min-w-max px-1">
+    <div className="lg:hidden bg-[#120a05] border-b-[3px] border-[#381c0c] px-2 py-2 overflow-x-auto scrollbar-none sticky top-16 z-30 shadow-[0_4px_12px_rgba(0,0,0,0.6)]">
+      <div className="flex items-center gap-2 min-w-max px-1">
         {navItems.map(item => {
           const isActive = activeTab === item.id;
           return (
@@ -32,16 +31,16 @@ export const Navigation: React.FC = () => {
                 sounds.playClick();
                 setActiveTab(item.id);
               }}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer select-none active:scale-95 ${
+              className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-fantasy font-black uppercase transition-all cursor-pointer select-none relative ${
                 isActive
-                  ? 'btn-kingshot-gold text-[#1a120b] font-black shadow-sm'
-                  : 'text-stone-300 hover:text-white bg-[#120c08] border border-[#2c1d15]'
+                  ? 'bg-gradient-to-b from-[#fde047] to-[#ca8a04] text-[#291304] border-2 border-[#fef08a] shadow-[0_3px_0_#78350f] transform -translate-y-0.5'
+                  : 'text-stone-300 hover:text-white bg-[#1c1109] border-2 border-[#3d2210] shadow-[0_2px_0_#0f0703] active:translate-y-0.5 active:shadow-none'
               }`}
             >
-              <span>{item.icon}</span>
+              <span className="text-sm">{item.icon}</span>
               <span>{item.label}</span>
               {item.badge && (
-                <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-red-600 text-white font-black">
+                <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-red-600 text-white font-black shadow-sm">
                   {item.badge}
                 </span>
               )}

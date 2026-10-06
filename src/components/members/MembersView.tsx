@@ -232,22 +232,22 @@ export const MembersView: React.FC<MembersViewProps> = ({
         </div>
       </div>
 
-      {/* Cartoon Search & Filters */}
-      <div className="p-3.5 rounded-2xl bg-[#1c120a] border-2 border-[#4d2b14] shadow-[0_4px_0_rgba(0,0,0,0.4)] flex flex-wrap gap-2.5 items-center w-full min-w-0">
+      {/* Cartoon Search & Tactical Filters */}
+      <div className="p-4 rounded-2xl bg-[#180e08] border-[3px] border-[#4a2610] shadow-[0_5px_0_#0f0703,0_10px_20px_rgba(0,0,0,0.4)] flex flex-wrap gap-3 items-center w-full min-w-0">
         {/* Search */}
         <div className="relative w-full sm:flex-1 min-w-0">
-          <Search className="w-4 h-4 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2" />
+          <Search className="w-4 h-4 text-amber-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
           <input
             type="text"
             value={memberFilter.search}
             onChange={e => setMemberFilter(prev => ({ ...prev, search: e.target.value }))}
-            placeholder="Search by player name..."
-            className="w-full pl-9 pr-8 py-1.5 rounded-lg bg-[#140c08] border border-[#3d200e] text-stone-200 text-xs focus:outline-none focus:border-[#fbbf24]"
+            placeholder="Search warrior by name..."
+            className="w-full pl-10 pr-9 py-2 rounded-xl bg-[#100905] border-2 border-[#381c0c] text-stone-100 text-xs font-medium focus:outline-none focus:border-[#fde047] shadow-inner placeholder:text-stone-500"
           />
           {memberFilter.search && (
             <button
               onClick={() => setMemberFilter(prev => ({ ...prev, search: '' }))}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-white"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-white"
             >
               <X className="w-3.5 h-3.5" />
             </button>
@@ -258,54 +258,54 @@ export const MembersView: React.FC<MembersViewProps> = ({
         <select
           value={memberFilter.rank}
           onChange={e => setMemberFilter(prev => ({ ...prev, rank: e.target.value }))}
-          className="w-full sm:w-auto min-w-0 px-2.5 py-1.5 rounded-lg bg-[#140c08] border border-[#3d200e] text-stone-200 text-xs focus:outline-none focus:border-[#fbbf24]"
+          className="w-full sm:w-auto min-w-0 px-3 py-2 rounded-xl bg-[#100905] border-2 border-[#381c0c] text-stone-200 text-xs font-fantasy uppercase font-black focus:outline-none focus:border-[#fde047] shadow-inner cursor-pointer"
         >
-          <option value="ALL">All Ranks</option>
-          <option value="R5">R5 — Leader</option>
-          <option value="R4">R4 — Officer</option>
-          <option value="R3">R3 — Elite</option>
-          <option value="R2">R2 — Warrior</option>
-          <option value="R1">R1 — Recruit</option>
+          <option value="ALL">All Ranks (R5-R1)</option>
+          <option value="R5">👑 R5 — Leader</option>
+          <option value="R4">⚔️ R4 — Officer</option>
+          <option value="R3">🛡️ R3 — Elite</option>
+          <option value="R2">🪓 R2 — Warrior</option>
+          <option value="R1">🛡️ R1 — Recruit</option>
         </select>
 
         {/* Filter Status */}
         <select
           value={memberFilter.status}
           onChange={e => setMemberFilter(prev => ({ ...prev, status: e.target.value }))}
-          className="w-full sm:w-auto min-w-0 px-2.5 py-1.5 rounded-lg bg-[#140c08] border border-[#3d200e] text-stone-200 text-xs focus:outline-none focus:border-[#fbbf24]"
+          className="w-full sm:w-auto min-w-0 px-3 py-2 rounded-xl bg-[#100905] border-2 border-[#381c0c] text-stone-200 text-xs font-fantasy uppercase font-black focus:outline-none focus:border-[#fde047] shadow-inner cursor-pointer"
         >
-          <option value="ALL">All Active / Visitor / Inactive</option>
-          <option value="Active">Active Only</option>
-          <option value="Visitor">Visitor Only</option>
-          <option value="Inactive">Inactive Only</option>
-          <option value="Archived">Archived</option>
+          <option value="ALL">All Statuses</option>
+          <option value="Active">🟢 Active Only</option>
+          <option value="Visitor">🔵 Visitor Only</option>
+          <option value="Inactive">🔴 Inactive Only</option>
+          <option value="Archived">⚪ Archived</option>
         </select>
 
         {/* Specific Event Selector */}
         <select
           value={selectedEventType}
           onChange={e => setSelectedEventType(e.target.value)}
-          className="w-full sm:w-auto min-w-0 px-2.5 py-1.5 rounded-lg bg-[#140c08] border border-[#3d200e] text-amber-300 text-xs font-semibold focus:outline-none focus:border-[#fbbf24]"
+          className="w-full sm:w-auto min-w-0 px-3 py-2 rounded-xl bg-[#100905] border-2 border-[#ca8a04] text-[#fef08a] text-xs font-fantasy uppercase font-black focus:outline-none focus:border-[#fde047] shadow-inner cursor-pointer"
         >
-          <option value="ALL">All War Events Attendance</option>
-          <option value="BT1">BT1 (Bear Trap 1) Attendance</option>
-          <option value="BT2">BT2 (Bear Trap 2) Attendance</option>
-          <option value="Swordland L1">Swordland L1 Attendance</option>
-          <option value="Swordland L2">Swordland L2 Attendance</option>
-          <option value="Tri Alliance L1">Tri Alliance L1 Attendance</option>
-          <option value="Tri Alliance L2">Tri Alliance L2 Attendance</option>
+          <option value="ALL">All Wars Turnout</option>
+          <option value="BT1">BT1 (Bear Trap 1)</option>
+          <option value="BT2">BT2 (Bear Trap 2)</option>
+          <option value="Swordland L1">Swordland L1</option>
+          <option value="Swordland L2">Swordland L2</option>
+          <option value="Tri Alliance L1">Tri Alliance L1</option>
+          <option value="Tri Alliance L2">Tri Alliance L2</option>
         </select>
 
         {/* Quick Filter for Strikes */}
         <button
           onClick={() => setMemberFilter(prev => ({ ...prev, strikeMin: prev.strikeMin > 0 ? 0 : 1 }))}
-          className={`w-full sm:w-auto px-2.5 py-1.5 rounded-lg text-xs font-semibold border cursor-pointer ${
+          className={`w-full sm:w-auto px-3.5 py-2 rounded-xl text-xs font-fantasy uppercase font-black border-2 cursor-pointer transition-all shadow-[0_3px_0_rgba(0,0,0,0.4)] active:translate-y-0.5 active:shadow-none ${
             memberFilter.strikeMin > 0
-              ? 'bg-red-950 text-red-200 border-red-500'
-              : 'bg-[#140c08] text-stone-300 border-[#3d200e] hover:border-[#b45309]'
+              ? 'bg-gradient-to-b from-[#f87171] to-[#dc2626] text-white border-[#fecaca]'
+              : 'bg-[#221308] text-stone-300 border-[#47240f] hover:border-amber-500'
           }`}
         >
-          With Strikes
+          🔥 With Strikes
         </button>
       </div>
 
@@ -479,52 +479,52 @@ export const MembersView: React.FC<MembersViewProps> = ({
         )}
       </div>
 
-      {/* Desktop Member Table (Hidden on screens < md) */}
-      <div className="hidden md:block rounded-xl bg-[#20150f] border border-[#4d2b14] overflow-hidden shadow-sm">
+      {/* Desktop Warrior Table */}
+      <div className="hidden md:block kingshot-card overflow-hidden shadow-xl">
         <table className="w-full text-left text-xs sm:text-sm">
-          <thead className="bg-[#170e09] text-stone-300 font-semibold text-xs border-b border-[#3d200e]">
+          <thead className="bg-gradient-to-b from-[#2d180c] to-[#1c0f07] text-[#fef08a] font-fantasy uppercase tracking-wider text-xs border-b-[3px] border-[#4a2610]">
             <tr>
               <th
                 onClick={() => handleToggleSort('name')}
-                className="py-3 px-4 cursor-pointer hover:text-white"
+                className="py-3.5 px-4 cursor-pointer hover:text-white select-none"
               >
                 <div className="flex items-center gap-1.5">
-                  <span>Player Name</span>
-                  <ArrowUpDown className="w-3.5 h-3.5 text-stone-500" />
+                  <span>Warrior Name</span>
+                  <ArrowUpDown className="w-3.5 h-3.5 text-amber-400" />
                 </div>
               </th>
               <th
                 onClick={() => handleToggleSort('rank')}
-                className="py-3 px-4 cursor-pointer hover:text-white"
+                className="py-3.5 px-4 cursor-pointer hover:text-white select-none"
               >
                 <div className="flex items-center gap-1.5">
-                  <span>Rank</span>
-                  <ArrowUpDown className="w-3.5 h-3.5 text-stone-500" />
+                  <span>Alliance Rank</span>
+                  <ArrowUpDown className="w-3.5 h-3.5 text-amber-400" />
                 </div>
               </th>
               <th
                 onClick={() => handleToggleSort('participation')}
-                className="py-3 px-4 cursor-pointer hover:text-amber-300"
+                className="py-3.5 px-4 cursor-pointer hover:text-amber-200 select-none"
               >
                 <div className="flex items-center gap-1.5 text-amber-300">
-                  <span>{selectedEventType === 'ALL' ? 'War Attendance %' : `${selectedEventType} %`}</span>
+                  <span>{selectedEventType === 'ALL' ? 'War Turnout %' : `${selectedEventType} %`}</span>
                   <ArrowUpDown className="w-3.5 h-3.5" />
                 </div>
               </th>
               <th
                 onClick={() => handleToggleSort('strikes')}
-                className="py-3 px-4 cursor-pointer hover:text-white"
+                className="py-3.5 px-4 cursor-pointer hover:text-white select-none"
               >
                 <div className="flex items-center gap-1.5">
                   <span>Strikes</span>
-                  <ArrowUpDown className="w-3.5 h-3.5 text-stone-500" />
+                  <ArrowUpDown className="w-3.5 h-3.5 text-amber-400" />
                 </div>
               </th>
-              <th className="py-3 px-4">Status</th>
-              <th className="py-3 px-4 text-right">Actions</th>
+              <th className="py-3.5 px-4">Status</th>
+              <th className="py-3.5 px-4 text-right">Actions</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-[#2a170b] text-stone-200">
+          <tbody className="divide-y-2 divide-[#381c0c] text-stone-200">
             {members.length === 0 ? (
               <tr>
                 <td colSpan={6} className="py-14 text-center">

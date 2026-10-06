@@ -2,7 +2,7 @@ import React from 'react';
 import { AllianceEvent } from '../../types/crm';
 import { useCRM } from '../../context/CRMContext';
 import { ProgressBar } from '../common/ProgressBar';
-import { ChevronRight, Calendar, Clock, CheckCircle2 } from 'lucide-react';
+import { ChevronRight, Calendar, Clock, CheckCircle2, Swords } from 'lucide-react';
 import { sounds } from '../../utils/sound';
 import { safeFormatDate, getComputedEventStatus, getEventRelativeTime } from '../../utils/date';
 
@@ -42,23 +42,30 @@ export const EventOverviewCard: React.FC<EventOverviewCardProps> = ({ event }) =
   });
 
   return (
-    <div className={`rounded-xl border p-4 transition-all shadow-sm flex flex-col justify-between ${
-      computedStatus === 'Upcoming'
-        ? 'bg-[#22160e] border-[#b45309]/70 hover:border-[#f59e0b]'
-        : 'bg-[#20150f] border-[#4d2b14] hover:border-[#b45309]'
-    }`}>
+    <div
+      style={{
+        boxShadow: computedStatus === 'Upcoming'
+          ? '0 6px 0 #78350f, 0 10px 20px rgba(0,0,0,0.45)'
+          : '0 6px 0 #180d07, 0 10px 20px rgba(0,0,0,0.45)',
+      }}
+      className={`rounded-2xl border-[3px] p-4 transition-all flex flex-col justify-between select-none relative overflow-hidden ${
+        computedStatus === 'Upcoming'
+          ? 'bg-gradient-to-b from-[#2a1a0e] to-[#1a0f07] border-[#ca8a04]'
+          : 'bg-gradient-to-b from-[#20150d] to-[#140d07] border-[#4d2812]'
+      }`}
+    >
       <div>
         <div className="flex items-start justify-between gap-2 mb-2">
           <div>
             <div className="flex items-center gap-2">
-              <span className="font-bold text-base text-[#fffbeb]">
+              <span className="font-fantasy font-black text-lg text-[#fffbeb] game-text-shadow">
                 {event.eventType}
               </span>
               <span
-                className={`text-[9px] uppercase font-bold px-2 py-0.5 rounded-full border flex items-center gap-1 ${
+                className={`text-[9px] uppercase font-fantasy font-black px-2 py-0.5 rounded-full border-2 flex items-center gap-1 shadow-sm ${
                   computedStatus === 'Upcoming'
-                    ? 'bg-amber-950/80 text-amber-300 border-amber-600/60'
-                    : 'bg-emerald-950/80 text-emerald-300 border-emerald-600/60'
+                    ? 'bg-amber-950 text-amber-300 border-amber-500 animate-pulse'
+                    : 'bg-emerald-950 text-emerald-300 border-emerald-500'
                 }`}
               >
                 {computedStatus === 'Upcoming' ? (
@@ -74,13 +81,13 @@ export const EventOverviewCard: React.FC<EventOverviewCardProps> = ({ event }) =
                 )}
               </span>
             </div>
-            <p className="text-xs text-stone-300 truncate mt-0.5">{event.eventName}</p>
+            <p className="text-xs text-stone-300 font-medium truncate mt-0.5">{event.eventName}</p>
           </div>
 
-          <div className="text-right text-xs text-stone-400 font-mono">
-            <div>{formattedDate}</div>
+          <div className="text-right text-xs text-stone-300 font-mono">
+            <div className="font-bold">{formattedDate}</div>
             {relativeTime && (
-              <div className="text-[10px] text-amber-300/80">{relativeTime}</div>
+              <div className="text-[10px] text-amber-400 font-bold">{relativeTime}</div>
             )}
           </div>
         </div>
@@ -89,28 +96,29 @@ export const EventOverviewCard: React.FC<EventOverviewCardProps> = ({ event }) =
         <div className="my-3 space-y-1">
           <ProgressBar
             percentage={attendancePct}
-            label="Attendance"
+            label="War Attendance"
             subLabel={`${joined}/${total}`}
             color={attendancePct >= 75 ? 'emerald' : attendancePct >= 50 ? 'gold' : 'crimson'}
-            size="sm"
+            size="md"
           />
         </div>
 
-        {/* Summary */}
-        <div className="text-[11px] text-stone-400 flex items-center justify-between pt-1">
-          <span>{totalVoted} Voted</span>
-          <span>{didNotJoin} Missed</span>
-          <span>{noVote} No Vote</span>
+        {/* Voting breakdown badge capsule */}
+        <div className="p-2 rounded-xl bg-black/40 border border-white/5 text-[11px] font-mono flex items-center justify-between text-stone-300">
+          <span className="text-stone-400">Votes:</span>
+          <span>
+            <strong className="text-emerald-400">{votedYes} YES</strong> / <strong className="text-red-400">{votedNo} NO</strong> / <strong className="text-stone-500">{noVote} Idle</strong>
+          </span>
         </div>
       </div>
 
-      <div className="mt-3 pt-2.5 border-t border-[#381e0e] flex justify-end">
+      <div className="pt-3 mt-2 border-t border-[#3b1f0d]">
         <button
           onClick={handleOpenAttendance}
-          className="text-xs font-semibold text-[#fbbf24] hover:text-white flex items-center gap-1 cursor-pointer transition-colors"
+          className="w-full btn-kingshot-gold py-2 text-xs font-fantasy font-black uppercase flex items-center justify-center gap-1.5 cursor-pointer shadow-md"
         >
-          <span>View Attendance</span>
-          <ChevronRight className="w-3.5 h-3.5" />
+          <Swords className="w-3.5 h-3.5 text-black" />
+          <span>Open War Ledger</span>
         </button>
       </div>
     </div>

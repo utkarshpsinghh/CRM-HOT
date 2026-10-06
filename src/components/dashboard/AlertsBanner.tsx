@@ -1,6 +1,6 @@
 import React from 'react';
 import { useCRM } from '../../context/CRMContext';
-import { AlertTriangle, Flame, Clock, ChevronRight } from 'lucide-react';
+import { Flame, Clock, ChevronRight, AlertOctagon } from 'lucide-react';
 import { sounds } from '../../utils/sound';
 
 export const AlertsBanner: React.FC = () => {
@@ -13,8 +13,13 @@ export const AlertsBanner: React.FC = () => {
     {
       id: 'strikes',
       show: criticalStrikes.length > 0,
-      icon: <Flame className="w-4 h-4 text-red-400" />,
-      text: `${criticalStrikes.length} member${criticalStrikes.length > 1 ? 's have' : ' has'} 2+ strikes`,
+      icon: <Flame className="w-5 h-5 text-red-400 drop-shadow" />,
+      title: 'Discipline Warning',
+      text: `${criticalStrikes.length} warrior${criticalStrikes.length > 1 ? 's carry' : ' carries'} 2+ strikes`,
+      actionLabel: 'Review Strikes',
+      borderClass: 'border-red-600',
+      bevelColor: '#450a0a',
+      bgClass: 'from-[#2e0f0f] to-[#1a0808]',
       action: () => {
         setMemberFilter({ search: '', rank: 'ALL', comm: 'ALL', status: 'ALL', strikeMin: 2 });
         setActiveTab('members');
@@ -23,8 +28,13 @@ export const AlertsBanner: React.FC = () => {
     {
       id: 'inactive',
       show: inactiveCount > 0,
-      icon: <Clock className="w-4 h-4 text-amber-400" />,
-      text: `${inactiveCount} member${inactiveCount > 1 ? 's' : ''} inactive for 7+ days`,
+      icon: <Clock className="w-5 h-5 text-amber-400 drop-shadow" />,
+      title: 'Slacker Alert',
+      text: `${inactiveCount} warrior${inactiveCount > 1 ? 's' : ''} offline for 7+ days`,
+      actionLabel: 'Check Inactivity',
+      borderClass: 'border-amber-600',
+      bevelColor: '#7c2d12',
+      bgClass: 'from-[#2e190b] to-[#1c0e06]',
       action: () => {
         setActiveTab('activity');
       },
@@ -34,7 +44,7 @@ export const AlertsBanner: React.FC = () => {
   if (alerts.length === 0) return null;
 
   return (
-    <div className="flex flex-wrap gap-2.5">
+    <div className="flex flex-col sm:flex-row gap-3">
       {alerts.map(a => (
         <div
           key={a.id}
@@ -42,16 +52,29 @@ export const AlertsBanner: React.FC = () => {
             sounds.playClick();
             a.action();
           }}
-          className="w-full sm:flex-1 min-w-0 px-3.5 py-2.5 rounded-lg bg-[#27150c] border border-[#52290d] hover:border-[#b45309] flex items-center justify-between gap-3 cursor-pointer transition-all text-xs"
+          style={{
+            boxShadow: `0 5px 0 ${a.bevelColor}, 0 8px 16px rgba(0, 0, 0, 0.4)`,
+          }}
+          className={`flex-1 p-3.5 sm:p-4 rounded-2xl bg-gradient-to-b ${a.bgClass} border-[3px] ${a.borderClass} flex items-center justify-between gap-3 cursor-pointer select-none transition-all hover:-translate-y-1 active:translate-y-1 active:shadow-none`}
         >
-          <div className="flex items-center gap-2 text-stone-200 font-medium truncate">
-            {a.icon}
-            <span className="truncate">{a.text}</span>
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-10 h-10 rounded-xl bg-black/40 border-2 border-white/10 flex items-center justify-center shrink-0 shadow-inner">
+              {a.icon}
+            </div>
+            <div className="min-w-0">
+              <div className="text-xs font-fantasy font-black uppercase tracking-wider text-[#fef08a]">
+                {a.title}
+              </div>
+              <p className="text-xs text-stone-200 font-medium truncate mt-0.5">
+                {a.text}
+              </p>
+            </div>
           </div>
-          <span className="text-[#fbbf24] font-semibold flex items-center gap-1 shrink-0 text-[11px]">
-            <span>View</span>
+
+          <div className="btn-kingshot-gold px-3 py-1.5 text-[11px] font-fantasy font-black uppercase flex items-center gap-1 shrink-0 shadow-sm">
+            <span>{a.actionLabel}</span>
             <ChevronRight className="w-3.5 h-3.5" />
-          </span>
+          </div>
         </div>
       ))}
     </div>

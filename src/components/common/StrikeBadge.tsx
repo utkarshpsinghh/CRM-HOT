@@ -1,6 +1,6 @@
 import React from 'react';
 import { clsx } from 'clsx';
-import { Flame, Skull } from 'lucide-react';
+import { Flame, Skull, ShieldCheck } from 'lucide-react';
 
 interface StrikeBadgeProps {
   count: number;
@@ -14,13 +14,13 @@ export const StrikeBadge: React.FC<StrikeBadgeProps> = ({ count, size = 'md', on
       <span
         onClick={onClick}
         className={clsx(
-          'inline-flex items-center gap-1 rounded font-mono text-stone-500 bg-stone-900/40 border border-stone-800/80 px-2 py-0.5 text-xs',
-          onClick && 'cursor-pointer hover:border-stone-600'
+          'inline-flex items-center gap-1.5 rounded-xl font-fantasy uppercase text-stone-400 bg-[#1f130b] border-2 border-[#3d2212] px-2.5 py-0.5 text-xs shadow-[0_2px_0_#0f0703]',
+          onClick && 'cursor-pointer hover:border-amber-600 active:translate-y-0.5'
         )}
-        title="Zero strikes"
+        title="Zero strikes - Clean record"
       >
-        <span>0</span>
-        <span className="text-[10px] uppercase font-sans">Strikes</span>
+        <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+        <span>0 Strikes</span>
       </span>
     );
   }
@@ -28,31 +28,31 @@ export const StrikeBadge: React.FC<StrikeBadgeProps> = ({ count, size = 'md', on
   const isCritical = count >= 2;
 
   const sizeClasses = {
-    sm: 'text-xs px-2 py-0.5 gap-1',
-    md: 'text-xs px-2.5 py-1 gap-1.5',
-    lg: 'text-sm px-3.5 py-1.5 gap-2 font-bold',
+    sm: 'text-[11px] px-2 py-0.5 gap-1 rounded-xl',
+    md: 'text-xs px-2.5 py-1 gap-1.5 rounded-xl',
+    lg: 'text-sm px-3.5 py-1.5 gap-2 rounded-2xl font-black',
   }[size];
 
   return (
     <span
       onClick={onClick}
       className={clsx(
-        'inline-flex items-center font-fantasy rounded border font-bold uppercase transition-all shrink-0',
+        'inline-flex items-center font-fantasy font-black uppercase select-none transition-all shrink-0 tracking-wider',
         sizeClasses,
         isCritical
-          ? 'bg-gradient-to-r from-red-950 via-red-900 to-red-950 text-red-200 border-red-500 shadow-[0_0_12px_rgba(239,68,68,0.5)] animate-pulse'
-          : 'bg-gradient-to-r from-amber-950 to-red-950 text-amber-200 border-amber-500/80 shadow-[0_0_8px_rgba(245,158,11,0.3)]',
-        onClick && 'cursor-pointer hover:scale-105 active:scale-95'
+          ? 'bg-gradient-to-b from-[#f87171] to-[#dc2626] text-white border-2 border-[#fecaca] shadow-[0_3px_0_#7f1d1d] animate-pulse'
+          : 'bg-gradient-to-b from-[#fb923c] to-[#ea580c] text-white border-2 border-[#fed7aa] shadow-[0_3px_0_#7c2d12]',
+        onClick && 'cursor-pointer hover:scale-105 active:translate-y-0.5 active:shadow-none'
       )}
       title={`${count} Alliance Strike(s)`}
     >
       {isCritical ? (
-        <Skull className="w-3.5 h-3.5 text-red-400 shrink-0" />
+        <Skull className="w-3.5 h-3.5 text-white shrink-0 drop-shadow" />
       ) : (
-        <Flame className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+        <Flame className="w-3.5 h-3.5 text-yellow-200 shrink-0 drop-shadow" />
       )}
       <span>{count}</span>
-      <span className="text-[10px] font-sans font-normal opacity-90">
+      <span className="text-[10px] opacity-90">
         {count === 1 ? 'Strike' : 'Strikes'}
       </span>
     </span>

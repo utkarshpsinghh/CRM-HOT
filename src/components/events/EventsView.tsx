@@ -10,13 +10,10 @@ import {
   Calendar,
   Clock,
   ChevronRight,
-  Filter,
   TrendingUp,
   BarChart3,
   ArrowUpDown,
   CheckCircle2,
-  AlertCircle,
-  Sparkles,
   RefreshCw,
 } from 'lucide-react';
 import { sounds } from '../../utils/sound';
@@ -91,35 +88,35 @@ export const EventsView: React.FC<EventsViewProps> = ({ onOpenCreateEvent }) => 
   };
 
   return (
-    <div className="space-y-5 animate-fade-in">
+    <div className="space-y-6 animate-pop-in">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-b from-[#ca8a04] to-[#854d0e] flex items-center justify-center text-black shadow-md">
-              <Swords className="w-4 h-4 text-black" />
+          <div className="flex items-center gap-2.5">
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-b from-[#f59e0b] to-[#b45309] border-2 border-[#fef08a] flex items-center justify-center text-black shadow-[0_4px_0_#451a03]">
+              <Swords className="w-5 h-5 text-black drop-shadow" />
             </div>
-            <h1 className="font-fantasy font-black text-xl sm:text-2xl text-[#fef08a] tracking-wide">
-              Alliance War Events
+            <h1 className="font-fantasy font-black text-2xl sm:text-3xl text-[#fffbeb] tracking-wide game-text-shadow">
+              War Operations Room
             </h1>
-            <span className="text-xs px-2.5 py-0.5 rounded-full bg-[#2a170a] border border-[#ca8a04]/40 text-[#fef3c7] font-bold font-mono">
-              {events.length}
+            <span className="text-xs px-2.5 py-0.5 rounded-full bg-[#1b1008] border-2 border-[#ca8a04] text-[#fef08a] font-fantasy font-black shadow-sm">
+              {events.length} Wars
             </span>
           </div>
-          <p className="text-xs text-stone-400 mt-1">
-            Battle schedules, attendance records, and turnouts ordered chronologically (earliest first).
+          <p className="text-xs text-stone-300 font-medium mt-1">
+            Battle schedules, turnouts, and attendance checkpoints ordered chronologically.
           </p>
         </div>
 
-        <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
+        <div className="flex items-center gap-2.5 self-start sm:self-auto flex-wrap">
           <button
             type="button"
             onClick={() => syncGoogleSheetEvents()}
             disabled={isSyncing}
-            className="px-3.5 py-2 rounded-xl bg-[#2a170a] border border-[#ca8a04]/40 hover:border-[#ca8a04] text-amber-200 text-xs font-fantasy font-black uppercase flex items-center justify-center gap-1.5 cursor-pointer shadow-md transition-all disabled:opacity-50"
+            className="btn-kingshot-cream px-3.5 py-2 text-xs font-fantasy font-black uppercase flex items-center justify-center gap-1.5 cursor-pointer shadow-md disabled:opacity-50"
             title="Sync war events from official Google Sheet"
           >
-            <RefreshCw className={`w-3.5 h-3.5 text-amber-400 ${isSyncing ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w-3.5 h-3.5 text-amber-500 ${isSyncing ? 'animate-spin' : ''}`} />
             <span>Sync Sheet</span>
           </button>
 
@@ -127,30 +124,30 @@ export const EventsView: React.FC<EventsViewProps> = ({ onOpenCreateEvent }) => 
             <button
               type="button"
               onClick={onOpenCreateEvent}
-              className="btn-kingshot-gold px-4 py-2 text-xs font-fantasy font-black uppercase flex items-center justify-center gap-2 cursor-pointer shadow-md hover:scale-105 active:scale-95 transition-all"
+              className="btn-kingshot-gold px-4 py-2 text-xs font-fantasy font-black uppercase flex items-center justify-center gap-2 cursor-pointer shadow-lg"
             >
-              <PlusCircle className="w-4 h-4" />
-              <span>Create Event</span>
+              <PlusCircle className="w-4 h-4 text-black" />
+              <span>Schedule War</span>
             </button>
           )}
         </div>
       </div>
 
       {/* ALL-TIME AVERAGE ATTENDANCE STATS CARDS */}
-      <div className="p-4 sm:p-5 rounded-2xl bg-[#1a1410] border-2 border-[#3e2716] shadow-md space-y-3">
+      <div className="kingshot-card p-4 sm:p-5 shadow-lg space-y-3">
         <div className="flex items-center justify-between gap-2 flex-wrap">
           <div className="flex items-center gap-2">
-            <BarChart3 className="w-4 h-4 text-[#ca8a04]" />
-            <h2 className="font-fantasy font-bold text-xs sm:text-sm uppercase tracking-wider text-[#fef08a]">
-              All-Time Average Attendance by Event Type
+            <BarChart3 className="w-4 h-4 text-[#facc15]" />
+            <h2 className="font-fantasy font-black text-xs sm:text-sm uppercase tracking-wider text-[#fef08a]">
+              All-Time War Turnout Benchmarks by Battle Type
             </h2>
           </div>
-          <span className="text-[11px] text-stone-400">
-            Click badge to quick-filter
+          <span className="text-[11px] font-fantasy uppercase text-amber-300/80">
+            Tap badge to filter
           </span>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-2.5">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
           {coreEventTypes.map(t => {
             const stats = eventAverages[t];
             const avgPct = stats ? stats.averageAttendancePercentage : 0;
@@ -164,17 +161,17 @@ export const EventsView: React.FC<EventsViewProps> = ({ onOpenCreateEvent }) => 
                   sounds.playClick();
                   setTypeFilter(prev => (prev === t ? 'ALL' : t));
                 }}
-                className={`p-3 rounded-xl border text-left transition-all cursor-pointer select-none ${
+                className={`p-3 rounded-2xl border-2 text-left transition-all cursor-pointer select-none ${
                   isSelected
-                    ? 'bg-[#331c0d] border-[#fbbf24] shadow-md scale-[1.02]'
-                    : 'bg-[#120c08] border-[#3e2716] hover:border-[#ca8a04]'
+                    ? 'bg-[#382012] border-[#fde047] shadow-[0_4px_0_#78350f] transform -translate-y-1'
+                    : 'bg-[#180e08] border-[#381c0c] hover:border-amber-600 shadow-[0_3px_0_#0f0703] active:translate-y-0.5'
                 }`}
               >
-                <div className="text-[11px] font-bold text-stone-300 truncate">
-                  {t === 'BT1' ? 'BT1 (Bear Trap 1)' : t === 'BT2' ? 'BT2 (Bear Trap 2)' : t}
+                <div className="text-[11px] font-fantasy uppercase font-black text-stone-300 truncate">
+                  {t === 'BT1' ? 'BT1 (Trap 1)' : t === 'BT2' ? 'BT2 (Trap 2)' : t}
                 </div>
                 <div
-                  className={`text-lg sm:text-xl font-fantasy font-black mt-0.5 ${
+                  className={`text-xl sm:text-2xl font-fantasy font-black mt-1 ${
                     avgPct >= 75
                       ? 'text-emerald-400'
                       : avgPct >= 50
@@ -186,8 +183,8 @@ export const EventsView: React.FC<EventsViewProps> = ({ onOpenCreateEvent }) => 
                 >
                   {eventCount > 0 ? `${avgPct.toFixed(0)}%` : '—'}
                 </div>
-                <div className="text-[10px] text-stone-400 mt-0.5">
-                  {eventCount} {eventCount === 1 ? 'event' : 'events'} all-time
+                <div className="text-[10px] text-stone-400 font-medium mt-0.5">
+                  {eventCount} {eventCount === 1 ? 'war' : 'wars'}
                 </div>
               </button>
             );
@@ -196,24 +193,23 @@ export const EventsView: React.FC<EventsViewProps> = ({ onOpenCreateEvent }) => 
       </div>
 
       {/* FILTER & SORTING BAR */}
-      <div className="p-3 sm:p-4 rounded-2xl bg-[#1a1410] border-2 border-[#3e2716] space-y-3 shadow-sm">
-        {/* Status Filter Tabs (Upcoming & Completed Only - No Live) */}
+      <div className="p-3.5 sm:p-4 rounded-2xl bg-[#180e08] border-[3px] border-[#4a2610] space-y-3 shadow-[0_5px_0_#0f0703]">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-1.5 p-1 rounded-xl bg-[#120c08] border border-[#3e2716] self-start sm:self-auto overflow-x-auto w-full sm:w-auto">
+          <div className="flex items-center gap-2 p-1 rounded-2xl bg-[#100905] border-2 border-[#381c0c] self-start sm:self-auto overflow-x-auto w-full sm:w-auto shadow-inner">
             <button
               type="button"
               onClick={() => {
                 sounds.playClick();
                 setStatusFilter('ALL');
               }}
-              className={`px-3 py-1.5 rounded-lg text-xs font-fantasy font-bold transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-fantasy font-black uppercase transition-all cursor-pointer whitespace-nowrap ${
                 statusFilter === 'ALL'
-                  ? 'bg-gradient-to-r from-[#ca8a04] to-[#eab308] text-black shadow-md font-black'
+                  ? 'bg-gradient-to-b from-[#fde047] to-[#ca8a04] text-[#291304] border-2 border-[#fef08a] shadow-[0_3px_0_#78350f]'
                   : 'text-stone-300 hover:text-white'
               }`}
             >
-              <span>All Events</span>
-              <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-black/30 font-mono">
+              <span>All Battles</span>
+              <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-black/40 font-mono ml-1">
                 {statusCounts.total}
               </span>
             </button>
@@ -224,15 +220,14 @@ export const EventsView: React.FC<EventsViewProps> = ({ onOpenCreateEvent }) => 
                 sounds.playClick();
                 setStatusFilter('Upcoming');
               }}
-              className={`px-3 py-1.5 rounded-lg text-xs font-fantasy font-bold transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-fantasy font-black uppercase transition-all cursor-pointer whitespace-nowrap ${
                 statusFilter === 'Upcoming'
-                  ? 'bg-gradient-to-r from-amber-500 to-yellow-500 text-black shadow-md font-black'
-                  : 'text-amber-300 hover:text-white'
+                  ? 'bg-gradient-to-b from-[#fde047] to-[#ca8a04] text-[#291304] border-2 border-[#fef08a] shadow-[0_3px_0_#78350f]'
+                  : 'text-stone-300 hover:text-white'
               }`}
             >
-              <Clock className="w-3.5 h-3.5" />
               <span>Upcoming</span>
-              <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-amber-950 text-amber-200 border border-amber-600/40 font-mono font-bold">
+              <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-black/40 font-mono ml-1">
                 {statusCounts.upcoming}
               </span>
             </button>
@@ -243,69 +238,50 @@ export const EventsView: React.FC<EventsViewProps> = ({ onOpenCreateEvent }) => 
                 sounds.playClick();
                 setStatusFilter('Completed');
               }}
-              className={`px-3 py-1.5 rounded-lg text-xs font-fantasy font-bold transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-fantasy font-black uppercase transition-all cursor-pointer whitespace-nowrap ${
                 statusFilter === 'Completed'
-                  ? 'bg-gradient-to-r from-emerald-600 to-teal-500 text-black shadow-md font-black'
-                  : 'text-emerald-300 hover:text-white'
+                  ? 'bg-gradient-to-b from-[#fde047] to-[#ca8a04] text-[#291304] border-2 border-[#fef08a] shadow-[0_3px_0_#78350f]'
+                  : 'text-stone-300 hover:text-white'
               }`}
             >
-              <CheckCircle2 className="w-3.5 h-3.5" />
               <span>Completed</span>
-              <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-emerald-950 text-emerald-200 border border-emerald-600/40 font-mono font-bold">
+              <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-black/40 font-mono ml-1">
                 {statusCounts.completed}
               </span>
             </button>
           </div>
 
-          {/* Sort Order Toggle (Earliest First by default) */}
-          <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
-            <span className="text-[11px] text-stone-400 font-medium">Sort Order:</span>
+          <div className="flex items-center gap-2 flex-wrap">
+            <select
+              value={typeFilter}
+              onChange={e => setTypeFilter(e.target.value)}
+              className="px-3 py-1.5 rounded-xl bg-[#100905] border-2 border-[#381c0c] text-stone-200 text-xs font-fantasy uppercase font-black focus:outline-none focus:border-[#fde047] shadow-inner cursor-pointer"
+            >
+              <option value="ALL">All Event Types</option>
+              {coreEventTypes.map(t => (
+                <option key={t} value={t}>{t}</option>
+              ))}
+            </select>
+
             <button
               type="button"
-              onClick={() => {
-                sounds.playClick();
-                setSortOrder(prev => (prev === 'earliest' ? 'latest' : 'earliest'));
-              }}
-              className="px-3 py-1.5 rounded-xl bg-[#120c08] border border-[#3e2716] hover:border-[#ca8a04] text-xs font-fantasy font-bold text-amber-300 flex items-center gap-1.5 cursor-pointer transition-all shadow-sm"
+              onClick={() => setSortOrder(prev => prev === 'earliest' ? 'latest' : 'earliest')}
+              className="btn-kingshot-cream px-3 py-1.5 text-xs font-fantasy font-black uppercase flex items-center gap-1.5 shadow-sm"
             >
-              <ArrowUpDown className="w-3.5 h-3.5 text-[#ca8a04]" />
-              <span>{sortOrder === 'earliest' ? 'Earliest First (Default)' : 'Latest First'}</span>
+              <ArrowUpDown className="w-3.5 h-3.5" />
+              <span>{sortOrder === 'earliest' ? 'Earliest First' : 'Latest First'}</span>
             </button>
           </div>
-        </div>
-
-        {/* Event Type Filter Chips */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pt-1 scrollbar-none">
-          <Filter className="w-3.5 h-3.5 text-stone-400 shrink-0 ml-0.5" />
-          <span className="text-[11px] font-fantasy font-bold uppercase text-[#ca8a04] shrink-0 mr-1">
-            Type:
-          </span>
-          {['ALL', ...coreEventTypes].map(t => (
-            <button
-              key={t}
-              onClick={() => {
-                sounds.playClick();
-                setTypeFilter(t);
-              }}
-              className={`px-2.5 py-1 rounded-lg text-[11px] font-fantasy font-bold tracking-wider uppercase whitespace-nowrap transition-all cursor-pointer ${
-                typeFilter === t
-                  ? 'bg-[#ca8a04] text-[#1e1503] font-black shadow-sm'
-                  : 'bg-[#120c08] text-stone-400 hover:text-stone-200 border border-[#2c1d15]'
-              }`}
-            >
-              {t === 'BT1' ? 'BT1' : t === 'BT2' ? 'BT2' : t}
-            </button>
-          ))}
         </div>
       </div>
 
       {/* EVENTS GRID */}
       {processedEvents.length === 0 ? (
-        <div className="p-10 rounded-2xl bg-[#1a1410] border-2 border-dashed border-[#3e2716] text-center space-y-2">
-          <Swords className="w-8 h-8 text-stone-500 mx-auto opacity-40" />
-          <h3 className="font-fantasy font-bold text-sm text-[#fef08a]">No events found</h3>
+        <div className="p-12 rounded-3xl bg-[#180e08] border-[3px] border-dashed border-[#4a2610] text-center space-y-3">
+          <Swords className="w-10 h-10 text-stone-500 mx-auto opacity-50" />
+          <h3 className="font-fantasy font-black text-base text-[#fef08a] uppercase">No War Battles Found</h3>
           <p className="text-xs text-stone-400">
-            No events match the selected status or type filter.
+            No events match the selected status or battle type filter.
           </p>
         </div>
       ) : (
@@ -322,12 +298,8 @@ export const EventsView: React.FC<EventsViewProps> = ({ onOpenCreateEvent }) => 
             const attPct = total > 0 ? (joined / total) * 100 : 0;
             const votePct = total > 0 ? (voted / total) * 100 : 0;
 
-            // Computed status based on date/time (Upcoming vs Completed - No Live)
             const computedStatus = getComputedEventStatus(evt.date);
             const relativeTime = getEventRelativeTime(evt.date);
-
-            // Event type all-time average
-            const typeAvg = eventAverages[evt.eventType]?.averageAttendancePercentage ?? null;
 
             const formattedDate = safeFormatDate(evt.date, {
               weekday: 'short',
@@ -340,33 +312,35 @@ export const EventsView: React.FC<EventsViewProps> = ({ onOpenCreateEvent }) => 
             return (
               <div
                 key={evt.id}
-                className={`rounded-2xl bg-[#1a1410] border-2 transition-all p-4 sm:p-5 shadow-md flex flex-col justify-between hover:shadow-xl ${
+                style={{
+                  boxShadow: computedStatus === 'Upcoming'
+                    ? '0 6px 0 #78350f, 0 12px 24px rgba(0,0,0,0.5)'
+                    : '0 6px 0 #140b06, 0 12px 24px rgba(0,0,0,0.5)',
+                }}
+                className={`rounded-2xl border-[3px] p-4 sm:p-5 transition-all flex flex-col justify-between select-none relative overflow-hidden ${
                   computedStatus === 'Upcoming'
-                    ? 'border-[#ca8a04]/60 hover:border-[#fbbf24] bg-gradient-to-b from-[#21160d] to-[#1a1410]'
-                    : 'border-[#3e2716] hover:border-[#6b4224]'
+                    ? 'bg-gradient-to-b from-[#2a1a0e] to-[#180f08] border-[#ca8a04]'
+                    : 'bg-gradient-to-b from-[#1e130b] to-[#130b06] border-[#4a2610]'
                 }`}
               >
                 <div>
                   {/* Card Header */}
                   <div className="flex items-start justify-between gap-2 mb-2">
                     <div className="min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <span className="font-fantasy font-black text-lg text-[#fef08a] truncate">
-                          ⚔️ {evt.eventType}
-                        </span>
-                      </div>
-                      <h3 className="text-xs text-stone-200 font-semibold truncate mt-0.5">
+                      <span className="font-fantasy font-black text-lg text-[#fffbeb] game-text-shadow truncate block">
+                        ⚔️ {evt.eventType}
+                      </span>
+                      <h3 className="text-xs text-amber-200/90 font-medium truncate mt-0.5">
                         {evt.eventName}
                       </h3>
                     </div>
 
-                    {/* Auto Tagged Status (Upcoming vs Completed Only) */}
                     <div className="flex flex-col items-end gap-1 shrink-0">
                       <span
-                        className={`text-[10px] font-fantasy font-black uppercase px-2.5 py-0.5 rounded-full border shadow-sm flex items-center gap-1 ${
+                        className={`text-[9px] font-fantasy font-black uppercase px-2.5 py-0.5 rounded-full border-2 flex items-center gap-1 shadow-sm ${
                           computedStatus === 'Upcoming'
-                            ? 'bg-amber-950/80 text-amber-300 border-amber-500'
-                            : 'bg-emerald-950/80 text-emerald-300 border-emerald-600'
+                            ? 'bg-amber-950 text-amber-300 border-amber-500 animate-pulse'
+                            : 'bg-emerald-950 text-emerald-300 border-emerald-500'
                         }`}
                       >
                         {computedStatus === 'Upcoming' ? (
@@ -382,9 +356,8 @@ export const EventsView: React.FC<EventsViewProps> = ({ onOpenCreateEvent }) => 
                         )}
                       </span>
 
-                      {/* Countdown or relative label */}
                       {relativeTime && (
-                        <span className="text-[10px] text-stone-400 font-mono">
+                        <span className="text-[10px] text-amber-400 font-mono font-bold">
                           {relativeTime}
                         </span>
                       )}
@@ -392,71 +365,57 @@ export const EventsView: React.FC<EventsViewProps> = ({ onOpenCreateEvent }) => 
                   </div>
 
                   {/* Date and Time */}
-                  <div className="flex items-center gap-1.5 text-xs text-stone-300 mb-3 bg-[#120c08] px-2.5 py-1.5 rounded-xl border border-[#2c1d15]">
-                    <Calendar className="w-3.5 h-3.5 text-[#ca8a04] shrink-0" />
-                    <span className="font-medium truncate">{formattedDate}</span>
+                  <div className="flex items-center gap-2 text-xs text-stone-200 mb-3 bg-black/40 px-3 py-1.5 rounded-xl border border-white/5">
+                    <Calendar className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                    <span className="font-bold truncate">{formattedDate}</span>
                   </div>
 
                   {evt.notes && (
-                    <p className="text-xs text-stone-400 italic bg-[#120c08] p-2.5 rounded-xl border border-[#3e2716] mb-3 line-clamp-2">
+                    <p className="text-xs text-stone-300 italic bg-black/40 p-2.5 rounded-xl border border-white/5 mb-3 line-clamp-2">
                       &ldquo;{evt.notes}&rdquo;
                     </p>
                   )}
 
                   {/* Turnout & Vote Progress Bars */}
-                  <div className="space-y-2 mb-3 bg-[#120c08] p-3 rounded-xl border border-[#3e2716]">
+                  <div className="space-y-2 mb-3 bg-black/40 p-3 rounded-xl border border-white/5">
                     <ProgressBar
                       percentage={attPct}
-                      label="Turnout"
+                      label="War Turnout"
                       subLabel={`${joined}/${total}`}
                       color={attPct >= 75 ? 'emerald' : attPct >= 50 ? 'gold' : 'crimson'}
                       size="sm"
                     />
                     <ProgressBar
                       percentage={votePct}
-                      label="Voted"
+                      label="Votes Cast"
                       subLabel={`${voted}/${total}`}
                       color="blue"
                       size="sm"
                     />
                   </div>
-
-                  {/* All-Time Type Average Comparison */}
-                  {typeAvg !== null && (
-                    <div className="flex items-center justify-between text-[11px] px-2.5 py-1 rounded-lg bg-[#140c08] border border-[#2c1d15] text-stone-400 mb-3">
-                      <span className="flex items-center gap-1">
-                        <TrendingUp className="w-3 h-3 text-[#ca8a04]" />
-                        <span>{evt.eventType} Turnout Benchmark:</span>
-                      </span>
-                      <span className="font-mono font-bold text-amber-300">
-                        {typeAvg.toFixed(0)}%
-                      </span>
-                    </div>
-                  )}
                 </div>
 
                 {/* Card Action Footer */}
-                <div className="pt-3 border-t border-[#3e2716] flex items-center justify-between gap-2">
-                  <div className="text-[11px] text-stone-400 min-w-0">
+                <div className="pt-3 border-t-2 border-[#381c0c] flex items-center justify-between gap-2">
+                  <div className="text-[11px] text-stone-300 min-w-0">
                     {didNotJoin > 0 ? (
-                      <span className="text-amber-400 font-bold truncate block">
+                      <span className="text-red-400 font-bold truncate block">
                         ⚠️ {didNotJoin} missed after YES
                       </span>
                     ) : (
-                      <span className="text-stone-400 text-[10px]">
-                        {total} members enrolled
+                      <span className="text-stone-400 text-[10px] font-medium">
+                        {total} warriors enrolled
                       </span>
                     )}
                   </div>
 
-                  <GameButton
-                    variant={computedStatus === 'Upcoming' ? 'gold' : 'slate'}
-                    size="sm"
+                  <button
                     onClick={() => handleOpenAttendance(evt.id)}
-                    icon={<ChevronRight className="w-4 h-4" />}
+                    className="btn-kingshot-gold px-3.5 py-1.5 text-xs font-fantasy font-black uppercase flex items-center gap-1 shadow-md"
                   >
-                    Attendance
-                  </GameButton>
+                    <span>Ledger</span>
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </button>
                 </div>
               </div>
             );

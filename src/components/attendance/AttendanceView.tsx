@@ -274,98 +274,98 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
         </div>
       </div>
 
-      {/* Turnout Statistics Ribbon */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-2.5">
+      {/* Turnout Statistics Ribbon (Cartoon Loot Pods) */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-3">
         {/* Turnout Rate */}
-        <div className="p-3 rounded-xl bg-[#1c130d] border border-[#3e2716] flex flex-col justify-between">
-          <span className="text-[11px] font-bold text-stone-400 uppercase tracking-wider">Turnout Rate</span>
+        <div className="p-3.5 rounded-2xl bg-gradient-to-b from-[#2a1a0e] to-[#180f08] border-[2.5px] border-[#ca8a04] shadow-[0_4px_0_#78350f] flex flex-col justify-between">
+          <span className="text-[11px] font-fantasy font-black text-amber-300 uppercase tracking-wider">Turnout Rate</span>
           <div className="mt-1 flex items-baseline justify-between">
-            <span className="text-xl sm:text-2xl font-black font-fantasy text-[#fbbf24]">{stats.attRate.toFixed(0)}%</span>
-            <span className="text-xs text-stone-400 font-mono">{stats.joined}/{stats.total}</span>
+            <span className="text-2xl sm:text-3xl font-fantasy font-black text-[#fde047] gold-text-glow">{stats.attRate.toFixed(0)}%</span>
+            <span className="text-xs text-stone-300 font-mono font-bold">{stats.joined}/{stats.total}</span>
           </div>
-          <div className="w-full bg-[#120a06] h-1.5 rounded-full overflow-hidden mt-1.5">
+          <div className="w-full bg-[#100804] h-2 rounded-full overflow-hidden mt-2 p-0.5 border border-white/5">
             <div
-              className="h-full bg-gradient-to-r from-amber-500 to-emerald-500 transition-all duration-300"
+              className="h-full bg-gradient-to-r from-amber-500 via-yellow-400 to-emerald-400 rounded-full transition-all duration-300"
               style={{ width: `${Math.min(100, stats.attRate)}%` }}
             />
           </div>
         </div>
 
         {/* Joined */}
-        <div className="p-3 rounded-xl bg-[#1c130d] border border-[#3e2716]">
-          <span className="text-[11px] font-bold text-stone-400 uppercase tracking-wider flex items-center gap-1">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" /> Joined
+        <div className="p-3.5 rounded-2xl bg-gradient-to-b from-[#132418] to-[#0c160e] border-[2.5px] border-emerald-600 shadow-[0_4px_0_#064e3b]">
+          <span className="text-[11px] font-fantasy font-black text-emerald-300 uppercase tracking-wider flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block shadow-sm" /> Joined
           </span>
           <div className="mt-1 flex items-baseline justify-between">
-            <span className="text-xl sm:text-2xl font-black font-fantasy text-emerald-400">{stats.joined}</span>
-            <span className="text-[11px] text-stone-400">Warriors</span>
+            <span className="text-2xl sm:text-3xl font-fantasy font-black text-emerald-300 game-text-shadow">{stats.joined}</span>
+            <span className="text-[11px] text-emerald-200 font-medium">Warriors</span>
           </div>
-          <p className="text-[10px] text-stone-400 mt-1">Attended battle</p>
+          <p className="text-[10px] text-emerald-400/80 font-medium mt-1">Attended battle</p>
         </div>
 
         {/* Voted YES */}
-        <div className="p-3 rounded-xl bg-[#1c130d] border border-[#3e2716]">
-          <span className="text-[11px] font-bold text-stone-400 uppercase tracking-wider flex items-center gap-1">
-            <span className="w-2 h-2 rounded-full bg-blue-400 inline-block" /> Voted YES
+        <div className="p-3.5 rounded-2xl bg-gradient-to-b from-[#121c29] to-[#0a1017] border-[2.5px] border-blue-600 shadow-[0_4px_0_#0c2340]">
+          <span className="text-[11px] font-fantasy font-black text-blue-300 uppercase tracking-wider flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-blue-400 inline-block shadow-sm" /> Voted YES
           </span>
           <div className="mt-1 flex items-baseline justify-between">
-            <span className="text-xl sm:text-2xl font-black font-fantasy text-blue-300">{stats.votedYes}</span>
-            <span className="text-[11px] text-stone-400">Pledged</span>
+            <span className="text-2xl sm:text-3xl font-fantasy font-black text-blue-300 game-text-shadow">{stats.votedYes}</span>
+            <span className="text-[11px] text-blue-200 font-medium">Pledged</span>
           </div>
-          <p className="text-[10px] text-stone-400 mt-1">Committed in poll</p>
+          <p className="text-[10px] text-blue-400/80 font-medium mt-1">Committed in poll</p>
         </div>
 
         {/* Flaked */}
-        <div className="p-3 rounded-xl bg-[#1c130d] border border-[#3e2716]">
-          <span className="text-[11px] font-bold text-stone-400 uppercase tracking-wider flex items-center gap-1">
-            <span className="w-2 h-2 rounded-full bg-red-500 inline-block" /> Flaked
+        <div className="p-3.5 rounded-2xl bg-gradient-to-b from-[#291010] to-[#170808] border-[2.5px] border-red-600 shadow-[0_4px_0_#450a0a]">
+          <span className="text-[11px] font-fantasy font-black text-red-300 uppercase tracking-wider flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-red-500 inline-block shadow-sm" /> Flaked
           </span>
           <div className="mt-1 flex items-baseline justify-between">
-            <span className="text-xl sm:text-2xl font-black font-fantasy text-red-400">{stats.flaked}</span>
-            <span className="text-[11px] text-red-400/80">Alert</span>
+            <span className="text-2xl sm:text-3xl font-fantasy font-black text-red-400 game-text-shadow">{stats.flaked}</span>
+            <span className="text-[11px] text-red-300 font-medium">Missed</span>
           </div>
-          <p className="text-[10px] text-stone-400 mt-1">Voted YES, did not join</p>
+          <p className="text-[10px] text-red-400/80 font-medium mt-1">Voted YES, absent</p>
         </div>
 
         {/* No Vote */}
-        <div className="p-3 rounded-xl bg-[#1c130d] border border-[#3e2716] col-span-2 sm:col-span-1">
-          <span className="text-[11px] font-bold text-stone-400 uppercase tracking-wider flex items-center gap-1">
-            <span className="w-2 h-2 rounded-full bg-stone-500 inline-block" /> No Vote
+        <div className="p-3.5 rounded-2xl bg-gradient-to-b from-[#20150d] to-[#140d07] border-[2.5px] border-[#4a2610] shadow-[0_4px_0_#140b06] col-span-2 sm:col-span-1">
+          <span className="text-[11px] font-fantasy font-black text-stone-300 uppercase tracking-wider flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-stone-500 inline-block shadow-sm" /> No Vote
           </span>
           <div className="mt-1 flex items-baseline justify-between">
-            <span className="text-xl sm:text-2xl font-black font-fantasy text-stone-300">{stats.noVote}</span>
-            <span className="text-[11px] text-stone-400">Silent</span>
+            <span className="text-2xl sm:text-3xl font-fantasy font-black text-stone-300 game-text-shadow">{stats.noVote}</span>
+            <span className="text-[11px] text-stone-400 font-medium">Silent</span>
           </div>
-          <p className="text-[10px] text-stone-400 mt-1">No response to poll</p>
+          <p className="text-[10px] text-stone-400 font-medium mt-1">No poll response</p>
         </div>
       </div>
 
       {/* Filter, Search & Sort Toolbar */}
-      <div className="p-3 sm:p-4 rounded-xl bg-[#1c130d] border border-[#3e2716] flex flex-col md:flex-row md:items-center justify-between gap-3">
+      <div className="p-3.5 sm:p-4 rounded-2xl bg-[#180e08] border-[3px] border-[#4a2610] shadow-[0_5px_0_#0f0703] flex flex-col md:flex-row md:items-center justify-between gap-3">
         {/* Category Tabs */}
-        <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pb-1 md:pb-0">
+        <div className="flex items-center gap-2 overflow-x-auto scrollbar-none pb-1 md:pb-0">
           <button
             onClick={() => {
               sounds.playClick();
               setActiveCategory('ALL');
             }}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer shrink-0 transition-all ${
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-fantasy font-black uppercase cursor-pointer shrink-0 transition-all ${
               activeCategory === 'ALL'
-                ? 'btn-kingshot-gold text-[#1a120b] shadow-sm'
-                : 'bg-[#140c08] border border-[#2d1b11] text-stone-300 hover:text-white'
+                ? 'bg-gradient-to-b from-[#fde047] to-[#ca8a04] text-[#291304] border-2 border-[#fef08a] shadow-[0_3px_0_#78350f] transform -translate-y-0.5'
+                : 'bg-[#140c08] border-2 border-[#381c0c] text-stone-300 hover:text-white active:translate-y-0.5'
             }`}
           >
-            All ({stats.total})
+            All Warriors ({stats.total})
           </button>
           <button
             onClick={() => {
               sounds.playClick();
               setActiveCategory('JOINED');
             }}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer shrink-0 transition-all ${
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-fantasy font-black uppercase cursor-pointer shrink-0 transition-all ${
               activeCategory === 'JOINED'
-                ? 'bg-emerald-600 text-white border border-emerald-400 shadow-sm'
-                : 'bg-[#140c08] border border-[#2d1b11] text-emerald-400 hover:text-emerald-300'
+                ? 'bg-gradient-to-b from-[#86efac] to-[#16a34a] text-black border-2 border-[#bbf7d0] shadow-[0_3px_0_#052e16] transform -translate-y-0.5'
+                : 'bg-[#140c08] border-2 border-[#381c0c] text-emerald-400 hover:text-emerald-300 active:translate-y-0.5'
             }`}
           >
             Joined ({stats.joined})
@@ -375,23 +375,23 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
               sounds.playClick();
               setActiveCategory('FLAKED');
             }}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer shrink-0 transition-all ${
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-fantasy font-black uppercase cursor-pointer shrink-0 transition-all ${
               activeCategory === 'FLAKED'
-                ? 'bg-red-700 text-white border border-red-400 shadow-sm'
-                : 'bg-[#140c08] border border-[#2d1b11] text-red-400 hover:text-red-300'
+                ? 'bg-gradient-to-b from-[#fca5a5] to-[#dc2626] text-white border-2 border-[#fecaca] shadow-[0_3px_0_#450a0a] transform -translate-y-0.5'
+                : 'bg-[#140c08] border-2 border-[#381c0c] text-red-400 hover:text-red-300 active:translate-y-0.5'
             }`}
           >
-            Missed after YES ({stats.flaked})
+            Flaked ({stats.flaked})
           </button>
           <button
             onClick={() => {
               sounds.playClick();
               setActiveCategory('NO_VOTE');
             }}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer shrink-0 transition-all ${
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-fantasy font-black uppercase cursor-pointer shrink-0 transition-all ${
               activeCategory === 'NO_VOTE'
-                ? 'bg-stone-700 text-white border border-stone-500 shadow-sm'
-                : 'bg-[#140c08] border border-[#2d1b11] text-stone-400 hover:text-white'
+                ? 'bg-gradient-to-b from-[#d6d3d1] to-[#78716c] text-black border-2 border-white shadow-[0_3px_0_#44403c] transform -translate-y-0.5'
+                : 'bg-[#140c08] border-2 border-[#381c0c] text-stone-400 hover:text-white active:translate-y-0.5'
             }`}
           >
             No Vote ({stats.noVote})
