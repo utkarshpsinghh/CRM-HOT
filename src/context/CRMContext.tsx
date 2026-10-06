@@ -94,7 +94,7 @@ interface CRMContextType {
   connectSupabase: (url: string, key: string) => Promise<{ success: boolean; message: string }>;
   disconnectSupabase: () => void;
   testSupabaseConnection: (url: string, key: string) => Promise<{ success: boolean; message: string }>;
-  migrateToSupabase: (onProgress?: (status: string) => void) => Promise<{ success: boolean; message: string; counts?: Record<string, number> }>;
+  migrateToSupabase: (onProgress?: (status: string) => void, overrideSettings?: AllianceSettings) => Promise<{ success: boolean; message: string; counts?: Record<string, number> }>;
   clearLocalData: () => void;
   createAdminUser: (username: string, pass: string, name?: string) => Promise<boolean>;
   deleteAdminUser: (adminId: string) => Promise<boolean>;
@@ -1225,9 +1225,11 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const migrateToSupabase = async (
-    onProgress?: (status: string) => void
+    onProgress?: (status: string) => void,
+    overrideSettings?: AllianceSettings
   ): Promise<{ success: boolean; message: string; counts?: Record<string, number> }> => {
-    if (!supabaseService.isConfigured(settings)) {
+    const activeSettings = overrideSettings || storageService.getSettings();
+    if (!supabaseService.isConfigured(activeSettings)) {
       addToast({
         type: 'error',
         title: 'Supabase Not Configured',
@@ -1270,7 +1272,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         contributions: contributionsToMigrate,
       };
 
-      const result = await supabaseService.migrateAllToSupabase(bundle, settings, onProgress);
+      const result = await supabaseService.migrateAllToSupabase(bundle, activeSettings, onProgress);
       if (result.success) {
         // Save permanently to local storage
         storageService.saveAllData(bundle);
@@ -1284,6 +1286,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (adminsToMigrate.length > 0) setAdmins(adminsToMigrate);
         if (contributionsToMigrate.length > 0) setContributions(contributionsToMigrate);
 
+        setSettings(activeSettings);
         setSyncStatus('connected');
         setSyncMessage('Supabase PostgreSQL Live Connected');
         setLastSyncTime(new Date().toLocaleTimeString());

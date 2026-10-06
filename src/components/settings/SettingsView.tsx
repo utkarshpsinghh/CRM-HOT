@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useCRM } from '../../context/CRMContext';
 import { GameButton } from '../common/GameButton';
 import { ConfirmModal } from '../common/ConfirmModal';
-import { AdminAccount } from '../../types/crm';
+import { AdminAccount, AllianceSettings } from '../../types/crm';
 import { normalizeSupabaseUrl } from '../../services/supabase';
 import {
   Settings,
@@ -212,22 +212,50 @@ export const SettingsView: React.FC = () => {
   };
 
   const handleMigrateToSupabase = async () => {
-    if (supaUrl.trim() && supaKey.trim() && (!settings.supabaseUrl || !settings.supabaseAnonKey)) {
-      setMigrationStatusText('Connecting to Supabase...');
-      const conn = await connectSupabase(supaUrl.trim(), supaKey.trim());
-      if (!conn.success) {
-        setMigrationResult({ success: false, message: `Could not connect to Supabase: ${conn.message}` });
-        setMigrationStatusText('');
-        return;
-      }
+    const cleanUrl = normalizeSupabaseUrl(supaUrl);
+    const cleanKey = supaKey.trim();
+
+    if (!cleanUrl || !cleanKey) {
+      setMigrationResult({
+        success: false,
+        message: 'Both Supabase Project URL and Anon Public API Key are required before uploading records.',
+      });
+      return;
     }
 
     setIsMigratingSupa(true);
     setMigrationResult(null);
+    setMigrationStatusText('Verifying Supabase connection...');
+
+    let activeSettings: AllianceSettings = {
+      ...settings,
+      supabaseUrl: cleanUrl,
+      supabaseAnonKey: cleanKey,
+      dbProvider: 'supabase',
+      demoMode: false,
+    };
+
+    if (settings.supabaseUrl !== cleanUrl || settings.supabaseAnonKey !== cleanKey || settings.dbProvider !== 'supabase') {
+      const conn = await connectSupabase(cleanUrl, cleanKey);
+      if (!conn.success) {
+        setIsMigratingSupa(false);
+        setMigrationStatusText('');
+        setMigrationResult({ success: false, message: `Could not connect to Supabase: ${conn.message}` });
+        return;
+      }
+      activeSettings = {
+        ...settings,
+        supabaseUrl: cleanUrl,
+        supabaseAnonKey: cleanKey,
+        dbProvider: 'supabase',
+        demoMode: false,
+      };
+    }
+
     setMigrationStatusText('Starting PostgreSQL upload...');
     const result = await migrateToSupabase((msg) => {
       setMigrationStatusText(msg);
-    });
+    }, activeSettings);
     setIsMigratingSupa(false);
     setMigrationStatusText('');
     setMigrationResult(result);
