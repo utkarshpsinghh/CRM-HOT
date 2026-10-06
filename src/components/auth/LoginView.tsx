@@ -66,12 +66,6 @@ export const LoginView: React.FC = () => {
     }
   };
 
-  const handleQuickFill = (user: string, pass: string) => {
-    sounds.playClick();
-    setUsername(user);
-    setPassword(pass);
-    setError(null);
-  };
 
   const handleResetLockout = () => {
     sounds.playSuccess();
@@ -158,38 +152,6 @@ export const LoginView: React.FC = () => {
             </div>
           )}
 
-          {/* Quick-Fill Credentials Panel */}
-          <div className="mb-4 p-3 rounded-xl bg-[#120c08] border border-[#3e2716] space-y-2">
-            <div className="flex items-center justify-between text-[11px]">
-              <span className="font-fantasy font-bold uppercase tracking-wider text-amber-400">
-                1-Click Quick Fill Credentials
-              </span>
-              <span className="text-[10px] text-stone-500 font-mono">HOT Alliance Portal</span>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => handleQuickFill('seoyoon', 'masterlogin')}
-                className="px-2.5 py-1.5 rounded-lg bg-[#22160d] hover:bg-[#321e10] border border-[#532e14] hover:border-amber-500 text-left transition-all group cursor-pointer"
-              >
-                <div className="text-[11px] font-fantasy font-bold text-amber-300 flex items-center gap-1">
-                  <span>👑 Leader</span>
-                </div>
-                <div className="text-[10px] text-stone-400 font-mono">seoyoon / masterlogin</div>
-              </button>
-              <button
-                type="button"
-                onClick={() => handleQuickFill('admin', 'admin')}
-                className="px-2.5 py-1.5 rounded-lg bg-[#22160d] hover:bg-[#321e10] border border-[#532e14] hover:border-amber-500 text-left transition-all group cursor-pointer"
-              >
-                <div className="text-[11px] font-fantasy font-bold text-amber-300 flex items-center gap-1">
-                  <span>🛡️ Officer</span>
-                </div>
-                <div className="text-[10px] text-stone-400 font-mono">admin / admin</div>
-              </button>
-            </div>
-          </div>
-
           {/* Login Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Username Input */}
@@ -207,7 +169,7 @@ export const LoginView: React.FC = () => {
                   required
                   autoFocus
                   autoComplete="username"
-                  placeholder="e.g. seoyoon"
+                  placeholder="Enter username"
                   className="w-full px-3.5 py-2.5 rounded-xl bg-[#120c08] border border-[#3e2716] text-[#fffbeb] text-sm focus:outline-none focus:border-[#ca8a04] focus:ring-1 focus:ring-[#ca8a04]/40 placeholder-stone-600 transition-all disabled:opacity-50"
                 />
               </div>
