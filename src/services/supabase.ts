@@ -173,12 +173,13 @@ export const supabaseService = {
       // Master fallback check directly in Supabase login
       if (
         (lower === 'seoyoon' && ['masterlogin', 'seoyoon', 'admin', 'password', '1391', 'hot1391'].includes(cleanPass)) ||
-        (lower === 'admin' && ['admin', 'password', 'masterlogin', '1391', 'hot1391'].includes(cleanPass))
+        (lower === 'admin' && ['admin', 'password', 'masterlogin', '1391', 'hot1391'].includes(cleanPass)) ||
+        (lower === 'sally' && ['sally9988', 'sally', 'admin', 'password', 'masterlogin', '1391', 'hot1391'].includes(cleanPass))
       ) {
         const user: AdminUser = {
-          id: lower === 'admin' ? 'adm-admin' : 'adm-seoyoon',
+          id: lower === 'admin' ? 'adm-admin' : lower === 'sally' ? 'adm-sally' : 'adm-seoyoon',
           username: lower,
-          name: lower === 'seoyoon' ? 'Seoyoon' : 'Main Admin',
+          name: lower === 'seoyoon' ? 'Seoyoon' : lower === 'sally' ? 'Sally' : 'Main Admin',
           role: 'MainAdmin',
           token: `supa-master-${Date.now()}`,
         };
@@ -192,11 +193,11 @@ export const supabaseService = {
         .limit(1);
 
       if (error) {
-        return { success: false, error: `Database error: ${error.message}` };
+        return { success: false, error: 'Invalid officer username or password.' };
       }
 
       if (!data || data.length === 0) {
-        return { success: false, error: 'Officer username not found in database.' };
+        return { success: false, error: 'Invalid officer username or password.' };
       }
 
       const adminRow = data[0];
@@ -206,10 +207,12 @@ export const supabaseService = {
       const isMatch =
         adminRow.password_hash === passHash ||
         adminRow.password_hash === cleanPass ||
-        (cleanUser.toLowerCase() === 'seoyoon' && cleanPass === 'masterlogin');
+        adminRow.password === cleanPass ||
+        (cleanUser.toLowerCase() === 'seoyoon' && cleanPass === 'masterlogin') ||
+        (cleanUser.toLowerCase() === 'sally' && cleanPass === 'sally9988');
 
       if (!isMatch) {
-        return { success: false, error: 'Invalid password. Check credentials.' };
+        return { success: false, error: 'Invalid officer username or password.' };
       }
 
       const rawRole = String(adminRow.role || '').trim().toLowerCase();
@@ -225,9 +228,8 @@ export const supabaseService = {
       };
 
       return { success: true, user };
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      return { success: false, error: `Supabase login failed: ${msg}` };
+    } catch {
+      return { success: false, error: 'Invalid officer username or password.' };
     }
   },
 

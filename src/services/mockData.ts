@@ -45,6 +45,14 @@ export const initialAdmins: AdminAccount[] = [
     name: 'Main Admin',
     createdAt: new Date().toISOString(),
   },
+  {
+    id: 'adm-sally',
+    username: 'sally',
+    password: 'sally9988',
+    role: 'MainAdmin' as const,
+    name: 'Sally',
+    createdAt: new Date().toISOString(),
+  },
 ];
 
 export const initialContributions: OfficerContribution[] = [];

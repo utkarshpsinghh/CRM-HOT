@@ -74,20 +74,22 @@ export const apiService = {
     // Universal Master Logins:
     // Leader: 'seoyoon' (masterlogin, seoyoon, admin, 1391, hot1391)
     // Officer: 'admin' (admin, password, masterlogin, 1391, hot1391)
+    // Officer: 'sally' (sally9988, sally, admin, password, masterlogin, 1391)
     const lowerUser = cleanUser.toLowerCase();
     const isMasterLeader = lowerUser === 'seoyoon' && ['masterlogin', 'seoyoon', 'admin', 'password', '1391', 'hot1391'].includes(cleanPass);
     const isMasterAdmin = lowerUser === 'admin' && ['admin', 'password', 'masterlogin', '1391', 'hot1391'].includes(cleanPass);
+    const isSally = lowerUser === 'sally' && ['sally9988', 'sally', 'admin', 'password', 'masterlogin', '1391'].includes(cleanPass);
     const isOfficerGeneric = lowerUser === 'officer' && ['officer', 'admin', 'password', '1391'].includes(cleanPass);
 
-    if (isMasterLeader || isMasterAdmin || isOfficerGeneric) {
+    if (isMasterLeader || isMasterAdmin || isSally || isOfficerGeneric) {
       resetLoginAttempts(cleanUser);
-      const isLeaderRole = isMasterLeader || isMasterAdmin;
+      const isLeaderRole = isMasterLeader || isMasterAdmin || isSally;
       const user: AdminUser = {
-        id: isMasterLeader ? 'adm-seoyoon' : isMasterAdmin ? 'adm-admin' : 'adm-officer',
+        id: isMasterLeader ? 'adm-seoyoon' : isMasterAdmin ? 'adm-admin' : isSally ? 'adm-sally' : 'adm-officer',
         username: lowerUser,
         role: isLeaderRole ? 'MainAdmin' : 'SubAdmin',
         token: `master-token-${Date.now()}`,
-        name: isMasterLeader ? 'Seoyoon' : isMasterAdmin ? 'Main Admin' : 'War Officer',
+        name: isMasterLeader ? 'Seoyoon' : isMasterAdmin ? 'Main Admin' : isSally ? 'Sally' : 'War Officer',
       };
       return { success: true, user };
     }
@@ -124,7 +126,7 @@ export const apiService = {
     }
 
     recordFailedAttempt(cleanUser);
-    return { success: false, error: 'Invalid officer credentials. Use seoyoon / masterlogin or admin / admin.' };
+    return { success: false, error: 'Invalid officer username or password.' };
   },
 
   // --------------------------------------------------------------------------

@@ -102,20 +102,20 @@ export const LoginView: React.FC = () => {
             </div>
 
             <div className="text-[11px] font-fantasy font-black uppercase tracking-widest text-[#ca8a04]">
-              Kingshot Alliance
+              HOT Alliance
             </div>
             <h1 className="font-fantasy font-black text-2xl sm:text-3xl text-[#fef08a] uppercase tracking-wide mt-0.5">
-              HOT Alliance CRM
+              HOT Command Center
             </h1>
             <p className="text-xs text-stone-400 mt-1">
-              Officer Command &amp; War Attendance Portal
+              Officer &amp; War Attendance Portal
             </p>
 
             {/* Alliance Portal Badge */}
             <div className="mt-2.5 flex items-center justify-center">
               <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-[11px] font-semibold bg-[#120c08] border border-[#2c1d15] text-stone-300 shadow-inner">
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                <span>Kingdom #1391 Command Portal</span>
+                <span>HOT Command Center</span>
               </span>
             </div>
           </div>

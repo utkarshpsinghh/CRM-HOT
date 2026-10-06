@@ -46,13 +46,13 @@ export const UnderDevelopmentView: React.FC = () => {
           {/* Heading */}
           <div className="space-y-2">
             <div className="text-xs font-fantasy font-black uppercase tracking-widest text-[#ca8a04]">
-              Kingdom #1391 • HOT Alliance
+              HOT Alliance
             </div>
             <h1 className="font-fantasy font-black text-2xl sm:text-3xl text-[#fef08a] uppercase tracking-wide">
-              Under Development
+              HOT Command Center
             </h1>
             <p className="text-xs sm:text-sm text-stone-400 max-w-sm mx-auto leading-relaxed pt-1">
-              This portal is currently under development. Please check back later.
+              Under Development • Please check back later.
             </p>
           </div>
 

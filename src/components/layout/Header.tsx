@@ -56,7 +56,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCreateEvent }) => {
           <div className="min-w-0">
             <div className="flex items-center gap-1.5 min-w-0">
               <span className="font-fantasy font-black text-sm sm:text-lg text-[#fffbeb] tracking-wide group-hover:text-[#f59e0b] transition-colors truncate">
-                HOT Alliance
+                HOT Command Center
               </span>
               {/* Role Badge */}
               <span
@@ -69,7 +69,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCreateEvent }) => {
                 {isMainAdmin ? 'Main Admin' : 'R4'}
               </span>
             </div>
-            <div className="text-[10px] text-stone-400 font-medium truncate">Kingshot CRM</div>
+            <div className="text-[10px] text-stone-400 font-medium truncate">HOT Alliance</div>
           </div>
         </div>
 
