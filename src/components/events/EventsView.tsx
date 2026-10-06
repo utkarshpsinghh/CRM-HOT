@@ -17,6 +17,7 @@ import {
   CheckCircle2,
   AlertCircle,
   Sparkles,
+  RefreshCw,
 } from 'lucide-react';
 import { sounds } from '../../utils/sound';
 import { safeFormatDate, getComputedEventStatus, getEventRelativeTime } from '../../utils/date';
@@ -26,7 +27,14 @@ interface EventsViewProps {
 }
 
 export const EventsView: React.FC<EventsViewProps> = ({ onOpenCreateEvent }) => {
-  const { events, attendance, setSelectedEventIdForAttendance, setActiveTab } = useCRM();
+  const {
+    events,
+    attendance,
+    setSelectedEventIdForAttendance,
+    setActiveTab,
+    syncGoogleSheetEvents,
+    isSyncing,
+  } = useCRM();
   const { isMainAdmin } = useAuth();
 
   // Filters and Sorting
@@ -103,16 +111,29 @@ export const EventsView: React.FC<EventsViewProps> = ({ onOpenCreateEvent }) => 
           </p>
         </div>
 
-        {isMainAdmin && (
+        <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
           <button
             type="button"
-            onClick={onOpenCreateEvent}
-            className="btn-kingshot-gold px-4 py-2 text-xs font-fantasy font-black uppercase flex items-center justify-center gap-2 cursor-pointer shadow-md self-start sm:self-auto hover:scale-105 active:scale-95 transition-all"
+            onClick={() => syncGoogleSheetEvents()}
+            disabled={isSyncing}
+            className="px-3.5 py-2 rounded-xl bg-[#2a170a] border border-[#ca8a04]/40 hover:border-[#ca8a04] text-amber-200 text-xs font-fantasy font-black uppercase flex items-center justify-center gap-1.5 cursor-pointer shadow-md transition-all disabled:opacity-50"
+            title="Sync war events from official Google Sheet"
           >
-            <PlusCircle className="w-4 h-4" />
-            <span>Create Event</span>
+            <RefreshCw className={`w-3.5 h-3.5 text-amber-400 ${isSyncing ? 'animate-spin' : ''}`} />
+            <span>Sync Sheet</span>
           </button>
-        )}
+
+          {isMainAdmin && (
+            <button
+              type="button"
+              onClick={onOpenCreateEvent}
+              className="btn-kingshot-gold px-4 py-2 text-xs font-fantasy font-black uppercase flex items-center justify-center gap-2 cursor-pointer shadow-md hover:scale-105 active:scale-95 transition-all"
+            >
+              <PlusCircle className="w-4 h-4" />
+              <span>Create Event</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* ALL-TIME AVERAGE ATTENDANCE STATS CARDS */}

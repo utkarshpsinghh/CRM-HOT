@@ -18,6 +18,7 @@ import { storageService } from '../services/storage';
 import { apiService } from '../services/api';
 import { supabaseService, normalizeSupabaseUrl } from '../services/supabase';
 import { kingshotApiService } from '../services/kingshotApi';
+import { googleSheetService, GOOGLE_SHEET_TABS, SheetSyncResult } from '../services/googleSheet';
 import { initialMembers } from '../services/mockData';
 import { sounds } from '../utils/sound';
 import { useAuth } from './AuthContext';
@@ -71,6 +72,10 @@ interface CRMContextType {
   refreshData: () => Promise<void>;
   syncKingshotRoster: (rosterText?: string, replaceExisting?: boolean) => Promise<{ success: boolean; message: string; added: number; updated: number; total?: number }>;
   syncGoogleSheetRoster: (customUrl?: string) => Promise<{ success: boolean; message: string; added?: number; updated?: number }>;
+  syncGoogleSheetAll: (customUrl?: string) => Promise<SheetSyncResult>;
+  syncGoogleSheetEvents: (customUrl?: string) => Promise<{ success: boolean; message: string; count?: number }>;
+  syncGoogleSheetAttendance: (customUrl?: string) => Promise<{ success: boolean; message: string; count?: number }>;
+  syncGoogleSheetContributions: (customUrl?: string) => Promise<{ success: boolean; message: string; count?: number }>;
   wipeAllMembers: () => Promise<boolean>;
   logContribution: (action: ContributionActionType, desc: string, targetName?: string, count?: number) => Promise<void>;
   updateMyPassword: (newPass: string) => Promise<boolean>;
@@ -344,6 +349,182 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setIsSyncing(false);
     }
   }, [addToast, syncKingshotRoster]);
+
+  const syncGoogleSheetAll = useCallback(async (customUrl?: string): Promise<SheetSyncResult> => {
+    sounds.playClick();
+    setIsSyncing(true);
+    try {
+      const currentSettings = storageService.getSettings();
+      const targetUrl = customUrl?.trim() || currentSettings.googleSheetUrl;
+      const result = await googleSheetService.syncAllSections(targetUrl);
+
+      if (result.success && result.data) {
+        const { members: newMembers, events: newEvents, attendance: newAtt, contributions: newContribs, strikes: newStrikes, communications: newComms } = result.data;
+
+        storageService.saveAllData({
+          members: newMembers,
+          events: newEvents,
+          attendance: newAtt,
+          contributions: newContribs,
+          strikes: newStrikes,
+          communications: newComms,
+        });
+
+        if (newMembers.length > 0) setMembers(newMembers);
+        if (newEvents.length > 0) setEvents(newEvents);
+        if (newAtt.length > 0) setAttendance(newAtt);
+        if (newContribs.length > 0) setContributions(newContribs);
+        if (newStrikes.length > 0) setStrikes(newStrikes);
+        if (newComms.length > 0) setCommunications(newComms);
+
+        setLastSyncTime(new Date().toLocaleTimeString());
+
+        if (supabaseService.isConfigured(currentSettings)) {
+          supabaseService.migrateAllToSupabase({
+            members: newMembers,
+            events: newEvents,
+            attendance: newAtt,
+            contributions: newContribs,
+            strikes: newStrikes,
+            communications: newComms,
+          }, currentSettings).catch(err => console.warn('Supabase sync warning:', err));
+        }
+
+        sounds.playSuccess();
+        addToast({
+          type: 'success',
+          title: 'All Sections Synchronized',
+          message: `Synced ${result.counts?.members || 0} members, ${result.counts?.events || 0} events, ${result.counts?.attendance || 0} attendance records, and ${result.counts?.contributions || 0} officer logs!`,
+        });
+      } else {
+        sounds.playAlert();
+        addToast({
+          type: 'error',
+          title: 'Sheet Sync Failed',
+          message: result.message,
+        });
+      }
+      return result;
+    } catch (err: any) {
+      sounds.playAlert();
+      const msg = err.message || 'Failed to sync Google Sheet.';
+      addToast({ type: 'error', title: 'Sheet Sync Error', message: msg });
+      return { success: false, message: msg };
+    } finally {
+      setIsSyncing(false);
+    }
+  }, [addToast]);
+
+  const syncGoogleSheetEvents = useCallback(async (customUrl?: string): Promise<{ success: boolean; message: string; count?: number }> => {
+    sounds.playClick();
+    setIsSyncing(true);
+    try {
+      const currentSettings = storageService.getSettings();
+      const sheetId = googleSheetService.extractSheetId(customUrl || currentSettings.googleSheetUrl);
+      const csv = await googleSheetService.fetchTabCsv(sheetId, GOOGLE_SHEET_TABS.events);
+      const parsedEvents = googleSheetService.parseEvents(csv);
+
+      if (parsedEvents.length === 0) {
+        addToast({ type: 'warning', title: 'No Events Found', message: 'No event records parsed from sheet.' });
+        return { success: false, message: 'No events found in sheet.' };
+      }
+
+      storageService.setEvents(parsedEvents);
+      setEvents(parsedEvents);
+
+      if (supabaseService.isConfigured(currentSettings)) {
+        supabaseService.migrateAllToSupabase({ events: parsedEvents }, currentSettings).catch(err => console.warn('Supabase event sync error:', err));
+      }
+
+      sounds.playSuccess();
+      addToast({
+        type: 'success',
+        title: 'Events Synced',
+        message: `Successfully loaded ${parsedEvents.length} events from Google Sheet.`,
+      });
+      return { success: true, message: `Loaded ${parsedEvents.length} events.`, count: parsedEvents.length };
+    } catch (err: any) {
+      sounds.playAlert();
+      addToast({ type: 'error', title: 'Events Sync Failed', message: err.message || 'Could not sync events.' });
+      return { success: false, message: err.message };
+    } finally {
+      setIsSyncing(false);
+    }
+  }, [addToast]);
+
+  const syncGoogleSheetAttendance = useCallback(async (customUrl?: string): Promise<{ success: boolean; message: string; count?: number }> => {
+    sounds.playClick();
+    setIsSyncing(true);
+    try {
+      const currentSettings = storageService.getSettings();
+      const sheetId = googleSheetService.extractSheetId(customUrl || currentSettings.googleSheetUrl);
+      const csv = await googleSheetService.fetchTabCsv(sheetId, GOOGLE_SHEET_TABS.attendance);
+      const parsedAttendance = googleSheetService.parseAttendance(csv);
+
+      if (parsedAttendance.length === 0) {
+        addToast({ type: 'warning', title: 'No Attendance Found', message: 'No attendance records parsed from sheet.' });
+        return { success: false, message: 'No attendance records found.' };
+      }
+
+      storageService.setAttendance(parsedAttendance);
+      setAttendance(parsedAttendance);
+
+      if (supabaseService.isConfigured(currentSettings)) {
+        supabaseService.migrateAllToSupabase({ attendance: parsedAttendance }, currentSettings).catch(err => console.warn('Supabase attendance sync error:', err));
+      }
+
+      sounds.playSuccess();
+      addToast({
+        type: 'success',
+        title: 'Attendance Synced',
+        message: `Successfully loaded ${parsedAttendance.length} attendance records from Google Sheet.`,
+      });
+      return { success: true, message: `Loaded ${parsedAttendance.length} attendance records.`, count: parsedAttendance.length };
+    } catch (err: any) {
+      sounds.playAlert();
+      addToast({ type: 'error', title: 'Attendance Sync Failed', message: err.message || 'Could not sync attendance.' });
+      return { success: false, message: err.message };
+    } finally {
+      setIsSyncing(false);
+    }
+  }, [addToast]);
+
+  const syncGoogleSheetContributions = useCallback(async (customUrl?: string): Promise<{ success: boolean; message: string; count?: number }> => {
+    sounds.playClick();
+    setIsSyncing(true);
+    try {
+      const currentSettings = storageService.getSettings();
+      const sheetId = googleSheetService.extractSheetId(customUrl || currentSettings.googleSheetUrl);
+      const csv = await googleSheetService.fetchTabCsv(sheetId, GOOGLE_SHEET_TABS.contributions);
+      const parsedContribs = googleSheetService.parseContributions(csv);
+
+      if (parsedContribs.length === 0) {
+        addToast({ type: 'warning', title: 'No Contributions Found', message: 'No contribution logs parsed from sheet.' });
+        return { success: false, message: 'No contribution logs found.' };
+      }
+
+      storageService.saveAllData({ contributions: parsedContribs });
+      setContributions(parsedContribs);
+
+      if (supabaseService.isConfigured(currentSettings)) {
+        supabaseService.migrateAllToSupabase({ contributions: parsedContribs }, currentSettings).catch(err => console.warn('Supabase contrib sync error:', err));
+      }
+
+      sounds.playSuccess();
+      addToast({
+        type: 'success',
+        title: 'Officer Logs Synced',
+        message: `Successfully loaded ${parsedContribs.length} officer logs from Google Sheet.`,
+      });
+      return { success: true, message: `Loaded ${parsedContribs.length} contribution records.`, count: parsedContribs.length };
+    } catch (err: any) {
+      sounds.playAlert();
+      addToast({ type: 'error', title: 'Contributions Sync Failed', message: err.message || 'Could not sync contributions.' });
+      return { success: false, message: err.message };
+    } finally {
+      setIsSyncing(false);
+    }
+  }, [addToast]);
 
   const wipeAllMembers = useCallback(async (): Promise<boolean> => {
     sounds.playAlert();
@@ -1291,6 +1472,10 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         refreshData,
         syncKingshotRoster,
         syncGoogleSheetRoster,
+        syncGoogleSheetAll,
+        syncGoogleSheetEvents,
+        syncGoogleSheetAttendance,
+        syncGoogleSheetContributions,
         wipeAllMembers,
         logContribution,
         updateMyPassword,

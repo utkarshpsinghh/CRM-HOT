@@ -26,6 +26,9 @@ import {
   Crown,
   FileText,
   FileSpreadsheet,
+  Swords,
+  ClipboardCheck,
+  Award,
   Wrench,
   Key,
   Clock,
@@ -34,6 +37,7 @@ import {
   Eye,
   EyeOff,
 } from 'lucide-react';
+import { SheetSyncResult } from '../../services/googleSheet';
 
 export const SettingsView: React.FC = () => {
   const {
@@ -48,6 +52,10 @@ export const SettingsView: React.FC = () => {
     clearLocalData,
     syncKingshotRoster,
     syncGoogleSheetRoster,
+    syncGoogleSheetAll,
+    syncGoogleSheetEvents,
+    syncGoogleSheetAttendance,
+    syncGoogleSheetContributions,
     isSyncing,
     lastSyncTime,
     resetDatabase,
@@ -74,6 +82,8 @@ export const SettingsView: React.FC = () => {
   );
   const [isSyncingSheet, setIsSyncingSheet] = useState(false);
   const [sheetSyncResult, setSheetSyncResult] = useState<{ success: boolean; message: string; added?: number; updated?: number } | null>(null);
+  const [isSyncingAll, setIsSyncingAll] = useState(false);
+  const [allSyncResult, setAllSyncResult] = useState<SheetSyncResult | null>(null);
 
   const [supaTestResult, setSupaTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const [isConnectingSupa, setIsConnectingSupa] = useState(false);
@@ -124,6 +134,44 @@ export const SettingsView: React.FC = () => {
     try {
       const res = await syncGoogleSheetRoster(googleSheetUrl);
       setSheetSyncResult(res);
+    } finally {
+      setIsSyncingSheet(false);
+    }
+  };
+
+  const handleSyncAllSections = async () => {
+    setIsSyncingAll(true);
+    setAllSyncResult(null);
+    try {
+      const res = await syncGoogleSheetAll(googleSheetUrl);
+      setAllSyncResult(res);
+    } finally {
+      setIsSyncingAll(false);
+    }
+  };
+
+  const handleSyncEvents = async () => {
+    setIsSyncingSheet(true);
+    try {
+      await syncGoogleSheetEvents(googleSheetUrl);
+    } finally {
+      setIsSyncingSheet(false);
+    }
+  };
+
+  const handleSyncAttendance = async () => {
+    setIsSyncingSheet(true);
+    try {
+      await syncGoogleSheetAttendance(googleSheetUrl);
+    } finally {
+      setIsSyncingSheet(false);
+    }
+  };
+
+  const handleSyncContributions = async () => {
+    setIsSyncingSheet(true);
+    try {
+      await syncGoogleSheetContributions(googleSheetUrl);
     } finally {
       setIsSyncingSheet(false);
     }
@@ -520,48 +568,168 @@ export const SettingsView: React.FC = () => {
           </div>
         </div>
 
-        {/* Google Sheet Roster Integration */}
-        <div className="p-3.5 rounded-xl bg-[#120c08] border border-[#3e2716] space-y-3">
-          <div className="flex items-center justify-between gap-2 flex-wrap">
-            <span className="text-xs font-fantasy font-bold text-[#fef08a] uppercase flex items-center gap-1.5">
-              <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Official Google Sheet Roster Sync</span>
-            </span>
+        {/* Google Sheet Multi-Section Sync Hub */}
+        <div className="p-4 sm:p-5 rounded-2xl bg-[#120c08] border-2 border-[#3e2716] space-y-4 shadow-lg">
+          <div className="flex items-start justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-300 shrink-0">
+                <FileSpreadsheet className="w-5 h-5 text-emerald-400" />
+              </div>
+              <div>
+                <h3 className="text-sm font-fantasy font-black text-[#fef08a] uppercase tracking-wide flex items-center gap-2">
+                  <span>Google Sheets Multi-Section Sync Hub</span>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-950/80 text-emerald-300 border border-emerald-600 font-sans font-bold">
+                    Live Connected
+                  </span>
+                </h3>
+                <p className="text-xs text-stone-400">
+                  Synchronize Members (94), War Events, Attendance Checks, and Officer Logs directly from Google Sheet tabs.
+                </p>
+              </div>
+            </div>
+
             <a
               href={googleSheetUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-[11px] text-amber-300 hover:text-amber-200 underline flex items-center gap-1 font-semibold"
+              className="text-xs text-amber-300 hover:text-amber-200 underline flex items-center gap-1 font-semibold self-start sm:self-auto"
             >
-              <span>Open Google Sheet</span>
-              <ExternalLink className="w-3 h-3" />
+              <span>Open Google Sheet (All Tabs)</span>
+              <ExternalLink className="w-3.5 h-3.5" />
             </a>
           </div>
 
+          {/* URL Input */}
           <div className="space-y-1">
             <label className="block text-[11px] font-bold text-stone-400 uppercase">
               Google Spreadsheet URL
             </label>
-            <div className="flex flex-col sm:flex-row gap-2">
-              <input
-                type="url"
-                value={googleSheetUrl}
-                onChange={e => setGoogleSheetUrl(e.target.value)}
-                placeholder="https://docs.google.com/spreadsheets/d/..."
-                className="flex-1 px-3 py-1.5 rounded-lg bg-[#1a1410] border border-[#3e2716] text-[#fffbeb] text-xs font-mono focus:outline-none focus:border-[#ca8a04]"
-              />
+            <input
+              type="url"
+              value={googleSheetUrl}
+              onChange={e => setGoogleSheetUrl(e.target.value)}
+              placeholder="https://docs.google.com/spreadsheets/d/..."
+              className="w-full px-3 py-2 rounded-xl bg-[#1a1410] border border-[#3e2716] text-[#fffbeb] text-xs font-mono focus:outline-none focus:border-[#ca8a04]"
+            />
+          </div>
+
+          {/* PRIMARY ACTION: SYNC ALL SECTIONS */}
+          <div className="p-3.5 rounded-xl bg-gradient-to-r from-[#20150f] via-[#2a1a0e] to-[#20150f] border border-[#ca8a04]/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-md">
+            <div>
+              <div className="text-xs font-fantasy font-black text-amber-300 uppercase tracking-wide flex items-center gap-1.5">
+                <Crown className="w-4 h-4 text-amber-400 shrink-0" />
+                <span>One-Click Full Roster &amp; Battle Sync</span>
+              </div>
+              <p className="text-[11px] text-stone-300 mt-0.5">
+                Pulls all 6 sections (Members, Events, Attendance, Contributions, Strikes, Comms) simultaneously in seconds.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleSyncAllSections}
+              disabled={isSyncingAll || isSyncing || !googleSheetUrl.trim()}
+              className="btn-kingshot-gold px-4 py-2.5 text-xs font-fantasy font-black uppercase flex items-center justify-center gap-2 cursor-pointer shadow-lg disabled:opacity-50 shrink-0"
+            >
+              <RefreshCw className={`w-4 h-4 ${isSyncingAll ? 'animate-spin' : ''}`} />
+              <span>{isSyncingAll ? 'Syncing All Sections...' : 'Sync Entire Sheet (All Sections)'}</span>
+            </button>
+          </div>
+
+          {/* Full Sync Result Feedback */}
+          {allSyncResult && (
+            <div
+              className={`p-3.5 rounded-xl border text-xs space-y-1.5 ${
+                allSyncResult.success
+                  ? 'bg-emerald-950/60 border-emerald-600 text-emerald-300'
+                  : 'bg-red-950/60 border-red-600 text-red-300'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                {allSyncResult.success ? (
+                  <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
+                ) : (
+                  <AlertCircle className="w-4 h-4 shrink-0 text-red-400" />
+                )}
+                <span className="font-bold">{allSyncResult.message}</span>
+              </div>
+
+              {allSyncResult.counts && (
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 text-[11px] font-mono">
+                  <div className="p-2 rounded-lg bg-black/40 border border-[#3e2716] flex items-center justify-between">
+                    <span className="text-stone-400 font-sans">👥 Members:</span>
+                    <strong className="text-emerald-300">{allSyncResult.counts.members || 0}</strong>
+                  </div>
+                  <div className="p-2 rounded-lg bg-black/40 border border-[#3e2716] flex items-center justify-between">
+                    <span className="text-stone-400 font-sans">⚔️ Events:</span>
+                    <strong className="text-amber-300">{allSyncResult.counts.events || 0}</strong>
+                  </div>
+                  <div className="p-2 rounded-lg bg-black/40 border border-[#3e2716] flex items-center justify-between">
+                    <span className="text-stone-400 font-sans">📋 Attendance:</span>
+                    <strong className="text-amber-300">{allSyncResult.counts.attendance || 0}</strong>
+                  </div>
+                  <div className="p-2 rounded-lg bg-black/40 border border-[#3e2716] flex items-center justify-between">
+                    <span className="text-stone-400 font-sans">🎖️ Logs:</span>
+                    <strong className="text-yellow-300">{allSyncResult.counts.contributions || 0}</strong>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* INDIVIDUAL SECTION SYNC BUTTONS */}
+          <div className="space-y-2 pt-1">
+            <span className="text-[11px] font-bold text-stone-400 uppercase tracking-wider block">
+              Individual Section Synchronizers
+            </span>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               <button
                 type="button"
                 onClick={handleSyncGoogleSheet}
-                disabled={isSyncingSheet || isSyncing || !googleSheetUrl.trim()}
-                className="btn-kingshot-gold px-3.5 py-1.5 text-xs font-fantasy font-black uppercase flex items-center justify-center gap-1.5 cursor-pointer shadow disabled:opacity-50 shrink-0"
+                disabled={isSyncingSheet || isSyncing}
+                className="p-2.5 rounded-xl bg-[#1a1410] border border-[#3e2716] hover:border-amber-500/60 text-stone-200 text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer transition-colors disabled:opacity-50"
+                title="Sync Members Roster Tab"
               >
-                <RefreshCw className={`w-3.5 h-3.5 ${isSyncingSheet ? 'animate-spin' : ''}`} />
-                <span>{isSyncingSheet ? 'Syncing...' : 'Sync from Sheet'}</span>
+                <Users className="w-3.5 h-3.5 text-amber-400" />
+                <span>Sync Members</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleSyncEvents}
+                disabled={isSyncingSheet || isSyncing}
+                className="p-2.5 rounded-xl bg-[#1a1410] border border-[#3e2716] hover:border-amber-500/60 text-stone-200 text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer transition-colors disabled:opacity-50"
+                title="Sync War Events Tab"
+              >
+                <Swords className="w-3.5 h-3.5 text-amber-400" />
+                <span>Sync Events</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleSyncAttendance}
+                disabled={isSyncingSheet || isSyncing}
+                className="p-2.5 rounded-xl bg-[#1a1410] border border-[#3e2716] hover:border-amber-500/60 text-stone-200 text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer transition-colors disabled:opacity-50"
+                title="Sync Attendance Records Tab"
+              >
+                <ClipboardCheck className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Sync Attendance</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleSyncContributions}
+                disabled={isSyncingSheet || isSyncing}
+                className="p-2.5 rounded-xl bg-[#1a1410] border border-[#3e2716] hover:border-amber-500/60 text-stone-200 text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer transition-colors disabled:opacity-50"
+                title="Sync Officer Contributions Tab"
+              >
+                <Award className="w-3.5 h-3.5 text-yellow-400" />
+                <span>Sync Officer Logs</span>
               </button>
             </div>
           </div>
 
+          {/* Single Section Sync Feedback */}
           {sheetSyncResult && (
             <div
               className={`p-2.5 rounded-lg border text-xs flex items-start gap-2 ${
@@ -586,9 +754,15 @@ export const SettingsView: React.FC = () => {
             </div>
           )}
 
-          <p className="text-[11px] text-stone-400 leading-relaxed">
-            Directly pulls member names, ranks (R1–R5), strikes, and communication records from the official alliance sheet. Ensure the sheet sharing is set to <em>"Anyone with the link can view (Viewer)"</em>.
-          </p>
+          <div className="text-[11px] text-stone-400 space-y-1 bg-[#170e09] p-3 rounded-xl border border-[#2b180d]">
+            <p className="text-stone-300 font-semibold flex items-center gap-1">
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+              <span>Full Spreadsheet Compatibility:</span>
+            </p>
+            <p>
+              Auto-detects tabs for <strong>Members</strong> (gid 875082368), <strong>Events</strong> (gid 389842387), <strong>Attendance</strong> (gid 537798421), <strong>Contributions</strong> (gid 1635236772), <strong>Strike History</strong> (gid 422766442), and <strong>Communication</strong> (gid 409010361).
+            </p>
+          </div>
         </div>
 
         {/* Kingshot Sync Result Feedback */}

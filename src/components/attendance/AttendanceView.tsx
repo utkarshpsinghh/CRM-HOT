@@ -16,6 +16,7 @@ import {
   AlertTriangle,
   ArrowUpDown,
   Filter,
+  RefreshCw,
 } from 'lucide-react';
 import { sounds } from '../../utils/sound';
 import { safeFormatDate } from '../../utils/date';
@@ -35,6 +36,8 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
     selectedEventIdForAttendance,
     setSelectedEventIdForAttendance,
     setSelectedMemberForProfile,
+    syncGoogleSheetAttendance,
+    isSyncing,
   } = useCRM();
 
   const { isMainAdmin } = useAuth();
@@ -257,6 +260,17 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
               <span className="truncate">Mark All YES as Joined</span>
             </button>
           )}
+
+          <button
+            type="button"
+            onClick={() => syncGoogleSheetAttendance()}
+            disabled={isSyncing}
+            className="px-3.5 py-2 rounded-xl bg-[#140c08] border border-[#ca8a04]/40 hover:border-[#ca8a04] text-amber-200 text-xs font-fantasy font-black uppercase flex items-center justify-center gap-1.5 cursor-pointer shadow-md transition-all disabled:opacity-50"
+            title="Sync attendance records from official Google Sheet"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 text-amber-400 ${isSyncing ? 'animate-spin' : ''}`} />
+            <span>Sync Sheet</span>
+          </button>
         </div>
       </div>
 
