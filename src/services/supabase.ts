@@ -968,14 +968,26 @@ export const supabaseService = {
   // ROW MAPPERS (PostgreSQL snake_case <-> TypeScript camelCase)
   // ==========================================================================
   mapMemberFromRow(row: any): Member {
+    let gameId = row.game_id;
+    let cleanCommNote = row.communication_note;
+
+    if (!gameId && row.communication_note) {
+      const match = row.communication_note.match(/\[GID:([a-zA-Z0-9_-]+)\]/);
+      if (match) {
+        gameId = match[1];
+        cleanCommNote = row.communication_note.replace(/\[GID:[a-zA-Z0-9_-]+\]\s*/, '').trim() || undefined;
+      }
+    }
+
     return {
       id: row.id,
       name: row.name,
+      gameId: gameId || undefined,
       currentRank: row.current_rank,
       formerRank: row.former_rank || 'None',
       strikes: Number(row.strikes || 0),
       communication: row.communication || 'Good',
-      communicationNote: row.communication_note || undefined,
+      communicationNote: cleanCommNote || undefined,
       status: row.status || 'Active',
       createdAt: row.created_at || new Date().toISOString(),
       updatedAt: row.updated_at || new Date().toISOString(),
@@ -983,6 +995,13 @@ export const supabaseService = {
   },
 
   mapMemberToRow(m: Member) {
+    let commNote = m.communicationNote || '';
+    if (m.gameId) {
+      // Encode gameId into communication_note safely for storage
+      const existingWithoutTag = commNote.replace(/\[GID:[a-zA-Z0-9_-]+\]\s*/, '').trim();
+      commNote = `[GID:${m.gameId.trim()}] ${existingWithoutTag}`.trim();
+    }
+
     return {
       id: m.id,
       name: m.name,
@@ -990,7 +1009,7 @@ export const supabaseService = {
       former_rank: m.formerRank || 'None',
       strikes: m.strikes || 0,
       communication: m.communication,
-      communication_note: m.communicationNote || null,
+      communication_note: commNote || null,
       status: m.status,
       created_at: m.createdAt,
       updated_at: m.updatedAt,

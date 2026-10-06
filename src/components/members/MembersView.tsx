@@ -123,7 +123,9 @@ export const MembersView: React.FC<MembersViewProps> = ({
     return members.filter(m => {
       if (memberFilter.search) {
         const q = memberFilter.search.toLowerCase();
-        if (!m.name.toLowerCase().includes(q)) return false;
+        const matchesName = m.name.toLowerCase().includes(q);
+        const matchesGameId = m.gameId ? m.gameId.toLowerCase().includes(q) : false;
+        if (!matchesName && !matchesGameId) return false;
       }
       if (memberFilter.rank !== 'ALL' && m.currentRank !== memberFilter.rank) return false;
       if (memberFilter.comm !== 'ALL' && m.communication !== memberFilter.comm) return false;
@@ -233,7 +235,7 @@ export const MembersView: React.FC<MembersViewProps> = ({
             type="text"
             value={memberFilter.search}
             onChange={e => setMemberFilter(prev => ({ ...prev, search: e.target.value }))}
-            placeholder="Search member by name..."
+            placeholder="Search member by name or Game ID..."
             className="w-full pl-9 pr-8 py-2 rounded-lg bg-slate-950/80 border border-slate-800 text-slate-100 text-xs font-medium focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500/30 placeholder:text-slate-500"
           />
           {memberFilter.search && (
@@ -331,7 +333,7 @@ export const MembersView: React.FC<MembersViewProps> = ({
               >
                 {/* Top row: Name, Rank, Status */}
                 <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2 min-w-0">
+                  <div className="flex items-center gap-2 min-w-0 flex-wrap">
                     <span
                       onClick={() => {
                         sounds.playClick();
@@ -342,6 +344,11 @@ export const MembersView: React.FC<MembersViewProps> = ({
                       {member.name}
                     </span>
                     <RankBadge rank={member.currentRank} size="sm" />
+                    {member.gameId && (
+                      <span className="text-[10px] font-mono text-amber-300/80 bg-slate-950 px-1.5 py-0.2 rounded border border-slate-800">
+                        ID: {member.gameId}
+                      </span>
+                    )}
                   </div>
                   <ActivityBadge status={activityStatus} size="sm" />
                 </div>
@@ -570,15 +577,22 @@ export const MembersView: React.FC<MembersViewProps> = ({
                   >
                     {/* Name */}
                     <td className="py-3 px-4">
-                      <span
-                        onClick={() => {
-                          sounds.playClick();
-                          setSelectedMemberForProfile(member);
-                        }}
-                        className="font-semibold text-slate-100 hover:text-amber-400 cursor-pointer text-sm"
-                      >
-                        {member.name}
-                      </span>
+                      <div>
+                        <span
+                          onClick={() => {
+                            sounds.playClick();
+                            setSelectedMemberForProfile(member);
+                          }}
+                          className="font-semibold text-slate-100 hover:text-amber-400 cursor-pointer text-sm"
+                        >
+                          {member.name}
+                        </span>
+                        {member.gameId && (
+                          <div className="text-[11px] font-mono text-amber-300/80 mt-0.5">
+                            ID: {member.gameId}
+                          </div>
+                        )}
+                      </div>
                     </td>
 
                     {/* Rank */}

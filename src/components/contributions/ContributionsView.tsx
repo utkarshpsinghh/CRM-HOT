@@ -542,7 +542,7 @@ export const ContributionsView: React.FC = () => {
                     </td>
                     <td className="py-3 px-4 text-stone-300">{item.description}</td>
                     <td className="py-3 px-4 text-right font-mono text-[11px] text-stone-400">
-                      {new Date(item.timestamp).toLocaleString()}
+                      {safeFormatDateTime(item.timestamp)}
                     </td>
                   </tr>
                 ))

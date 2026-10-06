@@ -137,9 +137,12 @@ export const CreateEventModal: React.FC<CreateEventModalProps> = ({ isOpen, onCl
         {/* Date / Time & Status */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
-            <label className="block text-xs font-fantasy font-bold text-[#fef08a] uppercase mb-1 flex items-center gap-1.5">
-              <Calendar className="w-3.5 h-3.5 text-[#ca8a04]" />
-              <span>Date & Time *</span>
+            <label className="block text-xs font-fantasy font-bold text-[#fef08a] uppercase mb-1 flex items-center justify-between">
+              <span className="flex items-center gap-1.5">
+                <Calendar className="w-3.5 h-3.5 text-[#ca8a04]" />
+                <span>Date & Time *</span>
+              </span>
+              <span className="text-[10px] text-sky-400 font-mono font-bold">Game Time (UTC)</span>
             </label>
             <input
               type="datetime-local"

@@ -21,6 +21,7 @@ import { kingshotApiService } from '../services/kingshotApi';
 import { googleSheetService, GOOGLE_SHEET_TABS, SheetSyncResult } from '../services/googleSheet';
 import { initialMembers } from '../services/mockData';
 import { sounds } from '../utils/sound';
+import { formatCurrentUtcTime } from '../utils/date';
 import { useAuth } from './AuthContext';
 
 export interface ToastNotice {
@@ -227,7 +228,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
             setSyncStatus('connected');
             setSyncMessage('Alliance Records Synchronized (HOT Command Center)');
-            setLastSyncTime(new Date().toLocaleTimeString());
+            setLastSyncTime(formatCurrentUtcTime());
           }
         } catch (err) {
           console.warn('Supabase sync warning:', err);
@@ -403,7 +404,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (newStrikes.length > 0) setStrikes(newStrikes);
         if (newComms.length > 0) setCommunications(newComms);
 
-        setLastSyncTime(new Date().toLocaleTimeString());
+        setLastSyncTime(formatCurrentUtcTime());
 
         if (supabaseService.isConfigured(currentSettings)) {
           supabaseService.migrateAllToSupabase({
@@ -494,7 +495,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (newContribs.length > 0) setContributions(newContribs);
       if (newStrikes.length > 0) setStrikes(newStrikes);
       if (newComms.length > 0) setCommunications(newComms);
-      setLastSyncTime(new Date().toLocaleTimeString());
+      setLastSyncTime(formatCurrentUtcTime());
 
       // 2. Permanently upload directly to Supabase
       if (!supabaseService.isConfigured(currentSettings)) {
@@ -1456,7 +1457,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setSettings(activeSettings);
         setSyncStatus('connected');
         setSyncMessage('Supabase PostgreSQL Live Connected');
-        setLastSyncTime(new Date().toLocaleTimeString());
+        setLastSyncTime(formatCurrentUtcTime());
 
         sounds.playSuccess();
         addToast({

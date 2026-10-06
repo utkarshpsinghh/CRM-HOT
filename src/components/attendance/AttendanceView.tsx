@@ -111,7 +111,9 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
       // Search query
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
-        if (!member.name.toLowerCase().includes(q)) return false;
+        const matchName = member.name.toLowerCase().includes(q);
+        const matchGameId = member.gameId ? member.gameId.toLowerCase().includes(q) : false;
+        if (!matchName && !matchGameId) return false;
       }
 
       // Rank filter
@@ -218,7 +220,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
           <div className="flex items-center gap-3 text-xs text-slate-400 flex-wrap">
             <span className="flex items-center gap-1 font-mono">
               <Calendar className="w-3.5 h-3.5 text-amber-400" />
-              {safeFormatDate(currentEvent.date)}
+              {safeFormatDate(currentEvent.date, { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
             </span>
           </div>
         </div>
@@ -406,7 +408,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
               type="text"
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              placeholder="Search member..."
+              placeholder="Search by name or Game ID..."
               className="w-full pl-8 pr-3 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-slate-200 text-xs focus:outline-none focus:border-amber-500 placeholder:text-slate-500"
             />
           </div>
@@ -475,7 +477,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
               >
                 {/* Header: Player Name + Rank */}
                 <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2 min-w-0">
+                  <div className="flex items-center gap-2 min-w-0 flex-wrap">
                     <span
                       onClick={() => {
                         sounds.playClick();
@@ -486,6 +488,11 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
                       {member.name}
                     </span>
                     <RankBadge rank={member.currentRank} size="sm" />
+                    {member.gameId && (
+                      <span className="text-[10px] font-mono text-amber-300/80 bg-slate-950 px-1.5 py-0.2 rounded border border-slate-800">
+                        ID: {member.gameId}
+                      </span>
+                    )}
                     {member.status === 'Visitor' && (
                       <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-sky-950 text-sky-300 border border-sky-500/50 font-semibold shrink-0">
                         Visitor
@@ -729,6 +736,11 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
                           </span>
                         )}
                       </div>
+                      {member.gameId && (
+                        <div className="text-[11px] font-mono text-amber-300/80 mt-0.5">
+                          ID: {member.gameId}
+                        </div>
+                      )}
                       {isFlaked && (
                         <span className="block text-[11px] text-rose-400 font-medium">
                           Voted YES but missed

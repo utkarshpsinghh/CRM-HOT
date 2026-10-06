@@ -66,8 +66,11 @@ export const InactivityTrackerView: React.FC = () => {
     return members.filter(member => {
       if (member.status === 'Archived') return false;
       if (statusFilter !== 'ALL' && member.status !== statusFilter) return false;
-      if (searchQuery && !member.name.toLowerCase().includes(searchQuery.toLowerCase())) {
-        return false;
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase();
+        const matchesName = member.name.toLowerCase().includes(q);
+        const matchesGameId = member.gameId ? member.gameId.toLowerCase().includes(q) : false;
+        if (!matchesName && !matchesGameId) return false;
       }
       return true;
     });
@@ -249,7 +252,7 @@ export const InactivityTrackerView: React.FC = () => {
                 className="p-3.5 rounded-xl bg-slate-900/80 border border-slate-800 space-y-2.5"
               >
                 <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2 min-w-0">
+                  <div className="flex items-center gap-2 min-w-0 flex-wrap">
                     <span
                       onClick={() => {
                         sounds.playClick();
@@ -260,6 +263,11 @@ export const InactivityTrackerView: React.FC = () => {
                       {member.name}
                     </span>
                     <RankBadge rank={member.currentRank} size="sm" />
+                    {member.gameId && (
+                      <span className="text-[10px] font-mono text-amber-300/80 bg-slate-950 px-1.5 py-0.2 rounded border border-slate-800">
+                        ID: {member.gameId}
+                      </span>
+                    )}
                   </div>
 
                   <ActivityBadge status={member.status} size="sm" />
@@ -348,15 +356,22 @@ export const InactivityTrackerView: React.FC = () => {
                 return (
                   <tr key={member.id} className="hover:bg-slate-800/40 transition-colors">
                     <td className="py-3 px-4">
-                      <span
-                        onClick={() => {
-                          sounds.playClick();
-                          setSelectedMemberForProfile(member);
-                        }}
-                        className="font-semibold text-slate-100 hover:text-amber-400 cursor-pointer"
-                      >
-                        {member.name}
-                      </span>
+                      <div>
+                        <span
+                          onClick={() => {
+                            sounds.playClick();
+                            setSelectedMemberForProfile(member);
+                          }}
+                          className="font-semibold text-slate-100 hover:text-amber-400 cursor-pointer"
+                        >
+                          {member.name}
+                        </span>
+                        {member.gameId && (
+                          <div className="text-[11px] font-mono text-amber-300/80 mt-0.5">
+                            ID: {member.gameId}
+                          </div>
+                        )}
+                      </div>
                     </td>
 
                     <td className="py-3 px-4">

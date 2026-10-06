@@ -9,6 +9,7 @@
 CREATE TABLE IF NOT EXISTS public.members (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
+    game_id TEXT,
     current_rank TEXT NOT NULL DEFAULT 'R1',
     former_rank TEXT DEFAULT 'None',
     strikes INTEGER NOT NULL DEFAULT 0,
@@ -18,6 +19,9 @@ CREATE TABLE IF NOT EXISTS public.members (
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Migration helper for existing installations
+ALTER TABLE public.members ADD COLUMN IF NOT EXISTS game_id TEXT;
 
 -- 2. EVENTS TABLE
 CREATE TABLE IF NOT EXISTS public.events (

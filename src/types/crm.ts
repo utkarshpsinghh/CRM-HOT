@@ -24,6 +24,7 @@ export type AttendanceStatus = 'JOINED' | 'DIDNT_JOIN' | 'NOT_APPLICABLE';
 export interface Member {
   id: string;
   name: string;
+  gameId?: string;
   currentRank: AllianceRank;
   formerRank: AllianceRank | 'None';
   strikes: number;

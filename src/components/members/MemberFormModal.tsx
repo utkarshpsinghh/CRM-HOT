@@ -19,6 +19,7 @@ export const MemberFormModal: React.FC<MemberFormModalProps> = ({
   const { createMember, updateMember } = useCRM();
 
   const [name, setName] = useState('');
+  const [gameId, setGameId] = useState('');
   const [currentRank, setCurrentRank] = useState<AllianceRank>('R1');
   const [formerRank, setFormerRank] = useState<AllianceRank | 'None'>('None');
   const [communication, setCommunication] = useState<CommunicationStatus>('Good');
@@ -29,6 +30,7 @@ export const MemberFormModal: React.FC<MemberFormModalProps> = ({
   useEffect(() => {
     if (memberToEdit) {
       setName(memberToEdit.name);
+      setGameId(memberToEdit.gameId || '');
       setCurrentRank(memberToEdit.currentRank);
       setFormerRank(memberToEdit.formerRank || 'None');
       setCommunication(memberToEdit.communication);
@@ -36,6 +38,7 @@ export const MemberFormModal: React.FC<MemberFormModalProps> = ({
       setStatus(memberToEdit.status);
     } else {
       setName('');
+      setGameId('');
       setCurrentRank('R1');
       setFormerRank('None');
       setCommunication('Good');
@@ -53,6 +56,7 @@ export const MemberFormModal: React.FC<MemberFormModalProps> = ({
       await updateMember({
         ...memberToEdit,
         name: name.trim(),
+        gameId: gameId.trim() || undefined,
         currentRank,
         formerRank,
         communication,
@@ -62,6 +66,7 @@ export const MemberFormModal: React.FC<MemberFormModalProps> = ({
     } else {
       await createMember({
         name: name.trim(),
+        gameId: gameId.trim() || undefined,
         currentRank,
         formerRank,
         communication,
@@ -83,19 +88,35 @@ export const MemberFormModal: React.FC<MemberFormModalProps> = ({
       maxWidth="md"
     >
       <form onSubmit={handleSubmit} className="space-y-4 text-xs sm:text-sm">
-        {/* Name */}
-        <div>
-          <label className="block text-xs font-fantasy font-bold text-[#fef08a] uppercase mb-1">
-            Player Name (IGN) *
-          </label>
-          <input
-            type="text"
-            required
-            value={name}
-            onChange={e => setName(e.target.value)}
-            placeholder="e.g. Warlord_HOT"
-            className="w-full px-3 py-2 rounded-xl bg-[#120c08] border border-[#3e2716] text-stone-200 focus:outline-none focus:border-[#ca8a04]"
-          />
+        {/* Name and Game ID */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs font-fantasy font-bold text-[#fef08a] uppercase mb-1">
+              Player Name (IGN) *
+            </label>
+            <input
+              type="text"
+              required
+              value={name}
+              onChange={e => setName(e.target.value)}
+              placeholder="e.g. Warlord_HOT"
+              className="w-full px-3 py-2 rounded-xl bg-[#120c08] border border-[#3e2716] text-stone-200 focus:outline-none focus:border-[#ca8a04]"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-fantasy font-bold text-[#fef08a] uppercase mb-1 flex items-center justify-between">
+              <span>Game ID</span>
+              <span className="text-[10px] text-stone-400 font-sans font-normal">e.g. 202703263</span>
+            </label>
+            <input
+              type="text"
+              value={gameId}
+              onChange={e => setGameId(e.target.value)}
+              placeholder="e.g. 202703263"
+              className="w-full px-3 py-2 rounded-xl bg-[#120c08] border border-[#3e2716] text-stone-200 font-mono focus:outline-none focus:border-[#ca8a04] placeholder:text-stone-600"
+            />
+          </div>
         </div>
 
         {/* Current & Former Rank */}

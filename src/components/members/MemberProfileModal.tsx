@@ -14,6 +14,8 @@ import {
   Swords,
   PlusCircle,
   Edit3,
+  Copy,
+  Check,
 } from 'lucide-react';
 import { sounds } from '../../utils/sound';
 
@@ -37,6 +39,7 @@ export const MemberProfileModal: React.FC<MemberProfileModalProps> = ({
   const [activeTab, setActiveTab] = useState<'events' | 'strikes' | 'notes'>('events');
   const [commNoteInput, setCommNoteInput] = useState('');
   const [isSavingNote, setIsSavingNote] = useState(false);
+  const [copiedGameId, setCopiedGameId] = useState(false);
 
   React.useEffect(() => {
     if (member) {
@@ -48,6 +51,14 @@ export const MemberProfileModal: React.FC<MemberProfileModalProps> = ({
 
   const partStats = calculateMemberParticipation(member.id, events, attendance);
   const memberStrikes = strikes.filter(s => s.memberId === member.id);
+
+  const handleCopyGameId = () => {
+    if (!member.gameId) return;
+    navigator.clipboard.writeText(member.gameId);
+    sounds.playClick();
+    setCopiedGameId(true);
+    setTimeout(() => setCopiedGameId(false), 2000);
+  };
 
   const handleSaveNotes = async () => {
     if (!member) return;
@@ -74,10 +85,26 @@ export const MemberProfileModal: React.FC<MemberProfileModalProps> = ({
         {/* Header Summary */}
         <div className="p-4 rounded-xl bg-[#170e09] border border-[#3d200e] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="space-y-1.5">
-            <div className="flex items-center gap-2.5">
+            <div className="flex items-center gap-2.5 flex-wrap">
               <span className="font-bold text-xl text-[#fffbeb]">{member.name}</span>
               <RankBadge rank={member.currentRank} size="sm" />
               <ActivityBadge status={member.status} size="sm" />
+              {member.gameId && (
+                <button
+                  type="button"
+                  onClick={handleCopyGameId}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-black/50 border border-amber-500/40 hover:border-amber-400 text-amber-300 font-mono text-xs cursor-pointer shadow-sm transition-colors"
+                  title="Click to copy Game ID"
+                >
+                  <span className="text-[10px] text-stone-400 uppercase font-sans font-semibold">Game ID:</span>
+                  <span className="font-bold">{member.gameId}</span>
+                  {copiedGameId ? (
+                    <Check className="w-3.5 h-3.5 text-emerald-400" />
+                  ) : (
+                    <Copy className="w-3.5 h-3.5 text-stone-400 hover:text-amber-300" />
+                  )}
+                </button>
+              )}
             </div>
 
             <div className="flex items-center gap-2">
