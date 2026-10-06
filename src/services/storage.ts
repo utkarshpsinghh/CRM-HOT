@@ -99,6 +99,14 @@ export const storageService = {
           localStorage.setItem(STORAGE_KEYS.CONTRIBUTIONS, JSON.stringify(filtered));
         }
       }
+
+      // 7. Purge extra default admins: ONLY Seoyoon remains Main Admin
+      const rawAdm = localStorage.getItem(STORAGE_KEYS.ADMIN_ACCOUNTS);
+      if (rawAdm) {
+        const adms: AdminAccount[] = JSON.parse(rawAdm);
+        const filtered = adms.filter(a => a.username.toLowerCase() !== 'admin' && a.username.toLowerCase() !== 'sally');
+        localStorage.setItem(STORAGE_KEYS.ADMIN_ACCOUNTS, JSON.stringify(filtered));
+      }
     } catch (err) {
       console.warn('Error purging mock junk:', err);
     }
@@ -281,12 +289,12 @@ export const storageService = {
     const raw = localStorage.getItem(STORAGE_KEYS.ADMIN_ACCOUNTS);
     let accounts: AdminAccount[] = raw ? JSON.parse(raw) : [...initialAdmins];
     
-    // Ensure both seoyoon and admin exist
-    initialAdmins.forEach(initAdm => {
-      if (!accounts.some(a => a.username.toLowerCase() === initAdm.username.toLowerCase())) {
-        accounts.push(initAdm);
-      }
-    });
+    // Purge legacy default accounts: ONLY Seoyoon is the official Main Admin
+    accounts = accounts.filter(a => a.username.toLowerCase() !== 'admin' && a.username.toLowerCase() !== 'sally');
+
+    if (!accounts.some(a => a.username.toLowerCase() === 'seoyoon')) {
+      accounts.unshift(initialAdmins[0]);
+    }
 
     return accounts;
   },
@@ -309,9 +317,9 @@ export const storageService = {
 
   deleteAdminAccount(id: string): boolean {
     const admins = this.getAdminAccounts();
-    // Cannot delete main admin
+    // Cannot delete main admin Seoyoon
     const target = admins.find(a => a.id === id);
-    if (!target || target.role === 'MainAdmin' || target.username.toLowerCase() === 'admin') {
+    if (!target || target.username.toLowerCase() === 'seoyoon') {
       return false;
     }
     const filtered = admins.filter(a => a.id !== id);

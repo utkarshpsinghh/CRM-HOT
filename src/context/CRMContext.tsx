@@ -70,6 +70,7 @@ interface CRMContextType {
   // Operations
   refreshData: () => Promise<void>;
   syncKingshotRoster: (rosterText?: string, replaceExisting?: boolean) => Promise<{ success: boolean; message: string; added: number; updated: number; total?: number }>;
+  syncGoogleSheetRoster: (customUrl?: string) => Promise<{ success: boolean; message: string; added?: number; updated?: number }>;
   wipeAllMembers: () => Promise<boolean>;
   logContribution: (action: ContributionActionType, desc: string, targetName?: string, count?: number) => Promise<void>;
   updateMyPassword: (newPass: string) => Promise<boolean>;
@@ -286,6 +287,63 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setIsSyncing(false);
     }
   }, [addToast]);
+
+  const syncGoogleSheetRoster = useCallback(async (customUrl?: string): Promise<{ success: boolean; message: string; added?: number; updated?: number }> => {
+    sounds.playClick();
+    setIsSyncing(true);
+    try {
+      const currentSettings = storageService.getSettings();
+      const url = customUrl?.trim() || currentSettings.googleSheetUrl || 'https://docs.google.com/spreadsheets/d/1z_oPJgwZ2TE05MNe6DFa7-XBw9o1N-3eaLWEoDFCt8c/edit?gid=875082368#gid=875082368';
+
+      // Parse spreadsheet id and gid
+      const idMatch = url.match(/\/d\/([a-zA-Z0-9-_]+)/);
+      const gidMatch = url.match(/[#&?]gid=([0-9]+)/);
+      if (!idMatch) {
+        sounds.playAlert();
+        addToast({
+          type: 'error',
+          title: 'Invalid Sheet URL',
+          message: 'Please provide a valid Google Sheet URL.',
+        });
+        return { success: false, message: 'Invalid Google Sheet URL format.' };
+      }
+
+      const sheetId = idMatch[1];
+      const gid = gidMatch ? gidMatch[1] : '875082368';
+      const exportUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${gid}`;
+
+      let csvText = '';
+      try {
+        const response = await fetch(exportUrl);
+        if (response.status === 401 || response.status === 403) {
+          throw new Error('Google Sheet is set to Restricted. Please set the sheet Sharing settings to "Anyone with the link can view (Viewer)".');
+        }
+        if (!response.ok) {
+          throw new Error(`Google Sheet returned HTTP ${response.status}. Please check permissions.`);
+        }
+        csvText = await response.text();
+      } catch (fetchErr: any) {
+        sounds.playAlert();
+        const errMessage = fetchErr.message || 'Could not access Google Sheet.';
+        addToast({
+          type: 'warning',
+          title: 'Google Sheet Access',
+          message: errMessage.includes('Restricted')
+            ? 'Sheet is Restricted. Set Share to "Anyone with the link can view" to allow direct sync.'
+            : errMessage,
+        });
+        return { success: false, message: errMessage };
+      }
+
+      const res = await syncKingshotRoster(csvText, true);
+      return res;
+    } catch (err: any) {
+      sounds.playAlert();
+      return { success: false, message: err.message || 'Failed to sync Google Sheet.' };
+    } finally {
+      setIsSyncing(false);
+    }
+  }, [addToast, syncKingshotRoster]);
 
   const wipeAllMembers = useCallback(async (): Promise<boolean> => {
     sounds.playAlert();
@@ -1232,6 +1290,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         activeDbProvider: apiService.getActiveProvider(settings),
         refreshData,
         syncKingshotRoster,
+        syncGoogleSheetRoster,
         wipeAllMembers,
         logContribution,
         updateMyPassword,

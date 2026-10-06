@@ -15,6 +15,7 @@ export const initialSettings: AllianceSettings = {
   underDevelopment: true,
   autoSyncRoster: true,
   autoSyncIntervalMinutes: 30,
+  googleSheetUrl: 'https://docs.google.com/spreadsheets/d/1z_oPJgwZ2TE05MNe6DFa7-XBw9o1N-3eaLWEoDFCt8c/edit?gid=875082368#gid=875082368',
 };
 
 // Official Kingdom #1391 [HOT] Alliance Roster (94 Members)
@@ -1072,22 +1073,6 @@ export const initialAdmins: AdminAccount[] = [
     password: 'masterlogin',
     role: 'MainAdmin' as const,
     name: 'Seoyoon',
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: 'adm-admin',
-    username: 'admin',
-    password: 'admin',
-    role: 'MainAdmin' as const,
-    name: 'Main Admin',
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: 'adm-sally',
-    username: 'sally',
-    password: 'sally9988',
-    role: 'MainAdmin' as const,
-    name: 'Sally',
     createdAt: new Date().toISOString(),
   },
 ];

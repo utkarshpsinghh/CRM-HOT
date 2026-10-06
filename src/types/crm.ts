@@ -86,6 +86,7 @@ export interface AllianceSettings {
   soundEnabled: boolean;
   demoMode: boolean;
   underDevelopment?: boolean;      // Under Development mode toggle
+  googleSheetUrl?: string;         // Alliance Google Sheet URL
 }
 
 export interface EventAttendanceSummary {

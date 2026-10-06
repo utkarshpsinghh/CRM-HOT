@@ -23,6 +23,8 @@ import {
   CheckCircle2,
   AlertCircle,
   Crown,
+  ExternalLink,
+  FileSpreadsheet,
 } from 'lucide-react';
 import { sounds } from '../../utils/sound';
 
@@ -47,6 +49,7 @@ export const MembersView: React.FC<MembersViewProps> = ({
     memberFilter,
     setMemberFilter,
     syncKingshotRoster,
+    syncGoogleSheetRoster,
     wipeAllMembers,
     settings,
     isSyncing,
@@ -59,7 +62,11 @@ export const MembersView: React.FC<MembersViewProps> = ({
 
   // Sync Modal & Clean Refresh States
   const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
-  const [syncTab, setSyncTab] = useState<'official' | 'paste' | 'file'>('official');
+  const [syncTab, setSyncTab] = useState<'official' | 'sheet' | 'paste' | 'file'>('official');
+  const [sheetUrl, setSheetUrl] = useState(
+    settings.googleSheetUrl ||
+      'https://docs.google.com/spreadsheets/d/1z_oPJgwZ2TE05MNe6DFa7-XBw9o1N-3eaLWEoDFCt8c/edit?gid=875082368#gid=875082368'
+  );
   const [pastedRoster, setPastedRoster] = useState('');
   const [replaceExisting, setReplaceExisting] = useState(true);
   const [isWipeConfirmOpen, setIsWipeConfirmOpen] = useState(false);
@@ -81,6 +88,13 @@ export const MembersView: React.FC<MembersViewProps> = ({
 
   const handleExecuteSync = async () => {
     sounds.playClick();
+    if (syncTab === 'sheet') {
+      const res = await syncGoogleSheetRoster(sheetUrl);
+      if (res && res.success) {
+        setIsSyncModalOpen(false);
+      }
+      return;
+    }
     const textToSync = (syncTab === 'paste' || syncTab === 'file') ? pastedRoster : undefined;
     const res = await syncKingshotRoster(textToSync, replaceExisting);
     if (res && res.success) {
@@ -767,21 +781,36 @@ export const MembersView: React.FC<MembersViewProps> = ({
             </div>
 
             {/* Sync Tabs */}
-            <div className="flex gap-1.5 p-1 rounded-xl bg-[#120c08] border border-[#2c1d15]">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 p-1 rounded-xl bg-[#120c08] border border-[#2c1d15]">
               <button
                 type="button"
                 onClick={() => {
                   sounds.playClick();
                   setSyncTab('official');
                 }}
-                className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-fantasy font-bold uppercase transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                className={`py-1.5 px-2 rounded-lg text-xs font-fantasy font-bold uppercase transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                   syncTab === 'official'
                     ? 'bg-gradient-to-r from-[#ca8a04] to-[#eab308] text-black shadow-md font-black'
                     : 'text-stone-400 hover:text-stone-200'
                 }`}
               >
-                <Crown className="w-3.5 h-3.5" />
-                <span>Official HOT Roster</span>
+                <Crown className="w-3.5 h-3.5 shrink-0" />
+                <span className="truncate">Official HOT</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  sounds.playClick();
+                  setSyncTab('sheet');
+                }}
+                className={`py-1.5 px-2 rounded-lg text-xs font-fantasy font-bold uppercase transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                  syncTab === 'sheet'
+                    ? 'bg-gradient-to-r from-[#ca8a04] to-[#eab308] text-black shadow-md font-black'
+                    : 'text-stone-400 hover:text-stone-200'
+                }`}
+              >
+                <FileSpreadsheet className="w-3.5 h-3.5 shrink-0 text-emerald-400" />
+                <span className="truncate">Google Sheet</span>
               </button>
               <button
                 type="button"
@@ -789,14 +818,14 @@ export const MembersView: React.FC<MembersViewProps> = ({
                   sounds.playClick();
                   setSyncTab('paste');
                 }}
-                className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-fantasy font-bold uppercase transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                className={`py-1.5 px-2 rounded-lg text-xs font-fantasy font-bold uppercase transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                   syncTab === 'paste'
                     ? 'bg-gradient-to-r from-[#ca8a04] to-[#eab308] text-black shadow-md font-black'
                     : 'text-stone-400 hover:text-stone-200'
                 }`}
               >
-                <FileText className="w-3.5 h-3.5" />
-                <span>Paste CSV / Text</span>
+                <FileText className="w-3.5 h-3.5 shrink-0" />
+                <span className="truncate">Paste CSV</span>
               </button>
               <button
                 type="button"
@@ -804,14 +833,14 @@ export const MembersView: React.FC<MembersViewProps> = ({
                   sounds.playClick();
                   setSyncTab('file');
                 }}
-                className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-fantasy font-bold uppercase transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                className={`py-1.5 px-2 rounded-lg text-xs font-fantasy font-bold uppercase transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                   syncTab === 'file'
                     ? 'bg-gradient-to-r from-[#ca8a04] to-[#eab308] text-black shadow-md font-black'
                     : 'text-stone-400 hover:text-stone-200'
                 }`}
               >
-                <Upload className="w-3.5 h-3.5" />
-                <span>Upload File</span>
+                <Upload className="w-3.5 h-3.5 shrink-0" />
+                <span className="truncate">Upload File</span>
               </button>
             </div>
 
@@ -842,7 +871,56 @@ export const MembersView: React.FC<MembersViewProps> = ({
               </div>
             )}
 
-            {/* TAB 2: PASTE CSV / TEXT */}
+            {/* TAB 2: GOOGLE SHEET */}
+            {syncTab === 'sheet' && (
+              <div className="space-y-3 p-3.5 rounded-2xl bg-[#120c08] border border-[#3e2716]">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <div className="flex items-center gap-2">
+                    <FileSpreadsheet className="w-4 h-4 text-emerald-400 shrink-0" />
+                    <span className="text-xs font-fantasy font-black text-[#fef08a] uppercase tracking-wide">
+                      Official HOT Alliance Google Sheet
+                    </span>
+                  </div>
+                  <a
+                    href={sheetUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[11px] text-amber-300 hover:text-amber-200 underline flex items-center gap-1 font-semibold"
+                  >
+                    <span>Open Sheet</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="block text-[11px] font-bold text-stone-400 uppercase">
+                    Google Spreadsheet URL
+                  </label>
+                  <input
+                    type="url"
+                    value={sheetUrl}
+                    onChange={e => setSheetUrl(e.target.value)}
+                    placeholder="https://docs.google.com/spreadsheets/d/..."
+                    className="w-full px-3 py-2 rounded-xl bg-[#1a1410] border border-[#3e2716] text-[#fffbeb] text-xs font-mono focus:outline-none focus:border-[#ca8a04]"
+                  />
+                </div>
+
+                <div className="text-[11px] text-stone-400 space-y-1 leading-relaxed bg-[#170e09] p-2.5 rounded-xl border border-[#2b180d]">
+                  <p className="text-stone-300 font-semibold flex items-center gap-1">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                    <span>Direct Roster Synchronization:</span>
+                  </p>
+                  <p>
+                    Downloads the live CSV export from your Google Sheet and updates all alliance member ranks, battle power, strikes, and communications.
+                  </p>
+                  <p className="text-amber-400/90 text-[10px]">
+                    Note: If Google returns restricted/unauthorized, ensure the sheet Sharing permissions are set to "Anyone with the link can view".
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* TAB 3: PASTE CSV / TEXT */}
             {syncTab === 'paste' && (
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-[11px] text-stone-400">
@@ -862,7 +940,7 @@ export const MembersView: React.FC<MembersViewProps> = ({
               </div>
             )}
 
-            {/* TAB 3: FILE UPLOAD */}
+            {/* TAB 4: FILE UPLOAD */}
             {syncTab === 'file' && (
               <div className="space-y-3">
                 <label className="block text-xs font-fantasy font-bold text-stone-300 uppercase">
@@ -908,7 +986,11 @@ export const MembersView: React.FC<MembersViewProps> = ({
               <button
                 type="button"
                 onClick={handleExecuteSync}
-                disabled={isSyncing || ((syncTab === 'paste' || syncTab === 'file') && !pastedRoster.trim())}
+                disabled={
+                  isSyncing ||
+                  ((syncTab === 'paste' || syncTab === 'file') && !pastedRoster.trim()) ||
+                  (syncTab === 'sheet' && !sheetUrl.trim())
+                }
                 className="btn-kingshot-gold flex-1 py-2.5 text-xs font-fantasy font-black uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer shadow-lg disabled:opacity-50"
               >
                 <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
@@ -917,6 +999,8 @@ export const MembersView: React.FC<MembersViewProps> = ({
                     ? 'Synchronizing...'
                     : syncTab === 'official'
                     ? 'Sync Official Roster (94 Members)'
+                    : syncTab === 'sheet'
+                    ? 'Sync from Google Sheet'
                     : 'Sync & Save Roster'}
                 </span>
               </button>

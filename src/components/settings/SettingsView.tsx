@@ -25,6 +25,7 @@ import {
   Users,
   Crown,
   FileText,
+  FileSpreadsheet,
   Wrench,
   Key,
   Clock,
@@ -46,6 +47,7 @@ export const SettingsView: React.FC = () => {
     refreshData,
     clearLocalData,
     syncKingshotRoster,
+    syncGoogleSheetRoster,
     isSyncing,
     lastSyncTime,
     resetDatabase,
@@ -67,6 +69,11 @@ export const SettingsView: React.FC = () => {
   const [inactiveDays, setInactiveDays] = useState(settings.inactivityInactiveDays);
   const [criticalDays, setCriticalDays] = useState(settings.inactivityCriticalDays);
   const [underDevelopment, setUnderDevelopment] = useState(settings.underDevelopment !== false);
+  const [googleSheetUrl, setGoogleSheetUrl] = useState(
+    settings.googleSheetUrl || 'https://docs.google.com/spreadsheets/d/1z_oPJgwZ2TE05MNe6DFa7-XBw9o1N-3eaLWEoDFCt8c/edit?gid=875082368#gid=875082368'
+  );
+  const [isSyncingSheet, setIsSyncingSheet] = useState(false);
+  const [sheetSyncResult, setSheetSyncResult] = useState<{ success: boolean; message: string; added?: number; updated?: number } | null>(null);
 
   const [supaTestResult, setSupaTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const [isConnectingSupa, setIsConnectingSupa] = useState(false);
@@ -100,6 +107,7 @@ export const SettingsView: React.FC = () => {
       supabaseAnonKey: supaKey.trim(),
       kingdomId: kingdomId.trim() || '1391',
       allianceTag: allianceTag.trim() || 'HOT',
+      googleSheetUrl: googleSheetUrl.trim(),
       dbProvider: supaUrl.trim() ? 'supabase' : 'local',
       inactivityWarningDays: Number(warningDays),
       inactivityInactiveDays: Number(inactiveDays),
@@ -108,6 +116,17 @@ export const SettingsView: React.FC = () => {
     });
     setSavedSuccess(true);
     setTimeout(() => setSavedSuccess(false), 3000);
+  };
+
+  const handleSyncGoogleSheet = async () => {
+    setIsSyncingSheet(true);
+    setSheetSyncResult(null);
+    try {
+      const res = await syncGoogleSheetRoster(googleSheetUrl);
+      setSheetSyncResult(res);
+    } finally {
+      setIsSyncingSheet(false);
+    }
   };
 
   const handleConnectSupabase = async () => {
@@ -264,7 +283,7 @@ export const SettingsView: React.FC = () => {
                 Admin Accounts &amp; Officer Access
               </h2>
               <p className="text-xs text-stone-400">
-                Main Admin has full privileges. R4 officers can manage attendance and members, but cannot access Settings.
+                Seoyoon is the Main Admin with full authority. R4 officers can manage attendance and members, but cannot access Settings.
               </p>
             </div>
           </div>
@@ -280,7 +299,7 @@ export const SettingsView: React.FC = () => {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
             {admins.map(adm => {
-              const isMain = adm.role === 'MainAdmin' || adm.username.toLowerCase() === 'admin';
+              const isMain = adm.role === 'MainAdmin' || adm.username.toLowerCase() === 'seoyoon';
               return (
                 <div
                   key={adm.id}
@@ -499,6 +518,77 @@ export const SettingsView: React.FC = () => {
               <span>Parse &amp; Sync Members</span>
             </button>
           </div>
+        </div>
+
+        {/* Google Sheet Roster Integration */}
+        <div className="p-3.5 rounded-xl bg-[#120c08] border border-[#3e2716] space-y-3">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <span className="text-xs font-fantasy font-bold text-[#fef08a] uppercase flex items-center gap-1.5">
+              <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Official Google Sheet Roster Sync</span>
+            </span>
+            <a
+              href={googleSheetUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[11px] text-amber-300 hover:text-amber-200 underline flex items-center gap-1 font-semibold"
+            >
+              <span>Open Google Sheet</span>
+              <ExternalLink className="w-3 h-3" />
+            </a>
+          </div>
+
+          <div className="space-y-1">
+            <label className="block text-[11px] font-bold text-stone-400 uppercase">
+              Google Spreadsheet URL
+            </label>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <input
+                type="url"
+                value={googleSheetUrl}
+                onChange={e => setGoogleSheetUrl(e.target.value)}
+                placeholder="https://docs.google.com/spreadsheets/d/..."
+                className="flex-1 px-3 py-1.5 rounded-lg bg-[#1a1410] border border-[#3e2716] text-[#fffbeb] text-xs font-mono focus:outline-none focus:border-[#ca8a04]"
+              />
+              <button
+                type="button"
+                onClick={handleSyncGoogleSheet}
+                disabled={isSyncingSheet || isSyncing || !googleSheetUrl.trim()}
+                className="btn-kingshot-gold px-3.5 py-1.5 text-xs font-fantasy font-black uppercase flex items-center justify-center gap-1.5 cursor-pointer shadow disabled:opacity-50 shrink-0"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${isSyncingSheet ? 'animate-spin' : ''}`} />
+                <span>{isSyncingSheet ? 'Syncing...' : 'Sync from Sheet'}</span>
+              </button>
+            </div>
+          </div>
+
+          {sheetSyncResult && (
+            <div
+              className={`p-2.5 rounded-lg border text-xs flex items-start gap-2 ${
+                sheetSyncResult.success
+                  ? 'bg-emerald-950/60 border-emerald-600 text-emerald-300'
+                  : 'bg-red-950/60 border-red-600 text-red-300'
+              }`}
+            >
+              {sheetSyncResult.success ? (
+                <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400 mt-0.5" />
+              ) : (
+                <AlertCircle className="w-4 h-4 shrink-0 text-red-400 mt-0.5" />
+              )}
+              <div>
+                <p className="font-bold">{sheetSyncResult.message}</p>
+                {sheetSyncResult.success && sheetSyncResult.added !== undefined && (
+                  <p className="text-[11px] text-stone-300 mt-0.5">
+                    Added: {sheetSyncResult.added} | Updated: {sheetSyncResult.updated || 0} members.
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+
+          <p className="text-[11px] text-stone-400 leading-relaxed">
+            Directly pulls member names, ranks (R1–R5), strikes, and communication records from the official alliance sheet. Ensure the sheet sharing is set to <em>"Anyone with the link can view (Viewer)"</em>.
+          </p>
         </div>
 
         {/* Kingshot Sync Result Feedback */}

@@ -71,25 +71,18 @@ export const apiService = {
       };
     }
 
-    // Universal Master Logins:
-    // Leader: 'seoyoon' (masterlogin, seoyoon, admin, 1391, hot1391)
-    // Officer: 'admin' (admin, password, masterlogin, 1391, hot1391)
-    // Officer: 'sally' (sally9988, sally, admin, password, masterlogin, 1391)
+    // Master Login: Only Leader 'seoyoon' has master MainAdmin access
     const lowerUser = cleanUser.toLowerCase();
     const isMasterLeader = lowerUser === 'seoyoon' && ['masterlogin', 'seoyoon', 'admin', 'password', '1391', 'hot1391'].includes(cleanPass);
-    const isMasterAdmin = lowerUser === 'admin' && ['admin', 'password', 'masterlogin', '1391', 'hot1391'].includes(cleanPass);
-    const isSally = lowerUser === 'sally' && ['sally9988', 'sally', 'admin', 'password', 'masterlogin', '1391'].includes(cleanPass);
-    const isOfficerGeneric = lowerUser === 'officer' && ['officer', 'admin', 'password', '1391'].includes(cleanPass);
 
-    if (isMasterLeader || isMasterAdmin || isSally || isOfficerGeneric) {
+    if (isMasterLeader) {
       resetLoginAttempts(cleanUser);
-      const isLeaderRole = isMasterLeader || isMasterAdmin || isSally;
       const user: AdminUser = {
-        id: isMasterLeader ? 'adm-seoyoon' : isMasterAdmin ? 'adm-admin' : isSally ? 'adm-sally' : 'adm-officer',
-        username: lowerUser,
-        role: isLeaderRole ? 'MainAdmin' : 'SubAdmin',
+        id: 'adm-seoyoon',
+        username: 'seoyoon',
+        role: 'MainAdmin',
         token: `master-token-${Date.now()}`,
-        name: isMasterLeader ? 'Seoyoon' : isMasterAdmin ? 'Main Admin' : isSally ? 'Sally' : 'War Officer',
+        name: 'Seoyoon',
       };
       return { success: true, user };
     }
