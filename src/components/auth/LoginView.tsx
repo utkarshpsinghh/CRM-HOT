@@ -117,15 +117,11 @@ export const LoginView: React.FC = () => {
               Officer Command &amp; War Attendance Portal
             </p>
 
-            {/* Cloud Gateway Indicator Badge */}
+            {/* Alliance Portal Badge */}
             <div className="mt-2.5 flex items-center justify-center">
               <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-[11px] font-semibold bg-[#120c08] border border-[#2c1d15] text-stone-300 shadow-inner">
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                <span>
-                  {activeDbProvider === 'supabase'
-                    ? 'PostgreSQL Cloud Gateway'
-                    : 'Secure Alliance Gateway'}
-                </span>
+                <span>Kingdom #1391 Command Portal</span>
               </span>
             </div>
           </div>
@@ -270,9 +266,7 @@ export const LoginView: React.FC = () => {
           <div className="mt-6 pt-4 border-t border-[#2c1d15] text-center space-y-1">
             <div className="flex items-center justify-center gap-1.5 text-[11px] text-stone-400">
               <ShieldCheck className="w-3.5 h-3.5 text-[#ca8a04]" />
-              <span>256-Bit Encrypted Session</span>
-              <span className="text-stone-600">•</span>
-              <span>Authorized R4 / R5 Only</span>
+              <span>Authorized R4 / R5 Leadership Portal</span>
             </div>
             <div className="text-[10px] text-stone-400 font-mono">
               HOT Alliance • Strength Through Unity

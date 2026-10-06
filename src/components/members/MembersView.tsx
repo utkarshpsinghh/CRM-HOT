@@ -156,10 +156,10 @@ export const MembersView: React.FC<MembersViewProps> = ({
             onClick={() => syncKingshotRoster()}
             disabled={isSyncing}
             className="px-3.5 py-2 rounded-xl bg-[#24170d] hover:bg-[#341f12] text-amber-300 border border-[#522d14] hover:border-amber-500/60 text-xs font-fantasy uppercase tracking-wider flex items-center gap-1.5 cursor-pointer transition-all shadow-sm disabled:opacity-50"
-            title="Fetch & synchronize latest Kingshot roster for Kingdom #1391 [HOT]"
+            title="Update & synchronize member roster for Kingdom #1391 [HOT]"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin text-amber-400' : 'text-amber-400'}`} />
-            <span>{isSyncing ? 'Syncing...' : 'Sync Kingshot API'}</span>
+            <span>{isSyncing ? 'Updating...' : 'Sync Roster'}</span>
           </button>
 
           <button

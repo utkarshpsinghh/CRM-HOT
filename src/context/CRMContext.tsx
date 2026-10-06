@@ -174,7 +174,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (activeProvider === 'supabase') {
         setIsSyncing(true);
         setSyncStatus('syncing');
-        setSyncMessage('Updating from Supabase PostgreSQL...');
+        setSyncMessage('Updating alliance records...');
         try {
           const allData = await apiService.getAllData(currentSettings);
           if (allData && typeof allData === 'object') {
@@ -203,13 +203,13 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             if (Array.isArray(allData.contributions)) setContributions(allData.contributions);
 
             setSyncStatus('connected');
-            setSyncMessage('Supabase PostgreSQL Live Connected (Kingdom #1391 [HOT])');
+            setSyncMessage('Alliance Records Synchronized (Kingdom #1391 [HOT])');
             setLastSyncTime(new Date().toLocaleTimeString());
           }
         } catch (err) {
           console.warn('Supabase sync warning:', err);
           setSyncStatus('error');
-          setSyncMessage('Supabase unreachable. Using cached roster.');
+          setSyncMessage('Using cached alliance records.');
           let cleanLocal = storageService.getMembers().filter(m => !/^mem-\d+$/.test(m.id) && !['DragonSlayer', 'ShadowNinja', 'FrostQueen', 'NightStalker', 'IronClad'].includes(m.name));
           if (cleanLocal.length === 0) {
             cleanLocal = generateKingdom1391HOTMembers();

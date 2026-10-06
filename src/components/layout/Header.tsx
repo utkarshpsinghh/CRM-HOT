@@ -123,7 +123,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCreateEvent }) => {
             onClick={() => refreshData()}
             disabled={isSyncing}
             className="p-1.5 sm:p-2 rounded-xl bg-[#29160a] border border-[#42220d] text-amber-300 hover:text-white hover:border-[#b45309] transition-colors cursor-pointer disabled:opacity-50"
-            title={activeDbProvider === 'supabase' ? 'Refresh from Supabase PostgreSQL' : 'Refresh Database'}
+            title="Refresh Alliance Records"
           >
             <RefreshCw className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${isSyncing ? 'animate-spin text-amber-400' : ''}`} />
           </button>
