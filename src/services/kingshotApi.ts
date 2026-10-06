@@ -214,13 +214,20 @@ export const kingshotApiService = {
   async fetchAllianceMembers(
     kingdomId: string = KINGDOM_ID,
     allianceTag: string = ALLIANCE_TAG,
-    apiUrl?: string
+    apiUrl?: string,
+    apiKey?: string
   ): Promise<KingshotFetchResult> {
     if (apiUrl && apiUrl.trim().startsWith('http')) {
       try {
+        const headers: Record<string, string> = { Accept: 'application/json' };
+        if (apiKey && apiKey.trim()) {
+          headers['Authorization'] = `Bearer ${apiKey.trim()}`;
+          headers['x-api-key'] = apiKey.trim();
+        }
+
         const resp = await fetch(apiUrl.trim(), {
           method: 'GET',
-          headers: { Accept: 'application/json' },
+          headers,
         });
 
         if (!resp.ok) {

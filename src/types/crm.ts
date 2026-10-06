@@ -79,6 +79,9 @@ export interface AllianceSettings {
   kingdomId?: string;              // Kingdom #1391
   allianceTag?: string;            // HOT
   kingshotApiUrl?: string;         // Kingshot API endpoint or webhook
+  kingshotApiKey?: string;         // Optional API Key / Bearer Token for Kingshot endpoint
+  autoSyncRoster?: boolean;        // Automatically sync roster periodically
+  autoSyncIntervalMinutes?: number;// Auto-sync frequency (default: 30 minutes)
   supabaseUrl?: string;
   supabaseAnonKey?: string;
   dbProvider?: 'supabase' | 'local';

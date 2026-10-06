@@ -61,6 +61,7 @@ export const MembersView: React.FC<MembersViewProps> = ({
   const [syncTab, setSyncTab] = useState<'paste' | 'api' | 'file'>('paste');
   const [pastedRoster, setPastedRoster] = useState('');
   const [apiUrlInput, setApiUrlInput] = useState(settings?.kingshotApiUrl || '');
+  const [apiKeyInput, setApiKeyInput] = useState(settings?.kingshotApiKey || '');
   const [replaceExisting, setReplaceExisting] = useState(true);
   const [isWipeConfirmOpen, setIsWipeConfirmOpen] = useState(false);
 
@@ -85,7 +86,7 @@ export const MembersView: React.FC<MembersViewProps> = ({
     if (syncTab === 'paste' || syncTab === 'file') {
       res = await syncKingshotRoster(pastedRoster, replaceExisting);
     } else {
-      res = await syncKingshotRoster(undefined, replaceExisting, apiUrlInput);
+      res = await syncKingshotRoster(undefined, replaceExisting, apiUrlInput, apiKeyInput);
     }
     if (res && res.success) {
       setIsSyncModalOpen(false);
@@ -853,8 +854,32 @@ export const MembersView: React.FC<MembersViewProps> = ({
                     placeholder="https://your-bot-or-api.com/api/alliance/1391/members"
                     className="w-full px-3.5 py-2.5 rounded-xl bg-[#120c08] border border-[#3e2716] text-[#fffbeb] text-xs font-mono focus:outline-none focus:border-[#ca8a04] placeholder:text-stone-600"
                   />
-                  <p className="text-[11px] text-stone-500">
-                    Endpoint should return a JSON array of member names or objects.
+                </div>
+
+                <div className="space-y-1">
+                  <label className="block text-xs font-fantasy font-bold text-stone-300 uppercase">
+                    API Key / Bearer Token (Optional)
+                  </label>
+                  <input
+                    type="password"
+                    value={apiKeyInput}
+                    onChange={e => setApiKeyInput(e.target.value)}
+                    placeholder="Enter API key or auth token if required by your endpoint"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-[#120c08] border border-[#3e2716] text-[#fffbeb] text-xs font-mono focus:outline-none focus:border-[#ca8a04] placeholder:text-stone-600"
+                  />
+                </div>
+
+                {/* Info Note on API Key & Century Games */}
+                <div className="p-3 rounded-xl bg-[#120c08]/80 border border-[#3e2716] text-[11px] text-stone-400 space-y-1">
+                  <div className="font-bold text-amber-300">How to get an API Key:</div>
+                  <p>
+                    • <strong>Game Publisher:</strong> Century Games does not provide a public developer API key for Kingshot accounts.
+                  </p>
+                  <p>
+                    • <strong>Discord Bot / Custom Endpoint:</strong> If your alliance runs a Discord bot (e.g., KingshotBot, WOSBot) or webhook service, enter your bot's endpoint URL and its API key here.
+                  </p>
+                  <p>
+                    • <strong>No Bot?</strong> Use the <strong>Paste Roster</strong> tab! Simply copy your member list from the game or Discord, and it syncs immediately without any API key.
                   </p>
                 </div>
               </div>

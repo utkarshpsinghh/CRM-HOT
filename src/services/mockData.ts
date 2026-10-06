@@ -13,6 +13,8 @@ export const initialSettings: AllianceSettings = {
   soundEnabled: true,
   demoMode: false,
   underDevelopment: true,
+  autoSyncRoster: true,
+  autoSyncIntervalMinutes: 30,
 };
 
 // Pure clean initial state — no junk or fake mock data
