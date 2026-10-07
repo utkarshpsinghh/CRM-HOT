@@ -369,32 +369,34 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
         </div>
 
         {/* Event Selector Dropdown */}
-        <div className="flex items-center gap-2 w-full md:w-auto">
-          <label className="text-xs text-slate-400 font-medium shrink-0">Select Event:</label>
-          <select
-            value={currentEvent.id}
-            onChange={e => {
-              sounds.playClick();
-              setSelectedEventIdForAttendance(e.target.value);
-            }}
-            className="flex-1 md:flex-initial px-3 py-1.5 rounded-lg bg-slate-950 border border-slate-700 text-amber-300 text-xs font-semibold focus:outline-none focus:border-amber-500 cursor-pointer"
-          >
-            {events.map(e => (
-              <option key={e.id} value={e.id}>
-                {e.eventType} — {safeFormatDate(e.date, { month: 'short', day: 'numeric' })}
-              </option>
-            ))}
-          </select>
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full md:w-auto min-w-0 pt-2.5 md:pt-0 border-t md:border-t-0 border-slate-800">
+          <label className="text-xs text-slate-400 font-semibold shrink-0">Select Event:</label>
+          <div className="relative w-full sm:w-auto min-w-0 max-w-full">
+            <select
+              value={currentEvent.id}
+              onChange={e => {
+                sounds.playClick();
+                setSelectedEventIdForAttendance(e.target.value);
+              }}
+              className="w-full sm:w-auto min-w-0 max-w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-amber-300 text-xs font-semibold focus:outline-none focus:border-amber-500 cursor-pointer truncate shadow-sm"
+            >
+              {events.map(e => (
+                <option key={e.id} value={e.id}>
+                  {e.eventType} — {safeFormatDate(e.date, { month: 'short', day: 'numeric', year: 'numeric' })}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
 
-      {/* Officer View / Penalty Notice */}
+      {/* Officer View / Notice */}
       {!isMainAdmin && (
-        <div className="flex items-center justify-between p-3 rounded-xl bg-amber-500/10 border border-amber-500/25 text-amber-300 text-xs">
+        <div className="flex items-center justify-between p-3 rounded-xl bg-amber-500/10 border border-amber-500/25 text-amber-300 text-xs gap-3">
           <div className="flex items-center gap-2">
             <ShieldAlert className="w-4 h-4 text-amber-400 shrink-0" />
             <span>
-              Attendance is view-only. You can review attendance and manage manual penalties.
+              Attendance is view-only. You can review attendance and add strikes.
             </span>
           </div>
           <span className="px-2 py-0.5 rounded bg-amber-500/20 text-[10px] font-bold uppercase tracking-wider shrink-0 text-amber-200 border border-amber-500/30">
@@ -1032,8 +1034,15 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
                     <div className="grid grid-cols-2 gap-2 pt-0.5">
                       <button
                         type="button"
-                        onClick={() => openEditModal(record)}
-                        className="w-full py-1.5 px-2 rounded-lg bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-rose-300 text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+                        onClick={() => {
+                          sounds.playClick();
+                          if (onOpenAddStrike && member) {
+                            onOpenAddStrike(member, `Missed event: ${currentEvent?.eventType || 'Bear Trap'} (${safeFormatDate(currentEvent?.date || '')})`);
+                          } else {
+                            openEditModal(record);
+                          }
+                        }}
+                        className="w-full py-1.5 px-2 rounded-lg bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-rose-300 text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer transition-colors shadow-sm"
                       >
                         <Flame className="w-3.5 h-3.5 text-rose-400 shrink-0" />
                         <span>Add Strike</span>
@@ -1346,7 +1355,14 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
                           <div className="flex items-center justify-end gap-1.5">
                             <button
                               type="button"
-                              onClick={() => openEditModal(record)}
+                              onClick={() => {
+                                sounds.playClick();
+                                if (onOpenAddStrike && member) {
+                                  onOpenAddStrike(member, `Missed event: ${currentEvent?.eventType || 'Bear Trap'} (${safeFormatDate(currentEvent?.date || '')})`);
+                                } else {
+                                  openEditModal(record);
+                                }
+                              }}
                               title="Add Strike"
                               className="px-2 py-0.5 rounded bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-rose-300 text-[11px] font-semibold flex items-center gap-1 cursor-pointer transition-colors shadow-sm"
                             >

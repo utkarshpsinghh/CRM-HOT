@@ -49,57 +49,63 @@ export const Modal: React.FC<ModalProps> = ({
   const isTop = position === 'top';
 
   return (
-    <div
-      className={clsx(
-        'fixed inset-0 p-3 sm:p-4 overflow-y-auto animate-fade-in overscroll-contain z-[9999] flex justify-center',
-        isTop ? 'items-center sm:items-start sm:pt-8 md:pt-10' : 'items-center'
-      )}
-    >
-      {/* Backdrop */}
+    <div className="fixed inset-0 z-[9999] overflow-y-auto overscroll-contain animate-fade-in">
+      {/* Visual Backdrop Overlay */}
       <div
-        className="fixed inset-0 bg-black/80 backdrop-blur-md transition-opacity"
-        onClick={() => {
-          sounds.playClick();
-          onClose();
-        }}
+        className="fixed inset-0 bg-black/80 backdrop-blur-md transition-opacity -z-10"
+        aria-hidden="true"
       />
 
-      {/* Modal Dialog */}
+      {/* Outer Flex Container for Alignment */}
       <div
         className={clsx(
-          'relative w-full rounded-2xl bg-slate-900 border border-slate-800 shadow-2xl shadow-black/80 z-10 overflow-hidden flex flex-col max-h-[90vh] sm:max-h-[88vh]',
-          isTop ? 'my-auto sm:my-0 sm:mb-8' : 'my-auto sm:my-8',
-          maxWidthClasses
+          'min-h-full flex justify-center p-3 sm:p-4 w-full',
+          isTop ? 'items-center sm:items-start sm:pt-8 md:pt-10' : 'items-center'
         )}
+        onClick={e => {
+          if (e.target === e.currentTarget) {
+            sounds.playClick();
+            onClose();
+          }
+        }}
       >
-        {/* Header */}
-        <div className="px-3.5 sm:px-6 py-3 sm:py-4 bg-slate-950/80 border-b border-slate-800 flex items-center justify-between gap-3 shrink-0">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className="p-1.5 rounded-lg bg-amber-500/10 border border-amber-500/25 text-amber-400 shrink-0">
-              {icon || <Shield className="w-5 h-5" />}
+        {/* Modal Dialog */}
+        <div
+          className={clsx(
+            'relative w-full rounded-2xl bg-slate-900 border border-slate-800 shadow-2xl shadow-black/80 z-10 overflow-hidden flex flex-col max-h-[90vh] sm:max-h-[85vh] my-auto sm:my-0',
+            maxWidthClasses
+          )}
+          onClick={e => e.stopPropagation()}
+        >
+          {/* Header */}
+          <div className="px-3.5 sm:px-6 py-3 sm:py-4 bg-slate-950/90 border-b border-slate-800 flex items-center justify-between gap-3 shrink-0">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="p-1.5 rounded-lg bg-amber-500/10 border border-amber-500/25 text-amber-400 shrink-0">
+                {icon || <Shield className="w-5 h-5" />}
+              </div>
+              <div className="min-w-0">
+                <h3 className="font-bold text-base sm:text-lg text-slate-100 tracking-tight truncate">
+                  {title}
+                </h3>
+                {subtitle && <p className="text-xs text-slate-400 truncate mt-0.5">{subtitle}</p>}
+              </div>
             </div>
-            <div className="min-w-0">
-              <h3 className="font-bold text-base sm:text-lg text-slate-100 tracking-tight truncate">
-                {title}
-              </h3>
-              {subtitle && <p className="text-xs text-slate-400 truncate mt-0.5">{subtitle}</p>}
-            </div>
+            <button
+              onClick={() => {
+                sounds.playClick();
+                onClose();
+              }}
+              className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer shrink-0"
+              title="Close"
+            >
+              <X className="w-5 h-5" />
+            </button>
           </div>
-          <button
-            onClick={() => {
-              sounds.playClick();
-              onClose();
-            }}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer shrink-0"
-            title="Close"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
 
-        {/* Content */}
-        <div className="p-3 sm:p-6 overflow-y-auto space-y-4 text-slate-200 overscroll-contain">
-          {children}
+          {/* Content */}
+          <div className="p-3 sm:p-6 overflow-y-auto space-y-4 text-slate-200 overscroll-contain">
+            {children}
+          </div>
         </div>
       </div>
     </div>
