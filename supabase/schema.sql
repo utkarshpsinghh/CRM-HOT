@@ -168,16 +168,6 @@ VALUES (
     'Seoyoon'
 ) ON CONFLICT (username) DO NOTHING;
 
--- Default Officer Admin: username "sally", password "sally9988", role "Officer"
-INSERT INTO public.admins (id, username, password_hash, role, name)
-VALUES (
-    'adm-sally',
-    'sally',
-    'sally9988',
-    'Officer',
-    'Sally'
-) ON CONFLICT (username) DO UPDATE SET role = 'Officer';
-
 -- Default Alliance Settings
 INSERT INTO public.settings (key, value) VALUES
     ('inactivityWarningDays', '3'),

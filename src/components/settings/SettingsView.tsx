@@ -49,7 +49,6 @@ export const SettingsView: React.FC = () => {
     activeDbProvider,
     refreshData,
     clearLocalData,
-    syncKingshotRoster,
     isSyncing,
     lastSyncTime,
     resetDatabase,
@@ -85,11 +84,6 @@ export const SettingsView: React.FC = () => {
   const [isMigratingSupa, setIsMigratingSupa] = useState(false);
   const [migrationStatusText, setMigrationStatusText] = useState('');
   const [migrationResult, setMigrationResult] = useState<{ success: boolean; message: string; counts?: Record<string, number> } | null>(null);
-
-  // Alliance roster parser state
-  const [rosterInputText, setRosterInputText] = useState('');
-  const [isSyncingKingshot, setIsSyncingKingshot] = useState(false);
-  const [kingshotResult, setKingshotResult] = useState<{ success: boolean; message: string; added?: number; updated?: number } | null>(null);
 
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
@@ -214,23 +208,6 @@ export const SettingsView: React.FC = () => {
     setIsMigratingSupa(false);
     setMigrationStatusText('');
     setMigrationResult(result);
-  };
-
-  const handleKingshotSync = async (useText: boolean = false) => {
-    setIsSyncingKingshot(true);
-    setKingshotResult(null);
-    try {
-      const res = await syncKingshotRoster(
-        useText ? rosterInputText : undefined,
-        true
-      );
-      setKingshotResult(res);
-      if (res.success && useText) {
-        setRosterInputText('');
-      }
-    } finally {
-      setIsSyncingKingshot(false);
-    }
   };
 
   const handleCreateAdmin = async (e: React.FormEvent) => {
@@ -432,147 +409,8 @@ export const SettingsView: React.FC = () => {
         </form>
       </div>
 
-      {/* SECTION 2: KINGSHOT ALLIANCE MEMBERS DATA (#1391 Kingdom [HOT] Alliance) */}
-      <div className="p-4 sm:p-5 rounded-2xl bg-[#1a1410] border-2 border-amber-600/40 shadow-md space-y-4">
-        <div className="flex items-start justify-between gap-3 flex-wrap">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-300 shrink-0">
-              <Crown className="w-5 h-5 text-amber-400" />
-            </div>
-            <div>
-              <h2 className="font-fantasy font-bold text-base text-[#fef08a] flex items-center gap-2">
-                <span>HOT Alliance Roster &amp; Identification</span>
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-950/80 text-amber-300 border border-amber-500 font-sans font-bold">
-                  Kingdom #{kingdomId} [{allianceTag}]
-                </span>
-              </h2>
-              <p className="text-xs text-stone-400">
-                Official roster and member tracking for Kingdom #1391 [HOT] Alliance.
-              </p>
-            </div>
-          </div>
 
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => handleKingshotSync(false)}
-              disabled={isSyncingKingshot || isSyncing}
-              className="btn-kingshot-gold px-3.5 py-1.5 text-xs font-fantasy font-black uppercase flex items-center gap-1.5 cursor-pointer shadow-md disabled:opacity-50"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${isSyncingKingshot ? 'animate-spin' : ''}`} />
-              <span>{isSyncingKingshot ? 'Syncing...' : 'Restore Official HOT Roster'}</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Alliance Identification Configuration */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3.5 rounded-xl bg-[#120c08] border border-[#3e2716]">
-          <div>
-            <label className="block text-[11px] font-bold text-stone-400 uppercase mb-1">
-              Kingdom ID
-            </label>
-            <input
-              type="text"
-              value={kingdomId}
-              onChange={e => setKingdomId(e.target.value)}
-              placeholder="1391"
-              className="w-full px-3 py-1.5 rounded-lg bg-[#1a1410] border border-[#3e2716] text-amber-300 font-mono font-bold text-xs focus:outline-none focus:border-[#ca8a04]"
-            />
-          </div>
-          <div>
-            <label className="block text-[11px] font-bold text-stone-400 uppercase mb-1">
-              Alliance Tag
-            </label>
-            <input
-              type="text"
-              value={allianceTag}
-              onChange={e => setAllianceTag(e.target.value)}
-              placeholder="HOT"
-              className="w-full px-3 py-1.5 rounded-lg bg-[#1a1410] border border-[#3e2716] text-amber-300 font-mono font-bold text-xs focus:outline-none focus:border-[#ca8a04]"
-            />
-          </div>
-        </div>
-
-        {/* Official Roster Summary Card */}
-        <div className="p-3.5 rounded-xl bg-[#120c08] border border-[#3e2716] space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-fantasy font-bold text-[#fef08a] uppercase flex items-center gap-1.5">
-              <Crown className="w-3.5 h-3.5 text-amber-400" />
-              <span>Official HOT Alliance Roster (94 Members)</span>
-            </span>
-            <span className="text-[11px] text-emerald-400 font-mono font-bold">
-              94 Members Active
-            </span>
-          </div>
-          <p className="text-[11px] text-stone-300 leading-relaxed">
-            Includes Leader <strong>Death Comes (R5)</strong>, R4 Officers <strong>MoonLight, Sally, SnackLemon, Beepers, Panda, Emma, Death Farm, Moha</strong>, and all 94 registered alliance members with live rank, status, and communication history.
-          </p>
-        </div>
-
-        {/* Smart In-Game / CSV Roster Parser & Importer */}
-        <div className="p-3.5 rounded-xl bg-[#120c08] border border-[#3e2716] space-y-2.5">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-fantasy font-bold text-[#fef08a] uppercase flex items-center gap-1.5">
-              <FileText className="w-3.5 h-3.5 text-amber-400" />
-              <span>Smart Roster Parser (CSV / In-Game Copy-Paste)</span>
-            </span>
-            <span className="text-[11px] text-stone-400 font-mono">
-              Auto-detects CSV format, R1–R5 &amp; status
-            </span>
-          </div>
-
-          <textarea
-            value={rosterInputText}
-            onChange={e => setRosterInputText(e.target.value)}
-            rows={4}
-            placeholder={`Paste CSV or player lines here...\nExample:\nName,Current Rank,Former Rank,Strikes,Communication,Status\nMoonLight,R4,R5,0,Good,Active\nDeath Comes,R5,R4,0,Good,Active`}
-            className="w-full px-3 py-2 rounded-xl bg-[#1a1410] border border-[#3e2716] text-stone-200 text-xs font-mono focus:outline-none focus:border-[#ca8a04] placeholder:text-stone-600"
-          />
-
-          <div className="flex items-center justify-between gap-2 flex-wrap">
-            <p className="text-[11px] text-stone-500">
-              Parses player names, rank levels (R1–R5), and battle power directly into member records.
-            </p>
-            <button
-              type="button"
-              onClick={() => handleKingshotSync(true)}
-              disabled={isSyncingKingshot || !rosterInputText.trim()}
-              className="px-3.5 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-black text-xs font-fantasy font-black uppercase cursor-pointer transition-colors flex items-center gap-1.5 shadow disabled:opacity-50"
-            >
-              <Users className="w-3.5 h-3.5" />
-              <span>Parse &amp; Sync Members</span>
-            </button>
-          </div>
-        </div>
-
-
-        {/* Kingshot Sync Result Feedback */}
-        {kingshotResult && (
-          <div
-            className={`p-3 rounded-xl border text-xs flex items-start gap-2 ${
-              kingshotResult.success
-                ? 'bg-emerald-950/60 border-emerald-600 text-emerald-300'
-                : 'bg-red-950/60 border-red-600 text-red-300'
-            }`}
-          >
-            {kingshotResult.success ? (
-              <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400 mt-0.5" />
-            ) : (
-              <AlertCircle className="w-4 h-4 shrink-0 text-red-400 mt-0.5" />
-            )}
-            <div>
-              <p className="font-bold">{kingshotResult.message}</p>
-              {kingshotResult.success && (
-                <p className="text-[11px] text-stone-300 mt-0.5">
-                  Added: {kingshotResult.added || 0} new players | Updated: {kingshotResult.updated || 0} existing players.
-                </p>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* SECTION 3: ALLIANCE CLOUD VAULT */}
+      {/* SECTION 2: ALLIANCE CLOUD VAULT */}
       <form onSubmit={handleSaveSettings} className="space-y-6">
         <div className="p-4 sm:p-5 rounded-2xl bg-[#1a1410] border-2 border-[#3e2716] shadow-md space-y-4">
           <div className="flex items-start justify-between gap-3 flex-wrap">

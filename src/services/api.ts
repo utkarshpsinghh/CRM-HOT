@@ -68,10 +68,6 @@ export const apiService = {
       'masterlogin', 'seoyoon', 'admin', 'password', '1391', 'hot1391', 'hot', 'crm', 'kingshot', 'master', '123456', 'seoyoon1391'
     ].includes(cleanPass.toLowerCase());
 
-    // Officer Sally Login (R4 Officer / SubAdmin)
-    const isSally = normalizedUser === 'sally' || lowerUser === 'sally';
-    const isSallyPass = cleanPass === 'sally9988' || cleanPass.toLowerCase() === 'sally' || cleanPass.toLowerCase() === 'sally9988';
-
     // 1. Primary: Authenticate via Supabase PostgreSQL
     if (this.isSupabase(settings)) {
       try {
@@ -101,19 +97,6 @@ export const apiService = {
       return { success: true, user };
     }
 
-    // Sally fallback credentials
-    if (isSally && isSallyPass) {
-      resetLoginAttempts();
-      const user: AdminUser = {
-        id: 'adm-sally',
-        username: 'sally',
-        role: 'SubAdmin',
-        token: `officer-token-${Date.now()}`,
-        name: 'Sally',
-      };
-      return { success: true, user };
-    }
-
     // Check brute-force lockout status for invalid attempts
     const attemptState = getLoginAttemptState();
     if (attemptState.isLocked) {
@@ -133,8 +116,7 @@ export const apiService = {
         const aNorm = a.username.toLowerCase().replace(/[\s_-]+/g, '');
         const userMatch = aNorm === normalizedUser || a.username.toLowerCase() === lowerUser;
         const passMatch = a.password === cleanPass || 
-          (aNorm === 'seoyoon' && isMasterPass) ||
-          (aNorm === 'sally' && isSallyPass);
+          (aNorm === 'seoyoon' && isMasterPass);
         return userMatch && passMatch;
       }
     );
@@ -378,9 +360,12 @@ export const apiService = {
   },
 
   async deleteAdmin(adminId: string, settings: AllianceSettings): Promise<boolean> {
+    const localAdmins = storageService.getAdminAccounts();
+    const targetAdmin = localAdmins.find(a => a.id === adminId);
+    const targetUsername = targetAdmin?.username;
     const success = storageService.deleteAdminAccount(adminId);
-    if (success && this.isSupabase(settings)) {
-      await supabaseService.deleteAdmin(adminId, settings);
+    if (this.isSupabase(settings)) {
+      await supabaseService.deleteAdmin(adminId, settings, targetUsername);
     }
     return success;
   },

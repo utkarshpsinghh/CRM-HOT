@@ -134,16 +134,11 @@ export const storageService = {
         }
       }
 
-      // 7. Purge extra default admins: ONLY Seoyoon remains Main Admin, Sally is SubAdmin
+      // 7. Purge extra default admins: ONLY Seoyoon remains default Main Admin
       const rawAdm = localStorage.getItem(STORAGE_KEYS.ADMIN_ACCOUNTS);
       if (rawAdm) {
         const adms: AdminAccount[] = JSON.parse(rawAdm);
         const filtered = adms.filter(a => a.username.toLowerCase() !== 'admin');
-        filtered.forEach(a => {
-          if (a.username.toLowerCase() === 'sally') {
-            a.role = 'SubAdmin';
-          }
-        });
         localStorage.setItem(STORAGE_KEYS.ADMIN_ACCOUNTS, JSON.stringify(filtered));
       }
 
@@ -151,10 +146,6 @@ export const storageService = {
       const currentAuth = this.getAuth();
       if (currentAuth && currentAuth.username?.toLowerCase() === 'admin') {
         this.setAuth(null);
-      }
-      if (currentAuth && currentAuth.username?.toLowerCase() === 'sally' && currentAuth.role === 'MainAdmin') {
-        currentAuth.role = 'SubAdmin';
-        this.setAuth(currentAuth);
       }
       resetLoginAttempts();
     } catch (err) {
@@ -442,21 +433,6 @@ export const storageService = {
     
     // Purge legacy default accounts ('admin')
     accounts = accounts.filter(a => a.username.toLowerCase() !== 'admin');
-
-    // Ensure Sally is present with SubAdmin role
-    const sallyAcc = accounts.find(a => a.username.toLowerCase() === 'sally');
-    if (sallyAcc) {
-      sallyAcc.role = 'SubAdmin';
-    } else {
-      accounts.push({
-        id: 'adm-sally',
-        username: 'sally',
-        password: 'sally9988',
-        role: 'SubAdmin',
-        name: 'Sally',
-        createdAt: new Date().toISOString(),
-      });
-    }
 
     if (!accounts.some(a => a.username.toLowerCase() === 'seoyoon')) {
       accounts.unshift(initialAdmins[0]);

@@ -171,36 +171,13 @@ export const supabaseService = {
         // settings table might not be initialized yet
       }
 
-        let adminsList = (adminsRes.data || []).map(this.mapAdminFromRow);
-        if (!adminsList.some(a => a.username.toLowerCase() === 'sally')) {
-          try {
-            await client.from('admins').upsert({
-              id: 'adm-sally',
-              username: 'sally',
-              password_hash: 'sally9988',
-              role: 'Officer',
-              name: 'Sally',
-            }, { onConflict: 'username' });
-            adminsList.push({
-              id: 'adm-sally',
-              username: 'sally',
-              password: 'sally9988',
-              role: 'SubAdmin',
-              name: 'Sally',
-              createdAt: new Date().toISOString(),
-            });
-          } catch {
-            // ignore
-          }
-        }
-
         return {
           members: deduplicateMembers((membersRes.data || []).map(this.mapMemberFromRow)),
           events: (eventsRes.data || []).map(this.mapEventFromRow),
           attendance: (allAttendanceRows || []).map(this.mapAttendanceFromRow),
           strikes: (strikesRes.data || []).map(this.mapStrikeFromRow),
           communications: (commsRes.data || []).map(this.mapCommFromRow),
-          admins: adminsList,
+          admins: (adminsRes.data || []).map(this.mapAdminFromRow),
           contributions: (contributionsRes.data || []).map(this.mapContributionFromRow),
           settings: remoteSettings,
         };
@@ -264,24 +241,7 @@ export const supabaseService = {
         return { success: true, user };
       }
 
-      // If Sally or Seoyoon is signing in, guarantee persistence in Supabase PostgreSQL
-      const isSally = normalizedUser === 'sally' || lower === 'sally';
-      const isSallyPass = cleanPass === 'sally9988' || cleanPass.toLowerCase() === 'sally9988' || cleanPass.toLowerCase() === 'sally';
-
-      if (isSally) {
-        try {
-          await client.from('admins').upsert({
-            id: 'adm-sally',
-            username: 'sally',
-            password_hash: 'sally9988',
-            role: 'Officer',
-            name: 'Sally',
-          }, { onConflict: 'username' });
-        } catch {
-          // ignore upsert warning if table already has constraint
-        }
-      }
-
+      // Query officer directly from Supabase PostgreSQL database
       const { data, error } = await client
         .from('admins')
         .select('*')
@@ -289,17 +249,7 @@ export const supabaseService = {
         .limit(1);
 
       if (error) {
-        if (isSally && isSallyPass) {
-          const user: AdminUser = {
-            id: 'adm-sally',
-            username: 'sally',
-            name: 'Sally',
-            role: 'SubAdmin',
-            token: `supa-officer-${Date.now()}`,
-          };
-          return { success: true, user };
-        }
-        return { success: false, error: 'Invalid officer username or password.' };
+        return { success: false, error: 'Database error checking officer credentials.' };
       }
 
       if (!data || data.length === 0) {
@@ -314,17 +264,7 @@ export const supabaseService = {
           };
           return { success: true, user };
         }
-        if (isSally && isSallyPass) {
-          const user: AdminUser = {
-            id: 'adm-sally',
-            username: 'sally',
-            name: 'Sally',
-            role: 'SubAdmin',
-            token: `supa-officer-${Date.now()}`,
-          };
-          return { success: true, user };
-        }
-        return { success: false, error: 'Invalid officer username or password.' };
+        return { success: false, error: 'Unauthorized officer account. Access may have been revoked.' };
       }
 
       const adminRow = data[0];
@@ -335,8 +275,7 @@ export const supabaseService = {
         adminRow.password_hash === passHash ||
         adminRow.password_hash === cleanPass ||
         adminRow.password === cleanPass ||
-        (isMasterSeoyoon && (isMasterPass || cleanPass === 'masterlogin')) ||
-        (isSally && isSallyPass);
+        (isMasterSeoyoon && (isMasterPass || cleanPass === 'masterlogin'));
 
       if (!isMatch) {
         return { success: false, error: 'Invalid officer username or password.' };
@@ -349,7 +288,7 @@ export const supabaseService = {
       const user: AdminUser = {
         id: adminRow.id,
         username: adminRow.username,
-        name: adminRow.name || (isSally ? 'Sally' : adminRow.username),
+        name: adminRow.name || adminRow.username,
         role,
         token: `supa-token-${Date.now()}-${Math.random().toString(36).slice(2)}`,
       };
@@ -733,11 +672,14 @@ export const supabaseService = {
     return true;
   },
 
-  async deleteAdmin(adminId: string, settings: AllianceSettings): Promise<boolean> {
+  async deleteAdmin(adminId: string, settings: AllianceSettings, username?: string): Promise<boolean> {
     const client = this.getClient(settings);
     if (!client) return false;
 
     const { error } = await client.from('admins').delete().eq('id', adminId);
+    if (username && username.toLowerCase() !== 'seoyoon') {
+      await client.from('admins').delete().ilike('username', username);
+    }
     if (error) {
       console.error('deleteAdmin error:', error);
       return false;
