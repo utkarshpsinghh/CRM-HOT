@@ -375,10 +375,10 @@ export const storageService = {
       }
     }
 
-    // Enforce strict Bear Trap sequence and auto-schedule upcoming cycles
+    // Enforce strict Bear Trap sequence and auto-schedule upcoming cycles (only 24h before event)
     const members = this.getMembers();
-    const synced = syncAndAutoScheduleBearTraps(currentEvents, currentSlots, currentParticipations, members, 4);
-    if (synced.updatedCount > 0) {
+    const synced = syncAndAutoScheduleBearTraps(currentEvents, currentSlots, currentParticipations, members);
+    if (synced.updatedCount > 0 || synced.prunedEventIds.length > 0) {
       this.setEvents(synced.events);
       this.setEventSlots(synced.slots);
       this.setEventParticipations(synced.participations);

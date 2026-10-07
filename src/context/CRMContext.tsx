@@ -281,6 +281,32 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     sounds.setEnabled(settings.soundEnabled);
   }, [settings.soundEnabled]);
 
+  // Periodically check and auto-schedule Bear Trap when crossing the 24-hour threshold
+  useEffect(() => {
+    const checkSchedule = () => {
+      const scheduledBundle = syncAndAutoScheduleBearTraps(
+        events,
+        eventSlots,
+        eventParticipations,
+        members
+      );
+      if (scheduledBundle.updatedCount > 0 || scheduledBundle.prunedEventIds.length > 0) {
+        setEvents(scheduledBundle.events);
+        setEventSlots(scheduledBundle.slots);
+        setEventParticipations(scheduledBundle.participations);
+        storageService.setEvents(scheduledBundle.events);
+        storageService.setEventSlots(scheduledBundle.slots);
+        storageService.setEventParticipations(scheduledBundle.participations);
+        if (scheduledBundle.prunedEventIds.length > 0) {
+          apiService.deleteEventsByIds(scheduledBundle.prunedEventIds, settings).catch(() => {});
+        }
+      }
+    };
+
+    const interval = setInterval(checkSchedule, 60000);
+    return () => clearInterval(interval);
+  }, [events, eventSlots, eventParticipations, members, settings]);
+
   // Cross-tab synchronization: keep settings synced across browser tabs in real-time
   useEffect(() => {
     const handleStorageChange = (e: StorageEvent) => {
@@ -338,7 +364,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               processedParticipations = bundle.participations;
             }
 
-            // Enforce strict 48-hour Bear Trap cadence and auto-schedule upcoming Bear Traps
+            // Enforce strict 48-hour Bear Trap cadence and auto-schedule upcoming Bear Traps (only 24h before event)
             const scheduledBundle = syncAndAutoScheduleBearTraps(
               processedEvents,
               processedSlots,
@@ -348,6 +374,12 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             processedEvents = scheduledBundle.events;
             processedSlots = scheduledBundle.slots;
             processedParticipations = scheduledBundle.participations;
+
+            if (scheduledBundle.prunedEventIds.length > 0) {
+              apiService.deleteEventsByIds(scheduledBundle.prunedEventIds, allData.settings || settings).catch(err => {
+                console.warn('Background deleteEventsByIds error:', err);
+              });
+            }
 
             storageService.saveAllData({
               ...allData,

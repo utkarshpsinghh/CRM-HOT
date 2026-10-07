@@ -340,6 +340,21 @@ export const apiService = {
     return true;
   },
 
+  async deleteEventsByIds(eventIds: string[], settings?: AllianceSettings): Promise<boolean> {
+    if (!eventIds.length) return true;
+    const curEvents = storageService.getEvents().filter(e => !eventIds.includes(e.id));
+    storageService.setEvents(curEvents);
+    const curSlots = storageService.getEventSlots().filter(s => !eventIds.includes(s.eventId));
+    storageService.setEventSlots(curSlots);
+    const curParts = storageService.getEventParticipations().filter(p => !eventIds.includes(p.eventId));
+    storageService.setEventParticipations(curParts);
+
+    if (this.isSupabase(settings)) {
+      return await supabaseService.deleteEventsByIds(eventIds, settings);
+    }
+    return true;
+  },
+
   async updateParticipationVote(
     eventId: string,
     memberId: string,

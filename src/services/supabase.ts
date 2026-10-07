@@ -626,6 +626,26 @@ export const supabaseService = {
     return true;
   },
 
+  async deleteEventsByIds(
+    eventIds: string[],
+    settings?: AllianceSettings
+  ): Promise<boolean> {
+    if (!eventIds.length) return true;
+    const client = this.getClient(settings);
+    if (!client) return false;
+    try {
+      await Promise.allSettled([
+        client.from('event_participations').delete().in('event_id', eventIds),
+        client.from('event_slots').delete().in('event_id', eventIds),
+        client.from('events').delete().in('id', eventIds),
+      ]);
+      return true;
+    } catch (err) {
+      console.warn('deleteEventsByIds exception:', err);
+      return false;
+    }
+  },
+
   async updateParticipation(
     participation: EventParticipation,
     settings: AllianceSettings

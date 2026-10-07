@@ -1,17 +1,22 @@
 import { AllianceEvent, EventSlot, EventParticipation, Member } from '../types/crm';
-import { getComputedEventStatus } from '../utils/date';
+import { getComputedEventStatus, parseDateAsUtc } from '../utils/date';
 
 /**
  * Standard Bear Trap Cadence:
- * Occurs every 48 hours (every 2 days).
+ * Occurs strictly every 48 hours (every 2 days).
+ * Anchor: 27 Sep 2026, 16:00 UTC (Slot 1) and 28 Sep 2026, 00:30 UTC (Slot 2).
  * Sequence:
- * 1st Bear Trap: Slot 1 - 27 Sep 2026, 16:00 UTC | Slot 2 - 28 Sep 2026, 00:30 UTC
- * 2nd Bear Trap: Slot 1 - 29 Sep 2026, 16:00 UTC | Slot 2 - 30 Sep 2026, 00:30 UTC
- * 3rd Bear Trap: Slot 1 - 01 Oct 2026, 16:00 UTC | Slot 2 - 02 Oct 2026, 00:30 UTC
- * 4th Bear Trap: Slot 1 - 03 Oct 2026, 16:00 UTC | Slot 2 - 04 Oct 2026, 00:30 UTC
- * 5th Bear Trap: Slot 1 - 05 Oct 2026, 16:00 UTC | Slot 2 - 06 Oct 2026, 00:30 UTC
- * 6th Bear Trap: Slot 1 - 07 Oct 2026, 16:00 UTC | Slot 2 - 08 Oct 2026, 00:30 UTC
- * Future Bear Traps continue seamlessly every 2 days (48 hrs) at 16:00 UTC (Slot 1) and next day 00:30 UTC (Slot 2).
+ * 1st Bear Trap: 27 Sep 2026, 16:00 UTC (BT1) / 28 Sep 2026, 00:30 UTC (BT2)
+ * 2nd Bear Trap: 29 Sep 2026, 16:00 UTC (BT1) / 30 Sep 2026, 00:30 UTC (BT2)
+ * 3rd Bear Trap: 01 Oct 2026, 16:00 UTC (BT1) / 02 Oct 2026, 00:30 UTC (BT2)
+ * 4th Bear Trap: 03 Oct 2026, 16:00 UTC (BT1) / 04 Oct 2026, 00:30 UTC (BT2)
+ * 5th Bear Trap: 05 Oct 2026, 16:00 UTC (BT1) / 06 Oct 2026, 00:30 UTC (BT2)
+ * 6th Bear Trap: 07 Oct 2026, 16:00 UTC (BT1) / 08 Oct 2026, 00:30 UTC (BT2)
+ *
+ * CRITICAL RULE: "only schedule 24 hours before the event"
+ * An upcoming Bear Trap cycle is ONLY scheduled when the current time is within
+ * 24 hours before Slot 1 (i.e. eventStartTime - now <= 24 hours).
+ * Any auto-scheduled cycle farther than 24 hours in advance is pruned/removed.
  */
 
 const KNOWN_BEAR_TRAP_DATES = [
@@ -23,6 +28,10 @@ const KNOWN_BEAR_TRAP_DATES = [
   '2026-10-07',
 ];
 
+const ANCHOR_UTC_MS = Date.UTC(2026, 8, 27, 16, 0, 0); // 2026-09-27 16:00:00 UTC
+const CADENCE_INTERVAL_MS = 48 * 60 * 60 * 1000; // 48 hours
+const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000; // 24 hours
+
 function getNextDayStr(dateStr: string): string {
   const [y, m, d] = dateStr.split('-').map(Number);
   const nextD = new Date(Date.UTC(y, m - 1, d + 1, 0, 30, 0));
@@ -32,35 +41,49 @@ function getNextDayStr(dateStr: string): string {
   return `${ny}-${nm}-${nd}`;
 }
 
-function addDaysToDateStr(dateStr: string, days: number): string {
-  const [y, m, d] = dateStr.split('-').map(Number);
-  const target = new Date(Date.UTC(y, m - 1, d + days, 16, 0, 0));
-  const ty = target.getUTCFullYear();
-  const tm = String(target.getUTCMonth() + 1).padStart(2, '0');
-  const td = String(target.getUTCDate()).padStart(2, '0');
-  return `${ty}-${tm}-${td}`;
-}
-
 export function syncAndAutoScheduleBearTraps(
   events: AllianceEvent[],
   slots: EventSlot[],
   participations: EventParticipation[],
   members: Member[],
-  futureCyclesCount = 4
+  referenceNowMs?: number
 ): {
   events: AllianceEvent[];
   slots: EventSlot[];
   participations: EventParticipation[];
   updatedCount: number;
+  prunedEventIds: string[];
 } {
-  const updatedEvents = [...events];
-  const updatedSlots = [...slots];
-  const updatedParticipations = [...participations];
+  const nowMs = referenceNowMs ?? Date.now();
+  let updatedEvents = [...events];
+  let updatedSlots = [...slots];
+  let updatedParticipations = [...participations];
   let updatedCount = 0;
+  const prunedEventIds: string[] = [];
 
-  // 1. Identify and sequence all existing Bear Trap events
+  // 1. Prune any auto-generated Bear Trap events that are more than 24 hours away
+  // Auto-generated Bear Trap events have ID prefix 'evt-parent-bt-'
+  const toRemoveIds = new Set<string>();
+  updatedEvents.forEach(evt => {
+    if (evt.eventType === 'Bear Trap' && evt.id.startsWith('evt-parent-bt-')) {
+      const eventTime = parseDateAsUtc(evt.date)?.getTime() ?? new Date(evt.date).getTime();
+      // If event start time is more than 24 hours in the future
+      if (eventTime - nowMs > TWENTY_FOUR_HOURS_MS) {
+        toRemoveIds.add(evt.id);
+        prunedEventIds.push(evt.id);
+        updatedCount++;
+      }
+    }
+  });
+
+  if (toRemoveIds.size > 0) {
+    updatedEvents = updatedEvents.filter(e => !toRemoveIds.has(e.id));
+    updatedSlots = updatedSlots.filter(s => !toRemoveIds.has(s.eventId));
+    updatedParticipations = updatedParticipations.filter(p => !toRemoveIds.has(p.eventId));
+  }
+
+  // 2. Identify and sequence all remaining Bear Trap events
   const bearTrapEvents = updatedEvents.filter(e => e.eventType === 'Bear Trap');
-  // Sort chronologically
   bearTrapEvents.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
   // Correct dates and slot times for known existing Bear Trap cycles
@@ -96,29 +119,36 @@ export function syncAndAutoScheduleBearTraps(
     }
   });
 
-  // 2. Find the latest Bear Trap date
-  let latestDateStr = '2026-10-07';
-  if (bearTrapEvents.length > 0) {
-    const lastEvt = bearTrapEvents[bearTrapEvents.length - 1];
-    latestDateStr = lastEvt.date.split('T')[0];
-  }
-
-  // 3. Automatically schedule future Bear Traps (every 48 hours / 2 days)
+  // 3. Auto-schedule: ONLY within 24 hours before the event (eventStartTime - now <= 24h)
   const activeMembers = members.filter(m => m.status !== 'Archived');
-  const now = new Date().toISOString();
+  const nowIso = new Date().toISOString();
 
-  for (let step = 1; step <= futureCyclesCount; step++) {
-    const futureDateStr = addDaysToDateStr(latestDateStr, step * 2);
-    const futureIso = `${futureDateStr}T16:00:00.000Z`;
-    const nextDayStr = getNextDayStr(futureDateStr);
+  // Iterate forward along 48h cadence starting from anchor
+  let k = 0;
+  while (true) {
+    const cycleTimeMs = ANCHOR_UTC_MS + k * CADENCE_INTERVAL_MS;
+    // If cycle is more than 24 hours into the future, stop immediately!
+    if (cycleTimeMs - nowMs > TWENTY_FOUR_HOURS_MS) {
+      break;
+    }
 
-    // Check if event already exists
+    // Format target cycle UTC date (YYYY-MM-DD)
+    const cycleDate = new Date(cycleTimeMs);
+    const y = cycleDate.getUTCFullYear();
+    const m = String(cycleDate.getUTCMonth() + 1).padStart(2, '0');
+    const d = String(cycleDate.getUTCDate()).padStart(2, '0');
+    const dateStr = `${y}-${m}-${d}`;
+    const futureIso = `${dateStr}T16:00:00.000Z`;
+    const nextDayStr = getNextDayStr(dateStr);
+
+    // Check if event already exists for this date
     const exists = updatedEvents.some(
-      e => e.eventType === 'Bear Trap' && e.date.split('T')[0] === futureDateStr
+      e => e.eventType === 'Bear Trap' && e.date.split('T')[0] === dateStr
     );
 
     if (!exists) {
-      const parentId = `evt-parent-bt-${futureDateStr}`;
+      // Within 24 hours before the event! Auto-schedule now.
+      const parentId = `evt-parent-bt-${dateStr}`;
       const slot1Id = `slot-${parentId}-1`;
       const slot2Id = `slot-${parentId}-2`;
 
@@ -128,8 +158,8 @@ export function syncAndAutoScheduleBearTraps(
         eventName: 'Bear Trap',
         date: futureIso,
         status: getComputedEventStatus(futureIso) === 'Upcoming' ? 'Scheduled' : 'Completed',
-        createdAt: now,
-        updatedAt: now,
+        createdAt: nowIso,
+        updatedAt: nowIso,
       };
 
       const slot1: EventSlot = {
@@ -137,8 +167,8 @@ export function syncAndAutoScheduleBearTraps(
         eventId: parentId,
         slotNumber: 1,
         slotName: 'BT1',
-        startTime: `${futureDateStr} 16:00 UTC`,
-        createdAt: now,
+        startTime: `${dateStr} 16:00 UTC`,
+        createdAt: nowIso,
       };
 
       const slot2: EventSlot = {
@@ -147,7 +177,7 @@ export function syncAndAutoScheduleBearTraps(
         slotNumber: 2,
         slotName: 'BT2',
         startTime: `${nextDayStr} 00:30 UTC`,
-        createdAt: now,
+        createdAt: nowIso,
       };
 
       const newParts: EventParticipation[] = activeMembers.map(m => ({
@@ -160,8 +190,8 @@ export function syncAndAutoScheduleBearTraps(
         attendanceSlotId: null,
         penaltyStatus: 'NONE',
         penaltyNote: null,
-        createdAt: now,
-        updatedAt: now,
+        createdAt: nowIso,
+        updatedAt: nowIso,
       }));
 
       updatedEvents.push(newParentEvent);
@@ -169,6 +199,8 @@ export function syncAndAutoScheduleBearTraps(
       updatedParticipations.push(...newParts);
       updatedCount++;
     }
+
+    k++;
   }
 
   return {
@@ -176,5 +208,6 @@ export function syncAndAutoScheduleBearTraps(
     slots: updatedSlots,
     participations: updatedParticipations,
     updatedCount,
+    prunedEventIds,
   };
 }
