@@ -51,8 +51,8 @@ export const Modal: React.FC<ModalProps> = ({
   return (
     <div
       className={clsx(
-        'fixed inset-0 p-2 sm:p-4 overflow-y-auto animate-fade-in overscroll-contain z-[9999] flex justify-center',
-        isTop ? 'items-start pt-3 sm:pt-8 md:pt-10' : 'items-center'
+        'fixed inset-0 p-3 sm:p-4 overflow-y-auto animate-fade-in overscroll-contain z-[9999] flex justify-center',
+        isTop ? 'items-center sm:items-start sm:pt-8 md:pt-10' : 'items-center'
       )}
     >
       {/* Backdrop */}
@@ -67,8 +67,8 @@ export const Modal: React.FC<ModalProps> = ({
       {/* Modal Dialog */}
       <div
         className={clsx(
-          'relative w-full rounded-2xl bg-slate-900 border border-slate-800 shadow-2xl shadow-black/80 z-10 overflow-hidden flex flex-col max-h-[94vh] sm:max-h-[88vh]',
-          isTop ? 'my-0 mb-6 sm:mb-8' : 'my-1 sm:my-8',
+          'relative w-full rounded-2xl bg-slate-900 border border-slate-800 shadow-2xl shadow-black/80 z-10 overflow-hidden flex flex-col max-h-[90vh] sm:max-h-[88vh]',
+          isTop ? 'my-auto sm:my-0 sm:mb-8' : 'my-auto sm:my-8',
           maxWidthClasses
         )}
       >

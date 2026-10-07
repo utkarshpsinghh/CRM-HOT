@@ -45,6 +45,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
     updateParticipationAttendance,
     updateParticipationPenalty,
     bulkUpdateParticipations,
+    addStrike,
   } = useCRM();
 
   const { isMainAdmin } = useAuth();
@@ -169,8 +170,13 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
       await updateParticipationAttendance(eventId, memberId, editAttendanceSlotId, editAttendanceStatus);
     }
 
-    // Both Main Admin and R4 officers can update manual penalties
+    // Both Main Admin and R4 officers can update manual penalties / add strike
     await updateParticipationPenalty(eventId, memberId, editPenaltyStatus, editPenaltyNote.trim() || undefined);
+
+    // If issuing strike and wasn't already issued, record official strike on player profile
+    if (editPenaltyStatus === 'ISSUED' && editingParticipation.penaltyStatus !== 'ISSUED') {
+      await addStrike(memberId, editPenaltyNote.trim() || `Missed event: ${currentEvent.eventName}`);
+    }
 
     setIsSavingEdit(false);
     setEditingParticipation(null);
@@ -1029,8 +1035,8 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
                         onClick={() => openEditModal(record)}
                         className="w-full py-1.5 px-2 rounded-lg bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-rose-300 text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
                       >
-                        <ShieldAlert className="w-3.5 h-3.5 text-rose-400 shrink-0" />
-                        <span>Manual Penalty</span>
+                        <Flame className="w-3.5 h-3.5 text-rose-400 shrink-0" />
+                        <span>Add Strike</span>
                       </button>
                       <button
                         type="button"
@@ -1341,11 +1347,11 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
                             <button
                               type="button"
                               onClick={() => openEditModal(record)}
-                              title="Manual Penalty"
+                              title="Add Strike"
                               className="px-2 py-0.5 rounded bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-rose-300 text-[11px] font-semibold flex items-center gap-1 cursor-pointer transition-colors shadow-sm"
                             >
-                              <ShieldAlert className="w-3 h-3 text-rose-400" />
-                              <span>Penalty</span>
+                              <Flame className="w-3 h-3 text-rose-400" />
+                              <span>Add Strike</span>
                             </button>
                             <button
                               type="button"
@@ -1378,13 +1384,13 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
         <Modal
           isOpen={Boolean(editingParticipation)}
           onClose={() => setEditingParticipation(null)}
-          title={isMainAdmin ? "Member Attendance & Penalty" : "Manual Penalty Management"}
+          title={isMainAdmin ? "Member Attendance & Strike" : "Add Strike"}
           subtitle={
             isMainAdmin
-              ? "Update slot, attendance, and manual penalties"
-              : `Review attendance & set penalty for this event`
+              ? "Update slot, attendance, and member strikes"
+              : `Review attendance & add strike for this event`
           }
-          icon={isMainAdmin ? <Edit3 className="w-5 h-5 text-amber-400" /> : <ShieldAlert className="w-5 h-5 text-rose-400" />}
+          icon={isMainAdmin ? <Edit3 className="w-5 h-5 text-amber-400" /> : <Flame className="w-5 h-5 text-rose-400" />}
           maxWidth="md"
           position="top"
         >
@@ -1594,13 +1600,16 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
                   </>
                 )}
 
-                {/* Section: Manual Penalty Decision */}
+                {/* Section: Strike Decision */}
                 <div className="p-3 sm:p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-3">
                   <div className="flex items-center justify-between">
                     <label className="text-xs font-fantasy font-bold text-amber-300 uppercase flex items-center gap-1.5">
-                      <ShieldAlert className="w-3.5 h-3.5 text-rose-400" />
-                      <span>Manual Penalty Decision</span>
+                      <Flame className="w-3.5 h-3.5 text-rose-400" />
+                      <span>Strike Decision</span>
                     </label>
+                    <span className="text-[11px] text-slate-400">
+                      Current Strikes: <strong className="text-rose-400 font-mono font-bold">{member.strikes}</strong>
+                    </span>
                   </div>
 
                   <div className="grid grid-cols-3 gap-2">
@@ -1613,7 +1622,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
                           : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700'
                       }`}
                     >
-                      None
+                      No Strike
                     </button>
 
                     <button
@@ -1628,7 +1637,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
                           : 'bg-slate-900 border-slate-800 text-rose-400 hover:border-rose-500'
                       }`}
                     >
-                      Issue Penalty
+                      Issue Strike (+1)
                     </button>
 
                     <button
@@ -1710,7 +1719,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
                       className="w-full sm:w-auto justify-center btn-kingshot-gold px-4 py-2 text-xs font-fantasy font-black uppercase flex items-center gap-1.5 cursor-pointer shadow-md"
                     >
                       <Check className="w-4 h-4" />
-                      <span>{isSavingEdit ? 'Saving...' : isMainAdmin ? 'Save Changes' : 'Save Penalty'}</span>
+                      <span>{isSavingEdit ? 'Saving...' : isMainAdmin ? 'Save Changes' : editPenaltyStatus === 'ISSUED' ? 'Confirm Strike' : 'Save Decision'}</span>
                     </button>
                   </div>
                 </div>
