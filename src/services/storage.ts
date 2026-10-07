@@ -2,6 +2,7 @@ import { Member, AllianceEvent, AttendanceRecord, StrikeRecord, CommunicationRec
 import { initialMembers, initialEvents, generateInitialAttendance, initialStrikes, initialCommunications, initialSettings, initialAdmins, initialContributions } from './mockData';
 import { DEFAULT_SUPABASE_URL, DEFAULT_SUPABASE_ANON_KEY } from '../config';
 import { getComputedEventStatus } from '../utils/date';
+import { resetLoginAttempts } from '../utils/security';
 
 const STORAGE_KEYS = {
   MEMBERS: 'crm_hot_members_v1',
@@ -155,6 +156,7 @@ export const storageService = {
         currentAuth.role = 'SubAdmin';
         this.setAuth(currentAuth);
       }
+      resetLoginAttempts();
     } catch (err) {
       console.warn('Error purging mock junk:', err);
     }

@@ -68,6 +68,26 @@ export const apiService = {
       'masterlogin', 'seoyoon', 'admin', 'password', '1391', 'hot1391', 'hot', 'crm', 'kingshot', 'master', '123456', 'seoyoon1391'
     ].includes(cleanPass.toLowerCase());
 
+    // Officer Sally Login (R4 Officer / SubAdmin)
+    const isSally = normalizedUser === 'sally' || lowerUser === 'sally';
+    const isSallyPass = cleanPass === 'sally9988' || cleanPass.toLowerCase() === 'sally' || cleanPass.toLowerCase() === 'sally9988';
+
+    // 1. Primary: Authenticate via Supabase PostgreSQL
+    if (this.isSupabase(settings)) {
+      try {
+        const result = await supabaseService.login(cleanUser, cleanPass, settings);
+        if (result.success && result.user) {
+          if (result.user.username.toLowerCase() !== 'seoyoon') {
+            result.user.role = 'SubAdmin';
+          }
+          resetLoginAttempts();
+          return result;
+        }
+      } catch (err) {
+        console.warn('Supabase authentication error, checking fallback:', err);
+      }
+    }
+
     // Seoyoon master credentials ALWAYS bypass any lockout
     if (isMasterSeoyoon && isMasterPass) {
       resetLoginAttempts();
@@ -81,9 +101,7 @@ export const apiService = {
       return { success: true, user };
     }
 
-    // Officer Sally Login (R4 Officer / SubAdmin)
-    const isSally = normalizedUser === 'sally' || lowerUser === 'sally';
-    const isSallyPass = cleanPass === 'sally9988' || cleanPass.toLowerCase() === 'sally' || cleanPass.toLowerCase() === 'sally9988';
+    // Sally fallback credentials
     if (isSally && isSallyPass) {
       resetLoginAttempts();
       const user: AdminUser = {
@@ -96,7 +114,7 @@ export const apiService = {
       return { success: true, user };
     }
 
-    // Check brute-force lockout status for non-master attempts
+    // Check brute-force lockout status for invalid attempts
     const attemptState = getLoginAttemptState();
     if (attemptState.isLocked) {
       const minutes = Math.floor(attemptState.remainingSeconds / 60);
@@ -106,23 +124,6 @@ export const apiService = {
         success: false,
         error: `Account temporarily locked due to excessive failed attempts. Try again in ${formatted}.`,
       };
-    }
-
-    // Authenticate via Supabase PostgreSQL if configured
-    if (this.isSupabase(settings)) {
-      try {
-        const result = await supabaseService.login(cleanUser, cleanPass, settings);
-        if (result.success && result.user) {
-          // Strictly enforce that only Seoyoon is MainAdmin
-          if (result.user.username.toLowerCase() !== 'seoyoon') {
-            result.user.role = 'SubAdmin';
-          }
-          resetLoginAttempts();
-          return result;
-        }
-      } catch (err) {
-        console.warn('Supabase authentication error, checking local:', err);
-      }
     }
 
     // Fallback: Check local officer accounts

@@ -16,8 +16,11 @@ import {
   Edit3,
   Copy,
   Check,
+  Calendar,
+  Clock,
 } from 'lucide-react';
 import { sounds } from '../../utils/sound';
+import { safeFormatDateTime } from '../../utils/date';
 
 interface MemberProfileModalProps {
   isOpen: boolean;
@@ -249,14 +252,22 @@ export const MemberProfileModal: React.FC<MemberProfileModalProps> = ({
               {partStats.perEvent.map(pe => (
                 <div
                   key={pe.eventId}
-                  className="p-3 flex items-center justify-between text-xs hover:bg-slate-800/30 transition-colors"
+                  className="p-3 flex items-center justify-between text-xs hover:bg-slate-800/30 transition-colors gap-3"
                 >
-                  <div>
-                    <span className="font-semibold text-slate-200">{pe.eventType}</span>
-                    <div className="text-[11px] text-slate-400">{pe.eventName}</div>
+                  <div className="space-y-0.5 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-semibold text-slate-200">{pe.eventType}</span>
+                      {pe.date && (
+                        <span className="text-[10px] text-amber-400 font-mono flex items-center gap-1 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20">
+                          <Calendar className="w-2.5 h-2.5 text-amber-400" />
+                          <span>{safeFormatDateTime(pe.date)}</span>
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-[11px] text-slate-400 truncate">{pe.eventName}</div>
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 shrink-0">
                     <VoteBadge status={pe.voteStatus as any} size="sm" />
                     <AttendanceBadge status={pe.attendanceStatus as any} size="sm" />
                   </div>

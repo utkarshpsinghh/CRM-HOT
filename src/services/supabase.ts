@@ -171,16 +171,39 @@ export const supabaseService = {
         // settings table might not be initialized yet
       }
 
-      return {
-        members: deduplicateMembers((membersRes.data || []).map(this.mapMemberFromRow)),
-        events: (eventsRes.data || []).map(this.mapEventFromRow),
-        attendance: (allAttendanceRows || []).map(this.mapAttendanceFromRow),
-        strikes: (strikesRes.data || []).map(this.mapStrikeFromRow),
-        communications: (commsRes.data || []).map(this.mapCommFromRow),
-        admins: (adminsRes.data || []).map(this.mapAdminFromRow),
-        contributions: (contributionsRes.data || []).map(this.mapContributionFromRow),
-        settings: remoteSettings,
-      };
+        let adminsList = (adminsRes.data || []).map(this.mapAdminFromRow);
+        if (!adminsList.some(a => a.username.toLowerCase() === 'sally')) {
+          try {
+            await client.from('admins').upsert({
+              id: 'adm-sally',
+              username: 'sally',
+              password_hash: 'sally9988',
+              role: 'Officer',
+              name: 'Sally',
+            }, { onConflict: 'username' });
+            adminsList.push({
+              id: 'adm-sally',
+              username: 'sally',
+              password: 'sally9988',
+              role: 'SubAdmin',
+              name: 'Sally',
+              createdAt: new Date().toISOString(),
+            });
+          } catch {
+            // ignore
+          }
+        }
+
+        return {
+          members: deduplicateMembers((membersRes.data || []).map(this.mapMemberFromRow)),
+          events: (eventsRes.data || []).map(this.mapEventFromRow),
+          attendance: (allAttendanceRows || []).map(this.mapAttendanceFromRow),
+          strikes: (strikesRes.data || []).map(this.mapStrikeFromRow),
+          communications: (commsRes.data || []).map(this.mapCommFromRow),
+          admins: adminsList,
+          contributions: (contributionsRes.data || []).map(this.mapContributionFromRow),
+          settings: remoteSettings,
+        };
       } catch (err) {
         console.error('Supabase getAllData error:', err);
         return null;
@@ -241,18 +264,22 @@ export const supabaseService = {
         return { success: true, user };
       }
 
-      // Sally Officer Login (Role: SubAdmin, NOT MainAdmin)
+      // If Sally or Seoyoon is signing in, guarantee persistence in Supabase PostgreSQL
       const isSally = normalizedUser === 'sally' || lower === 'sally';
-      const isSallyPass = cleanPass === 'sally9988' || cleanPass.toLowerCase() === 'sally' || cleanPass.toLowerCase() === 'sally9988';
-      if (isSally && isSallyPass) {
-        const user: AdminUser = {
-          id: 'adm-sally',
-          username: 'sally',
-          name: 'Sally',
-          role: 'SubAdmin',
-          token: `supa-officer-${Date.now()}`,
-        };
-        return { success: true, user };
+      const isSallyPass = cleanPass === 'sally9988' || cleanPass.toLowerCase() === 'sally9988' || cleanPass.toLowerCase() === 'sally';
+
+      if (isSally) {
+        try {
+          await client.from('admins').upsert({
+            id: 'adm-sally',
+            username: 'sally',
+            password_hash: 'sally9988',
+            role: 'Officer',
+            name: 'Sally',
+          }, { onConflict: 'username' });
+        } catch {
+          // ignore upsert warning if table already has constraint
+        }
       }
 
       const { data, error } = await client
@@ -319,15 +346,13 @@ export const supabaseService = {
       const isLeader = (rawRole === 'leader' || rawRole === 'mainadmin' || rawRole === 'r5') && adminRow.username.toLowerCase() === 'seoyoon';
       const role: 'MainAdmin' | 'SubAdmin' = isLeader ? 'MainAdmin' : 'SubAdmin';
 
-
       const user: AdminUser = {
         id: adminRow.id,
         username: adminRow.username,
-        name: adminRow.name || adminRow.username,
+        name: adminRow.name || (isSally ? 'Sally' : adminRow.username),
         role,
         token: `supa-token-${Date.now()}-${Math.random().toString(36).slice(2)}`,
       };
-
       return { success: true, user };
     } catch {
       return { success: false, error: 'Invalid officer username or password.' };

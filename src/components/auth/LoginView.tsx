@@ -43,11 +43,12 @@ export const LoginView: React.FC = () => {
 
   const isLocked = lockoutSeconds > 0;
 
-  const isSeoyoonInput = username.trim().toLowerCase().replace(/[\s_-]+/g, '') === 'seoyoon';
+  const cleanInputUser = username.trim().toLowerCase().replace(/[\s_-]+/g, '');
+  const isMasterOrSally = cleanInputUser === 'seoyoon' || cleanInputUser === 'sally';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if ((isLocked && !isSeoyoonInput) || isSubmitting) return;
+    if (isSubmitting) return;
 
     setError(null);
     setIsSubmitting(true);
@@ -59,7 +60,7 @@ export const LoginView: React.FC = () => {
     if (!result.success) {
       setError(result.error || 'Invalid officer credentials. Please check your username and password.');
       const state = getLoginAttemptState();
-      if (state.isLocked && !isSeoyoonInput) {
+      if (state.isLocked && !isMasterOrSally) {
         setLockoutSeconds(state.remainingSeconds);
       }
     } else {
@@ -197,13 +198,13 @@ export const LoginView: React.FC = () => {
             <div className="pt-2">
               <button
                 type="submit"
-                disabled={isSubmitting || (isLocked && !isSeoyoonInput) || !username.trim() || !password}
+                disabled={isSubmitting || (isLocked && !isMasterOrSally) || !username.trim() || !password}
                 className="btn-primary w-full py-2.5 text-sm font-semibold flex items-center justify-center gap-2 cursor-pointer shadow-md disabled:opacity-50"
               >
                 <span>
                   {isSubmitting
                     ? 'Authenticating...'
-                    : (isLocked && !isSeoyoonInput)
+                    : (isLocked && !isMasterOrSally)
                     ? `Locked (${formatCountdown(lockoutSeconds)})`
                     : 'Sign In'}
                 </span>

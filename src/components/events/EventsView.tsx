@@ -29,8 +29,6 @@ export const EventsView: React.FC<EventsViewProps> = ({ onOpenCreateEvent }) => 
     members,
     setSelectedEventIdForAttendance,
     setActiveTab,
-    syncGoogleSheetEvents,
-    isSyncing,
   } = useCRM();
   const { isMainAdmin } = useAuth();
 
@@ -106,23 +104,6 @@ export const EventsView: React.FC<EventsViewProps> = ({ onOpenCreateEvent }) => 
         </div>
 
         <div className="flex items-center gap-2.5 flex-wrap">
-          {/* Direct Google Sheets Sync */}
-          {isMainAdmin && (
-            <button
-              type="button"
-              onClick={async () => {
-                sounds.playClick();
-                await syncGoogleSheetEvents();
-              }}
-              disabled={isSyncing}
-              className="btn-secondary px-3.5 py-2 text-xs font-semibold flex items-center gap-1.5 cursor-pointer shadow-sm disabled:opacity-50"
-              title="Sync events from official Google Sheet"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 text-amber-400 ${isSyncing ? 'animate-spin' : ''}`} />
-              <span>{isSyncing ? 'Syncing...' : 'Sync Events Sheet'}</span>
-            </button>
-          )}
-
           {isMainAdmin && (
             <button
               onClick={() => {

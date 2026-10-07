@@ -48,7 +48,6 @@ export const MembersView: React.FC<MembersViewProps> = ({
     memberFilter,
     setMemberFilter,
     syncKingshotRoster,
-    syncGoogleSheetRoster,
     wipeAllMembers,
     settings,
     isSyncing,
@@ -61,11 +60,7 @@ export const MembersView: React.FC<MembersViewProps> = ({
 
   // Sync Modal & Clean Refresh States
   const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
-  const [syncTab, setSyncTab] = useState<'official' | 'sheet' | 'paste' | 'file'>('official');
-  const [sheetUrl, setSheetUrl] = useState(
-    settings.googleSheetUrl ||
-      'https://docs.google.com/spreadsheets/d/1z_oPJgwZ2TE05MNe6DFa7-XBw9o1N-3eaLWEoDFCt8c/edit?gid=875082368#gid=875082368'
-  );
+  const [syncTab, setSyncTab] = useState<'official' | 'paste' | 'file'>('official');
   const [pastedRoster, setPastedRoster] = useState('');
   const [replaceExisting, setReplaceExisting] = useState(true);
   const [isWipeConfirmOpen, setIsWipeConfirmOpen] = useState(false);
@@ -87,13 +82,6 @@ export const MembersView: React.FC<MembersViewProps> = ({
 
   const handleExecuteSync = async () => {
     sounds.playClick();
-    if (syncTab === 'sheet') {
-      const res = await syncGoogleSheetRoster(sheetUrl);
-      if (res && res.success) {
-        setIsSyncModalOpen(false);
-      }
-      return;
-    }
     const textToSync = (syncTab === 'paste' || syncTab === 'file') ? pastedRoster : undefined;
     const res = await syncKingshotRoster(textToSync, replaceExisting);
     if (res && res.success) {
@@ -790,7 +778,7 @@ export const MembersView: React.FC<MembersViewProps> = ({
             </div>
 
             {/* Sync Tabs */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 p-1 rounded-xl bg-slate-950 border border-slate-800">
+            <div className="grid grid-cols-3 gap-1.5 p-1 rounded-xl bg-slate-950 border border-slate-800">
               <button
                 type="button"
                 onClick={() => {
@@ -805,21 +793,6 @@ export const MembersView: React.FC<MembersViewProps> = ({
               >
                 <Shield className="w-3.5 h-3.5 shrink-0" />
                 <span className="truncate">Official HOT</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  sounds.playClick();
-                  setSyncTab('sheet');
-                }}
-                className={`py-1.5 px-2 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                  syncTab === 'sheet'
-                    ? 'bg-amber-500 text-slate-950 shadow-sm'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                <FileSpreadsheet className="w-3.5 h-3.5 shrink-0" />
-                <span className="truncate">Google Sheet</span>
               </button>
               <button
                 type="button"
@@ -875,56 +848,7 @@ export const MembersView: React.FC<MembersViewProps> = ({
                 </div>
                 <div className="pt-2 border-t border-slate-800 text-[11px] text-emerald-400 flex items-center gap-1.5">
                   <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
-                  <span>Ready to synchronize directly into local storage and database.</span>
-                </div>
-              </div>
-            )}
-
-            {/* TAB 2: GOOGLE SHEET */}
-            {syncTab === 'sheet' && (
-              <div className="space-y-3 p-3.5 rounded-xl bg-slate-950 border border-slate-800">
-                <div className="flex items-center justify-between gap-2 flex-wrap">
-                  <div className="flex items-center gap-2">
-                    <FileSpreadsheet className="w-4 h-4 text-emerald-400 shrink-0" />
-                    <span className="text-xs font-semibold text-slate-200">
-                      Official HOT Alliance Google Sheet
-                    </span>
-                  </div>
-                  <a
-                    href={sheetUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-[11px] text-amber-400 hover:text-amber-300 underline flex items-center gap-1 font-medium"
-                  >
-                    <span>Open Sheet</span>
-                    <ExternalLink className="w-3 h-3" />
-                  </a>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="block text-[11px] font-semibold text-slate-400 uppercase">
-                    Google Spreadsheet URL
-                  </label>
-                  <input
-                    type="url"
-                    value={sheetUrl}
-                    onChange={e => setSheetUrl(e.target.value)}
-                    placeholder="https://docs.google.com/spreadsheets/d/..."
-                    className="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-slate-100 text-xs font-mono focus:outline-none focus:border-amber-500"
-                  />
-                </div>
-
-                <div className="text-[11px] text-slate-400 space-y-1 leading-relaxed bg-slate-900/60 p-2.5 rounded-lg border border-slate-800">
-                  <p className="text-slate-300 font-semibold flex items-center gap-1">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                    <span>Direct Roster Synchronization:</span>
-                  </p>
-                  <p>
-                    Downloads the live CSV export from your Google Sheet and updates all alliance member ranks, battle power, strikes, and communications.
-                  </p>
-                  <p className="text-amber-400/90 text-[10px]">
-                    Note: If Google returns restricted/unauthorized, ensure the sheet Sharing permissions are set to &quot;Anyone with the link can view&quot;.
-                  </p>
+                  <span>Ready to synchronize directly into database.</span>
                 </div>
               </div>
             )}
@@ -997,8 +921,7 @@ export const MembersView: React.FC<MembersViewProps> = ({
                 onClick={handleExecuteSync}
                 disabled={
                   isSyncing ||
-                  ((syncTab === 'paste' || syncTab === 'file') && !pastedRoster.trim()) ||
-                  (syncTab === 'sheet' && !sheetUrl.trim())
+                  ((syncTab === 'paste' || syncTab === 'file') && !pastedRoster.trim())
                 }
                 className="btn-primary flex-1 py-2 text-xs font-semibold flex items-center justify-center gap-2 cursor-pointer shadow-sm disabled:opacity-50"
               >
@@ -1008,8 +931,6 @@ export const MembersView: React.FC<MembersViewProps> = ({
                     ? 'Synchronizing...'
                     : syncTab === 'official'
                     ? 'Sync Official Members (94)'
-                    : syncTab === 'sheet'
-                    ? 'Sync from Google Sheet'
                     : 'Sync & Save Members'}
                 </span>
               </button>
