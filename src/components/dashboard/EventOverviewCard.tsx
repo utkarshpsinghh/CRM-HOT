@@ -47,6 +47,8 @@ export const EventOverviewCard: React.FC<EventOverviewCardProps> = ({ event }) =
     minute: '2-digit',
   });
 
+  const isBearTrap = event.eventType === 'Bear Trap';
+
   return (
     <div
       className={`rounded-xl border p-4 transition-all duration-150 flex flex-col justify-between select-none relative overflow-hidden bg-slate-900/75 hover:bg-slate-900 ${
@@ -98,7 +100,7 @@ export const EventOverviewCard: React.FC<EventOverviewCardProps> = ({ event }) =
         <div className="my-3 space-y-1">
           <ProgressBar
             percentage={metrics.overallParticipationRate}
-            label="Turnout Rate"
+            label={isBearTrap ? "Turnout Rate" : "Joined Rate"}
             subLabel={`${metrics.uniqueAttendees}/${metrics.eligibleMembersCount}`}
             color={
               metrics.overallParticipationRate >= 75
@@ -125,7 +127,7 @@ export const EventOverviewCard: React.FC<EventOverviewCardProps> = ({ event }) =
               {slot1?.startTime || '16:00 UTC'}
             </div>
             <div className="text-[10px] text-slate-500 mt-0.5">
-              Turnout: <span className="text-slate-300 font-semibold">{slot1Metrics?.participationRate || 0}%</span>
+              {isBearTrap ? 'Turnout' : 'Joined'}: <span className="text-slate-300 font-semibold">{slot1Metrics?.participationRate || 0}%</span>
             </div>
           </div>
 
@@ -142,20 +144,26 @@ export const EventOverviewCard: React.FC<EventOverviewCardProps> = ({ event }) =
               {slot2?.startTime || '02:00 UTC'}
             </div>
             <div className="text-[10px] text-slate-500 mt-0.5">
-              Turnout: <span className="text-slate-300 font-semibold">{slot2Metrics?.participationRate || 0}%</span>
+              {isBearTrap ? 'Turnout' : 'Joined'}: <span className="text-slate-300 font-semibold">{slot2Metrics?.participationRate || 0}%</span>
             </div>
           </div>
         </div>
 
-        {/* Voting & Non-voter Stats */}
+        {/* Voting / Slot Selection & Non-voter / Unselected Stats */}
         <div className="flex flex-wrap items-center justify-between gap-1.5 text-[11px] px-2.5 py-1.5 rounded-lg bg-slate-950/40 border border-slate-800/50 mb-3 text-slate-400">
           <div className="flex items-center gap-1">
             <Layers className="w-3 h-3 text-sky-400" />
-            <span>Poll: <strong className="text-sky-300 font-mono">{metrics.totalVoters}</strong> ({metrics.votingRate}%)</span>
+            <span>
+              {isBearTrap ? 'Poll: ' : 'Selected: '}
+              <strong className="text-sky-300 font-mono">{metrics.totalVoters}</strong> ({metrics.votingRate}%)
+            </span>
           </div>
           <div className="flex items-center gap-1">
             <Users className="w-3 h-3 text-purple-400" />
-            <span>Non-voters joined: <strong className="text-purple-300 font-mono">{metrics.nonVotersAttendedCount}</strong></span>
+            <span>
+              {isBearTrap ? 'Non-voters joined: ' : 'Unselected joined: '}
+              <strong className="text-purple-300 font-mono">{metrics.nonVotersAttendedCount}</strong>
+            </span>
           </div>
         </div>
       </div>
@@ -163,7 +171,11 @@ export const EventOverviewCard: React.FC<EventOverviewCardProps> = ({ event }) =
       {/* Action Footer */}
       <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between">
         <span className="text-[11px] text-slate-400 font-medium">
-          {metrics.noVoteCount > 0 ? `${metrics.noVoteCount} unvoted members` : 'All votes recorded'}
+          {metrics.noVoteCount > 0
+            ? `${metrics.noVoteCount} ${isBearTrap ? 'unvoted members' : 'unselected members'}`
+            : isBearTrap
+            ? 'All votes recorded'
+            : 'All slots selected'}
         </span>
         <button
           onClick={handleOpenAttendance}

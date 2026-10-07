@@ -349,7 +349,9 @@ export const EventsView: React.FC<EventsViewProps> = ({ onOpenCreateEvent }) => 
                   {/* Overall Turnout Stats */}
                   <div className="my-3 p-3 rounded-lg bg-slate-950/60 border border-slate-800/80 space-y-2">
                     <div className="flex items-center justify-between text-xs">
-                      <span className="text-slate-400">Actual Participation:</span>
+                      <span className="text-slate-400">
+                        {event.eventType === 'Bear Trap' ? 'Actual Turnout:' : 'Turnout (Joined):'}
+                      </span>
                       <span className="font-mono font-bold text-amber-400 text-sm">
                         {metrics.overallParticipationRate}% ({metrics.uniqueAttendees}/{metrics.eligibleMembersCount})
                       </span>
@@ -361,8 +363,14 @@ export const EventsView: React.FC<EventsViewProps> = ({ onOpenCreateEvent }) => 
                       />
                     </div>
                     <div className="flex items-center justify-between text-[11px] text-slate-400 pt-0.5">
-                      <span>Voted: {metrics.votingRate}% ({metrics.totalVoters})</span>
-                      <span>No Vote: {metrics.noVoteCount}</span>
+                      <span>
+                        {event.eventType === 'Bear Trap' ? 'Voted: ' : 'Selected: '}
+                        {metrics.votingRate}% ({metrics.totalVoters})
+                      </span>
+                      <span>
+                        {event.eventType === 'Bear Trap' ? 'No Vote: ' : 'Not Selected: '}
+                        {metrics.noVoteCount}
+                      </span>
                     </div>
                   </div>
 

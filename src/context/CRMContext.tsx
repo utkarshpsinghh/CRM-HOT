@@ -1401,6 +1401,15 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     eventId: string,
     updates: Array<{ memberId: string; voteStatus?: VoteStatus; attendanceStatus?: AttendanceStatus }>
   ) => {
+    if (admin && admin.role !== 'MainAdmin') {
+      sounds.playAlert();
+      addToast({
+        type: 'warning',
+        title: 'Action Restricted',
+        message: 'Only Main Admin can modify event attendance.',
+      });
+      return;
+    }
     sounds.playSuccess();
     const now = new Date().toISOString();
     const current = storageService.getAttendance();
@@ -1555,6 +1564,15 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     slotId: string | null,
     voteStatus: ParticipationVoteStatus
   ) => {
+    if (admin && admin.role !== 'MainAdmin') {
+      sounds.playAlert();
+      addToast({
+        type: 'warning',
+        title: 'Action Restricted',
+        message: 'Only Main Admin can modify event attendance or slot selections.',
+      });
+      return;
+    }
     sounds.playClick();
     const now = new Date().toISOString();
 
@@ -1635,6 +1653,15 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     slotId: string | null,
     attendanceStatus: ParticipationAttendanceStatus
   ) => {
+    if (admin && admin.role !== 'MainAdmin') {
+      sounds.playAlert();
+      addToast({
+        type: 'warning',
+        title: 'Action Restricted',
+        message: 'Only Main Admin can modify event attendance.',
+      });
+      return;
+    }
     sounds.playClick();
     const now = new Date().toISOString();
 
@@ -1715,6 +1742,15 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     penaltyStatus: PenaltyStatus,
     penaltyNote?: string
   ) => {
+    if (admin && admin.role !== 'MainAdmin') {
+      sounds.playAlert();
+      addToast({
+        type: 'warning',
+        title: 'Action Restricted',
+        message: 'Only Main Admin can modify penalties.',
+      });
+      return;
+    }
     sounds.playSuccess();
     const now = new Date().toISOString();
 
@@ -1751,6 +1787,15 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const bulkUpdateParticipations = async (eventId: string, updates: EventParticipation[]) => {
+    if (admin && admin.role !== 'MainAdmin') {
+      sounds.playAlert();
+      addToast({
+        type: 'warning',
+        title: 'Action Restricted',
+        message: 'Only Main Admin can modify event attendance.',
+      });
+      return;
+    }
     sounds.playSuccess();
     const updateMap = new Map(updates.map(u => [u.memberId, u]));
     setEventParticipations(prev => {
