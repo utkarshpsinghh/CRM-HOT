@@ -4,29 +4,39 @@ import { createBaseEmbed, COLORS, formatRank } from '../utils/embedBuilder.js';
 
 export const data = new SlashCommandBuilder()
   .setName('roster')
-  .setDescription('Alliance census summary and rank division member lists')
+  .setDescription('Alliance census summary, full 80-member directory, and rank divisions')
   .addStringOption(opt =>
     opt
       .setName('rank')
-      .setDescription('Filter by specific rank division')
+      .setDescription('Select view: Census summary, full 80-member list, or specific rank')
       .setRequired(false)
       .addChoices(
-        { name: 'All Ranks (Alliance Census)', value: 'ALL' },
-        { name: 'R5 (Alliance Leader)', value: 'R5' },
-        { name: 'R4 (Alliance Officers)', value: 'R4' },
-        { name: 'R3 (Elite Division)', value: 'R3' },
-        { name: 'R2 (Warrior Division)', value: 'R2' },
-        { name: 'R1 (Soldiers)', value: 'R1' }
+        { name: '📊 Census & Leadership (Summary)', value: 'CENSUS' },
+        { name: '📜 Full Roster (All 80 Members)', value: 'ALL' },
+        { name: '👑 R5 (Alliance Leader)', value: 'R5' },
+        { name: '🛡️ R4 (Alliance Officers - 9)', value: 'R4' },
+        { name: '⚔️ R3 (Elite Division - 62)', value: 'R3' },
+        { name: '🏹 R2 (Warrior Division - 6)', value: 'R2' },
+        { name: '🗡️ R1 (Soldiers - 2)', value: 'R1' }
       )
   );
 
 export async function execute(interaction) {
-  const rankFilter = interaction.options.getString('rank') || 'ALL';
+  const rankFilter = interaction.options.getString('rank') || 'CENSUS';
   await interaction.deferReply();
 
   try {
-    const res = await crmApi.getAllMembers('Active');
+    const res = await crmApi.getAllMembers();
     const members = res.data || [];
+
+    // Sort: R5 -> R4 -> R3 -> R2 -> R1, then alphabetical by name
+    const rankPriority = { R5: 1, R4: 2, R3: 3, R2: 4, R1: 5 };
+    members.sort((a, b) => {
+      const pA = rankPriority[(a.rank || '').toUpperCase()] || 9;
+      const pB = rankPriority[(b.rank || '').toUpperCase()] || 9;
+      if (pA !== pB) return pA - pB;
+      return a.name.localeCompare(b.name);
+    });
 
     const r5s = members.filter(m => (m.rank || '').toUpperCase() === 'R5');
     const r4s = members.filter(m => (m.rank || '').toUpperCase() === 'R4');
@@ -34,11 +44,12 @@ export async function execute(interaction) {
     const r2s = members.filter(m => (m.rank || '').toUpperCase() === 'R2');
     const r1s = members.filter(m => (m.rank || '').toUpperCase() === 'R1');
 
-    if (rankFilter === 'ALL') {
+    // 1. CENSUS SUMMARY (Default)
+    if (rankFilter === 'CENSUS') {
       const embed = createBaseEmbed('🏰 [HOT] Alliance Census & Hierarchy', COLORS.GOLD)
         .setDescription(
           `**Kingdom #1391 • House of Titans [HOT]**\n` +
-          `Active Combat Roster: **${members.length} Members**`
+          `Active Alliance Roster: **${members.length} Members**`
         )
         .addFields(
           {
@@ -53,22 +64,52 @@ export async function execute(interaction) {
             inline: false,
           },
           {
-            name: '👑 Alliance Leadership Team (R5 & R4)',
+            name: `👑 Alliance Leadership Team (${r5s.length + r4s.length} Leaders)`,
             value: [
               ...r5s.map(m => `• 👑 **${m.name}** [R5] \`${m.gameId || 'ID: -'}\``),
               ...r4s.map(m => `• 🛡️ **${m.name}** [R4] \`${m.gameId || 'ID: -'}\``),
-            ].slice(0, 15).join('\n') || 'None recorded',
+            ].join('\n') || 'None recorded',
             inline: false,
           }
         )
         .setFooter({
-          text: 'Use /roster [rank] to view members within a specific rank division.',
+          text: 'Tip: Run "/roster rank:Full Roster" to view all 80 members with Game IDs!',
         });
 
       return await interaction.editReply({ embeds: [embed] });
     }
 
-    // Specific rank division requested
+    // 2. FULL ROSTER (ALL 80 MEMBERS)
+    if (rankFilter === 'ALL') {
+      const embed = createBaseEmbed(`🛡️ [HOT] Full Alliance Directory (${members.length} Warriors)`, COLORS.GOLD)
+        .setDescription(
+          `**Kingdom #1391 • House of Titans [HOT]**\n` +
+          `Complete roster directory of all **${members.length}** warriors sorted by rank:`
+        );
+
+      const memberLines = members.map((m, idx) => {
+        const idText = m.gameId ? ` \`${m.gameId}\`` : '';
+        const strikesText = m.strikes > 0 ? ` ⚠️ ${m.strikes}s` : '';
+        return `${idx + 1}. **${m.name}** [${m.rank}]${idText}${strikesText}`;
+      });
+
+      // Split into 4 chunks of 20
+      const chunkSize = 20;
+      for (let i = 0; i < memberLines.length; i += chunkSize) {
+        const chunk = memberLines.slice(i, i + chunkSize);
+        const start = i + 1;
+        const end = Math.min(i + chunkSize, memberLines.length);
+        embed.addFields({
+          name: `Warriors (${start} - ${end})`,
+          value: chunk.join('\n'),
+          inline: false,
+        });
+      }
+
+      return await interaction.editReply({ embeds: [embed] });
+    }
+
+    // 3. SPECIFIC RANK DIVISION
     const rankMap = {
       R5: { list: r5s, label: '👑 R5 (Leader)' },
       R4: { list: r4s, label: '🛡️ R4 (Officers)' },
@@ -78,22 +119,22 @@ export async function execute(interaction) {
     };
 
     const target = rankMap[rankFilter] || { list: [], label: rankFilter };
-    const memberLines = target.list.map(m => {
-      const strikesText = m.strikes > 0 ? ` ⚠️ ${m.strikes}s` : '';
-      return `• **${m.name}** \`${m.gameId || 'ID: -'}\`${strikesText}`;
+    const memberLines = target.list.map((m, idx) => {
+      const idText = m.gameId ? ` \`${m.gameId}\`` : '';
+      const strikesText = m.strikes > 0 ? ` ⚠️ ${m.strikes} strikes` : '';
+      return `${idx + 1}. **${m.name}**${idText}${strikesText}`;
     });
 
-    const embed = createBaseEmbed(`🛡️ [HOT] Roster: ${target.label}`, COLORS.GOLD)
+    const embed = createBaseEmbed(`🛡️ [HOT] Roster Division: ${target.label}`, COLORS.GOLD)
       .setDescription(
-        `Total Members in this rank: **${target.list.length}**`
+        `Total Warriors in this division: **${target.list.length} Members**`
       );
 
-    // Split into chunks of 20 members to avoid Discord 1024 char field limits
     const chunkSize = 20;
     for (let i = 0; i < memberLines.length; i += chunkSize) {
       const chunk = memberLines.slice(i, i + chunkSize);
       embed.addFields({
-        name: i === 0 ? 'Warriors' : 'Warriors (Continued)',
+        name: i === 0 ? 'Division Members' : 'Division Members (Continued)',
         value: chunk.join('\n') || 'None recorded',
         inline: false,
       });
@@ -101,8 +142,8 @@ export async function execute(interaction) {
 
     if (memberLines.length === 0) {
       embed.addFields({
-        name: 'Warriors',
-        value: '*No members currently assigned to this rank division.*',
+        name: 'Division Members',
+        value: '*No warriors currently assigned to this rank division.*',
         inline: false,
       });
     }

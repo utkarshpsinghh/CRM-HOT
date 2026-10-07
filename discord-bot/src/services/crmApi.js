@@ -286,15 +286,35 @@ class CrmApiClient {
   }
 
   /**
-   * Fetch full roster
+   * Fetch full roster (all 80 active/non-archived alliance members)
    */
   async getAllMembers(status = '') {
     try {
       let query = this.supabase.from('members').select('*').limit(500);
-      if (status) query = query.ilike('status', status);
+      if (status) {
+        query = query.ilike('status', status);
+      } else {
+        query = query.neq('status', 'Archived');
+      }
       const { data } = await query;
 
-      const formatted = (data || []).map(row => {
+      // Deduplicate by name (handling any double-entry rows)
+      const seen = new Map();
+      for (const row of (data || [])) {
+        if (!row || !row.name) continue;
+        const key = row.name.trim().toLowerCase();
+        const existing = seen.get(key);
+        if (!existing) {
+          seen.set(key, row);
+        } else {
+          // Keep the row that has communication_note (Game ID) or recent timestamp
+          if (row.communication_note && !existing.communication_note) {
+            seen.set(key, row);
+          }
+        }
+      }
+
+      const formatted = Array.from(seen.values()).map(row => {
         let gameId = '';
         let cleanNote = row.communication_note || '';
         if (cleanNote) {
