@@ -9,18 +9,13 @@ import * as leaderboardCmd from './commands/leaderboard.js';
 import * as attendanceCmd from './commands/attendance.js';
 import * as eventsCmd from './commands/events.js';
 import * as beartrapCmd from './commands/beartrap.js';
+import * as voteCmd from './commands/vote.js';
 import * as strikeCmd from './commands/strike.js';
 import * as compareCmd from './commands/compare.js';
 import * as rosterCmd from './commands/roster.js';
 import * as mvpCmd from './commands/mvp.js';
 import * as inactivesCmd from './commands/inactives.js';
 import * as helpCmd from './commands/help.js';
-import * as rollcallCmd from './commands/rollcall.js';
-import * as checkinCmd from './commands/checkin.js';
-import * as streaksCmd from './commands/streaks.js';
-import * as saluteCmd from './commands/salute.js';
-import * as duelCmd from './commands/duel.js';
-import * as triviaCmd from './commands/trivia.js';
 
 validateConfig();
 
@@ -34,18 +29,13 @@ const commands = [
   attendanceCmd.data.toJSON(),
   eventsCmd.data.toJSON(),
   beartrapCmd.data.toJSON(),
+  voteCmd.data.toJSON(),
   strikeCmd.data.toJSON(),
   compareCmd.data.toJSON(),
   rosterCmd.data.toJSON(),
   mvpCmd.data.toJSON(),
   inactivesCmd.data.toJSON(),
   helpCmd.data.toJSON(),
-  rollcallCmd.data.toJSON(),
-  checkinCmd.data.toJSON(),
-  streaksCmd.data.toJSON(),
-  saluteCmd.data.toJSON(),
-  duelCmd.data.toJSON(),
-  triviaCmd.data.toJSON(),
 ];
 
 const rest = new REST({ version: '10' }).setToken(config.discordToken);

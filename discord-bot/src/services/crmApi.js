@@ -376,7 +376,7 @@ class CrmApiClient {
   /**
    * Link Discord user ID to an Alliance Member
    */
-  async linkDiscordUser(discordUserId, member) {
+  async linkDiscordUser(discordUserId, member, screenshotUrl = null) {
     try {
       const { data } = await this.supabase
         .from('settings')
@@ -393,6 +393,7 @@ class CrmApiClient {
         memberId: member.id,
         memberName: member.name,
         gameId: member.gameId,
+        screenshotUrl: screenshotUrl || null,
         linkedAt: new Date().toISOString(),
       };
 
@@ -404,6 +405,63 @@ class CrmApiClient {
     } catch (err) {
       console.error('[linkDiscordUser ERROR]:', err.message);
       return false;
+    }
+  }
+
+  /**
+   * Cast a slot vote for an event and directly sync it into CRM database
+   */
+  async castVote(memberId, eventId, slotId) {
+    try {
+      const { data: cacheRow } = await this.supabase
+        .from('settings')
+        .select('value')
+        .eq('key', 'crm_event_participations_cache')
+        .single();
+
+      let participations = [];
+      if (cacheRow && cacheRow.value) {
+        try { participations = JSON.parse(cacheRow.value); } catch {}
+      }
+
+      const now = new Date().toISOString();
+      let found = false;
+
+      for (let i = 0; i < participations.length; i++) {
+        const p = participations[i];
+        if (p.eventId === eventId && p.memberId === memberId) {
+          p.voteStatus = 'VOTED';
+          p.selectedSlotId = slotId;
+          p.updatedAt = now;
+          found = true;
+          break;
+        }
+      }
+
+      if (!found) {
+        participations.push({
+          id: `part-${eventId}-${memberId}`,
+          eventId,
+          memberId,
+          selectedSlotId: slotId,
+          voteStatus: 'VOTED',
+          attendanceStatus: 'NOT_MARKED',
+          attendanceSlotId: null,
+          penaltyStatus: 'NONE',
+          penaltyNote: null,
+          createdAt: now,
+          updatedAt: now,
+        });
+      }
+
+      await this.supabase
+        .from('settings')
+        .upsert({ key: 'crm_event_participations_cache', value: JSON.stringify(participations) }, { onConflict: 'key' });
+
+      return { success: true };
+    } catch (err) {
+      console.error('[castVote ERROR]:', err.message);
+      return { success: false, message: err.message };
     }
   }
 

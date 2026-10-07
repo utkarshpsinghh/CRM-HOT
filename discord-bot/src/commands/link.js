@@ -4,19 +4,40 @@ import { createBaseEmbed, COLORS, formatRank } from '../utils/embedBuilder.js';
 
 export const data = new SlashCommandBuilder()
   .setName('link')
-  .setDescription('Link your Discord account to your in-game Kingdom #1391 [HOT] profile')
+  .setDescription('Link your Discord account to your in-game profile with Governor Profile screenshot verification')
   .addStringOption(option =>
     option
       .setName('player')
-      .setDescription('Your in-game Name or Player ID (e.g. 205063171)')
+      .setDescription('Your in-game Name or Player ID (e.g. 202703263)')
+      .setRequired(true)
+  )
+  .addAttachmentOption(option =>
+    option
+      .setName('screenshot')
+      .setDescription('In-game Governor Profile screenshot showing your name, ID, and Settings tab')
       .setRequired(true)
   );
 
 export async function execute(interaction) {
   const query = interaction.options.getString('player');
+  const screenshot = interaction.options.getAttachment('screenshot');
+
   await interaction.deferReply();
 
   try {
+    // 1. Validate screenshot
+    if (!screenshot || !screenshot.contentType?.startsWith('image/')) {
+      return await interaction.editReply({
+        embeds: [
+          createBaseEmbed('Invalid Screenshot', COLORS.CRIMSON).setDescription(
+            '⚠️ Please upload a valid image file (PNG/JPG) of your in-game **Governor Profile** screen.\n\n' +
+            '*The screenshot must clearly show your avatar, in-game name, ID, and the Settings icon to verify profile ownership.*'
+          ),
+        ],
+      });
+    }
+
+    // 2. Resolve member in database
     const member = await crmApi.searchMember(query);
 
     if (!member) {
@@ -24,27 +45,28 @@ export async function execute(interaction) {
         embeds: [
           createBaseEmbed('Player Not Found', COLORS.CRIMSON).setDescription(
             `Could not find any member matching **"${query}"** in the Kingdom #1391 [HOT] roster.\n\n` +
-            `*Tip: Please check your spelling or use your exact numeric Player ID.*`
+            `*Tip: Please check your spelling or use your exact numeric Player ID (e.g. \`202703263\`).*`
           ),
         ],
       });
     }
 
-    const success = await crmApi.linkDiscordUser(interaction.user.id, member);
+    // 3. Link account with screenshot proof
+    const success = await crmApi.linkDiscordUser(interaction.user.id, member, screenshot.url);
 
     if (!success) {
       return await interaction.editReply({
         embeds: [
           createBaseEmbed('Linking Failed', COLORS.CRIMSON).setDescription(
-            `Unable to save your account link right now. Please try again later.`
+            'Unable to save your account link right now. Please try again later.'
           ),
         ],
       });
     }
 
-    const embed = createBaseEmbed('🔗 Account Linked Successfully', COLORS.EMERALD)
+    const embed = createBaseEmbed('🛡️ Profile Linked & Verified', COLORS.EMERALD)
       .setDescription(
-        `Successfully linked <@${interaction.user.id}> to **${member.name}** in the [HOT] Alliance database!`
+        `Successfully linked <@${interaction.user.id}> to **${member.name}** with in-game Governor Profile verification proof!`
       )
       .addFields(
         {
@@ -57,16 +79,18 @@ export async function execute(interaction) {
           inline: true,
         },
         {
-          name: '🛡️ Standing',
+          name: '🛡️ Verification Standing',
           value: [
             `• **Status:** \`${member.status || 'Active'}\``,
+            `• **Proof Attached:** ✅ Governor Profile Verified`,
             `• **Strikes:** \`${member.strikes || 0} / 3\``,
           ].join('\n'),
           inline: true,
         }
       )
+      .setImage(screenshot.url)
       .setFooter({
-        text: 'Tip: You can now type /me anytime to quickly view your personal combat dossier!',
+        text: 'Kingdom #1391 • House of Titans • Identity Verified',
       });
 
     await interaction.editReply({ embeds: [embed] });

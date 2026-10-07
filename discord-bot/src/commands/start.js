@@ -19,25 +19,23 @@ export async function execute(interaction) {
         .setDescription(
           `Greetings warrior! You have entered the official Discord command center of **House of Titans [HOT]**.\n\n` +
           `### 🚀 Step 1: Link Your In-Game Account\n` +
-          `To unlock personalized battle records, daily check-in streaks, combat duels, and role verification, link your in-game identity.\n\n` +
-          `👉 **Click the button below to link immediately**, or run **\`/link <in_game_name_or_id>\`**.`
+          `To unlock official combat records, Bear Trap voting, and roster verification, link your in-game identity with a **Governor Profile screenshot**.\n\n` +
+          `👉 **Click the button below to link immediately**, or type **\`/link player:<name_or_id> screenshot:<file>\`**.`
         )
         .addFields(
           {
             name: '✨ What You Unlock Upon Linking:',
             value: [
               '• **/me** — Instant personal battle dossier & turnout rating',
-              '• **/checkin** — Build daily attendance streaks & earn Titan titles',
-              '• **/duel** — Challenge alliance brothers & sisters to combat duels',
-              '• **/salute** — Commend fellow fighters for big plays in rallies',
+              '• **/vote** — Cast Bear Trap slot votes directly synchronized to CRM',
+              '• **/beartrap** — Live countdown & dual slot status for Bear Trap',
+              '• **/attendance** — Complete personal battle attendance ledger',
             ].join('\n'),
             inline: false,
           },
           {
             name: '📜 Public Reference Commands (Always Available):',
             value: [
-              '• **/beartrap** — Dual slot times & live battle countdown',
-              '• **/rollcall** — Interactive RSVP buttons for upcoming battles',
               '• **/leaderboard** — Top warriors ranked by attendance',
               '• **/roster** — Full 80-member alliance census & division directory',
               '• **/help** — Complete categorized command manual',
@@ -72,16 +70,16 @@ export async function execute(interaction) {
         {
           name: '🎯 Quick Combat Actions',
           value: [
-            '• **/checkin** — Claim your daily war room muster streak',
-            '• **/beartrap** — Check countdown & turnout for the next trap',
+            '• **/vote** — Cast or update your Bear Trap slot vote (synced to CRM)',
+            '• **/beartrap** — Check countdown & turnout for the next battle',
             '• **/me** — View your complete combat dossier & last 5 battles',
-            '• **/duel <opponent>** — Challenge an alliance comrade to a duel',
-            '• **/trivia play** — Test your Kingshot & kingdom tactical knowledge',
+            '• **/leaderboard** — View alliance attendance rankings',
+            '• **/roster** — View alliance census and 80-member directory',
           ].join('\n'),
           inline: false,
         }
       )
-      .setFooter({ text: 'Type /help for the complete directory of 20 alliance commands.' });
+      .setFooter({ text: 'Type /help for the complete directory of alliance commands.' });
 
     await interaction.editReply({ embeds: [embed] });
   } catch (err) {

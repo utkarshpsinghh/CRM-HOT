@@ -12,6 +12,7 @@ import { config, validateConfig } from './config.js';
 import { crmApi } from './services/crmApi.js';
 import { createBaseEmbed, COLORS, formatRank } from './utils/embedBuilder.js';
 import { createUnlinkedEmbed, createLinkButton } from './utils/authCheck.js';
+import { startBearTrapVoteMonitor } from './services/voteMonitor.js';
 
 import * as startCmd from './commands/start.js';
 import * as profileCmd from './commands/profile.js';
@@ -22,18 +23,13 @@ import * as leaderboardCmd from './commands/leaderboard.js';
 import * as attendanceCmd from './commands/attendance.js';
 import * as eventsCmd from './commands/events.js';
 import * as beartrapCmd from './commands/beartrap.js';
+import * as voteCmd from './commands/vote.js';
 import * as strikeCmd from './commands/strike.js';
 import * as compareCmd from './commands/compare.js';
 import * as rosterCmd from './commands/roster.js';
 import * as mvpCmd from './commands/mvp.js';
 import * as inactivesCmd from './commands/inactives.js';
 import * as helpCmd from './commands/help.js';
-import * as rollcallCmd from './commands/rollcall.js';
-import * as checkinCmd from './commands/checkin.js';
-import * as streaksCmd from './commands/streaks.js';
-import * as saluteCmd from './commands/salute.js';
-import * as duelCmd from './commands/duel.js';
-import * as triviaCmd from './commands/trivia.js';
 
 validateConfig();
 
@@ -53,18 +49,13 @@ const commandModules = [
   attendanceCmd,
   eventsCmd,
   beartrapCmd,
+  voteCmd,
   strikeCmd,
   compareCmd,
   rosterCmd,
   mvpCmd,
   inactivesCmd,
   helpCmd,
-  rollcallCmd,
-  checkinCmd,
-  streaksCmd,
-  saluteCmd,
-  duelCmd,
-  triviaCmd,
 ];
 
 commandModules.forEach(mod => {
@@ -85,18 +76,22 @@ client.once('ready', () => {
   client.user.setPresence({
     activities: [
       {
-        name: 'Kingdom #1391 [HOT] Roster • /start',
+        name: 'Kingdom #1391 [HOT] Roster • /help',
         type: ActivityType.Watching,
       },
     ],
     status: 'online',
   });
+
+  // Start automated CRM Bear Trap vote monitor
+  startBearTrapVoteMonitor(client);
 });
 
 // Interaction handling
 client.on('interactionCreate', async interaction => {
-  // 1. BUTTON INTERACTIONS (e.g. "Link In-Game Account" Modal Trigger)
+  // 1. BUTTON INTERACTIONS
   if (interaction.isButton()) {
+    // 1A. Link Modal Trigger
     if (interaction.customId === 'btn_open_link_modal') {
       const modal = new ModalBuilder()
         .setCustomId('modal_link_account')
@@ -105,7 +100,7 @@ client.on('interactionCreate', async interaction => {
           new ActionRowBuilder().addComponents(
             new TextInputBuilder()
               .setCustomId('input_player_query')
-              .setLabel('In-Game Name or Player ID (e.g. 205063171)')
+              .setLabel('In-Game Name or Player ID (e.g. 202703263)')
               .setStyle(TextInputStyle.Short)
               .setPlaceholder('Enter your exact in-game name or numeric Player ID')
               .setRequired(true)
@@ -117,9 +112,51 @@ client.on('interactionCreate', async interaction => {
       await interaction.showModal(modal);
       return;
     }
+
+    // 1B. Automated Broadcast Vote Buttons (vote_bt1_<eventId> and vote_bt2_<eventId>)
+    if (interaction.customId.startsWith('vote_bt1_') || interaction.customId.startsWith('vote_bt2_')) {
+      const isBt1 = interaction.customId.startsWith('vote_bt1_');
+      const eventId = interaction.customId.replace('vote_bt1_', '').replace('vote_bt2_', '');
+
+      // Check if user is linked
+      const linked = await crmApi.getLinkedMember(interaction.user.id);
+      if (!linked) {
+        return await interaction.reply({
+          content: '⛔ You must link your in-game identity first using `/link` before you can cast a vote!',
+          ephemeral: true,
+        });
+      }
+
+      const { slots } = await crmApi.getCachedParentData();
+      const eventSlots = slots.filter(s => s.eventId === eventId);
+      const targetSlot = isBt1
+        ? eventSlots.find(s => s.slotName === 'BT1' || s.slotNumber === 1)
+        : eventSlots.find(s => s.slotName === 'BT2' || s.slotNumber === 2);
+
+      if (!targetSlot) {
+        return await interaction.reply({
+          content: '⚠️ Battle slot is not available or event not found.',
+          ephemeral: true,
+        });
+      }
+
+      const result = await crmApi.castVote(linked.id, eventId, targetSlot.id);
+      if (!result.success) {
+        return await interaction.reply({
+          content: `❌ Failed to save vote to CRM: ${result.message}`,
+          ephemeral: true,
+        });
+      }
+
+      const slotLabel = isBt1 ? 'BT1 (16:00 UTC)' : 'BT2 (00:30 UTC)';
+      return await interaction.reply({
+        content: `✅ **Vote Synchronized!** **${linked.name}** has voted for **${slotLabel}** and directly updated the official CRM database!`,
+        ephemeral: true,
+      });
+    }
   }
 
-  // 2. MODAL SUBMISSION (Handling instant in-game account link)
+  // 2. MODAL SUBMISSION
   if (interaction.isModalSubmit()) {
     if (interaction.customId === 'modal_link_account') {
       await interaction.deferReply({ ephemeral: true });
@@ -132,7 +169,7 @@ client.on('interactionCreate', async interaction => {
           embeds: [
             createBaseEmbed('Player Not Found', COLORS.CRIMSON).setDescription(
               `Could not find any member matching **"${query}"** in the [HOT] roster.\n\n` +
-              `*Tip: Please check spelling or use your exact numeric in-game Player ID (e.g. \`205063171\`).*`
+              `*Tip: Please check spelling or use your exact numeric in-game Player ID.*`
             ),
           ],
         });
@@ -161,15 +198,14 @@ client.on('interactionCreate', async interaction => {
             name: '🚀 What to do next?',
             value: [
               '• Type **/me** to view your personal combat dossier',
-              '• Type **/checkin** to start your daily war room battle streak',
+              '• Type **/vote** to cast your Bear Trap slot vote',
               '• Type **/beartrap** to view live countdown to the next trap',
-              '• Type **/duel <opponent>** to challenge an alliance comrade',
-              '• Type **/help** to browse all 20 alliance commands',
+              '• Type **/help** to browse all alliance commands',
             ].join('\n'),
             inline: false,
           }
         )
-        .setFooter({ text: 'Kingdom #1391 • House of Titans • Welcome to the Ranks!' });
+        .setFooter({ text: 'Tip: For full profile security, upload your Governor Profile screenshot with /link.' });
 
       await interaction.editReply({ embeds: [embed] });
       return;
