@@ -170,7 +170,7 @@ export const MembersView: React.FC<MembersViewProps> = ({
       </div>
 
       {/* Modern Search & Tactical Filters Bar */}
-      <div className="p-3 sm:p-4 rounded-xl bg-slate-900/80 border border-slate-800 flex flex-wrap gap-2.5 items-center w-full min-w-0">
+      <div className="p-3 sm:p-4 rounded-xl bg-slate-900/80 border border-slate-800 flex flex-col sm:flex-row flex-wrap gap-2.5 items-stretch sm:items-center w-full min-w-0">
         {/* Search Input */}
         <div className="relative w-full sm:flex-1 min-w-[200px]">
           <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
@@ -191,60 +191,63 @@ export const MembersView: React.FC<MembersViewProps> = ({
           )}
         </div>
 
-        {/* Filter Rank */}
-        <select
-          value={memberFilter.rank}
-          onChange={e => setMemberFilter(prev => ({ ...prev, rank: e.target.value }))}
-          className="w-full sm:w-auto px-3 py-2 rounded-lg bg-slate-950/80 border border-slate-800 text-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500 cursor-pointer"
-        >
-          <option value="ALL">All Ranks (R5-R1)</option>
-          <option value="R5">R5 Leader</option>
-          <option value="R4">R4 Officer</option>
-          <option value="R3">R3 Elite</option>
-          <option value="R2">R2 Warrior</option>
-          <option value="R1">R1 Recruit</option>
-        </select>
+        {/* 2-column grid on mobile for selects and strike toggle */}
+        <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2 w-full sm:w-auto">
+          {/* Filter Rank */}
+          <select
+            value={memberFilter.rank}
+            onChange={e => setMemberFilter(prev => ({ ...prev, rank: e.target.value }))}
+            className="w-full sm:w-auto px-2.5 sm:px-3 py-2 rounded-lg bg-slate-950/80 border border-slate-800 text-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500 cursor-pointer"
+          >
+            <option value="ALL">All Ranks (R5-R1)</option>
+            <option value="R5">R5 Leader</option>
+            <option value="R4">R4 Officer</option>
+            <option value="R3">R3 Elite</option>
+            <option value="R2">R2 Warrior</option>
+            <option value="R1">R1 Recruit</option>
+          </select>
 
-        {/* Filter Status */}
-        <select
-          value={memberFilter.status}
-          onChange={e => setMemberFilter(prev => ({ ...prev, status: e.target.value }))}
-          className="w-full sm:w-auto px-3 py-2 rounded-lg bg-slate-950/80 border border-slate-800 text-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500 cursor-pointer"
-        >
-          <option value="ALL">All Statuses</option>
-          <option value="Active">Active Only</option>
-          <option value="Visitor">Visitor Only</option>
-          <option value="Inactive">Inactive Only</option>
-          <option value="Archived">Archived</option>
-        </select>
+          {/* Filter Status */}
+          <select
+            value={memberFilter.status}
+            onChange={e => setMemberFilter(prev => ({ ...prev, status: e.target.value }))}
+            className="w-full sm:w-auto px-2.5 sm:px-3 py-2 rounded-lg bg-slate-950/80 border border-slate-800 text-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500 cursor-pointer"
+          >
+            <option value="ALL">All Statuses</option>
+            <option value="Active">Active Only</option>
+            <option value="Visitor">Visitor Only</option>
+            <option value="Inactive">Inactive Only</option>
+            <option value="Archived">Archived</option>
+          </select>
 
-        {/* Specific Event Selector */}
-        <select
-          value={selectedEventType}
-          onChange={e => setSelectedEventType(e.target.value)}
-          className="w-full sm:w-auto px-3 py-2 rounded-lg bg-slate-950/80 border border-amber-500/40 text-amber-300 text-xs font-medium focus:outline-none focus:border-amber-400 cursor-pointer"
-        >
-          <option value="ALL">All Events Turnout</option>
-          <option value="BT1">BT1 (Bear Trap 1)</option>
-          <option value="BT2">BT2 (Bear Trap 2)</option>
-          <option value="Swordland L1">Swordland L1</option>
-          <option value="Swordland L2">Swordland L2</option>
-          <option value="Tri Alliance L1">Tri Alliance L1</option>
-          <option value="Tri Alliance L2">Tri Alliance L2</option>
-        </select>
+          {/* Specific Event Selector */}
+          <select
+            value={selectedEventType}
+            onChange={e => setSelectedEventType(e.target.value)}
+            className="w-full sm:w-auto px-2.5 sm:px-3 py-2 rounded-lg bg-slate-950/80 border border-amber-500/40 text-amber-300 text-xs font-medium focus:outline-none focus:border-amber-400 cursor-pointer"
+          >
+            <option value="ALL">All Events Turnout</option>
+            <option value="BT1">BT1</option>
+            <option value="BT2">BT2</option>
+            <option value="Swordland L1">Swordland L1</option>
+            <option value="Swordland L2">Swordland L2</option>
+            <option value="Tri Alliance L1">Tri Alliance L1</option>
+            <option value="Tri Alliance L2">Tri Alliance L2</option>
+          </select>
 
-        {/* Quick Filter for Strikes */}
-        <button
-          onClick={() => setMemberFilter(prev => ({ ...prev, strikeMin: prev.strikeMin > 0 ? 0 : 1 }))}
-          className={`w-full sm:w-auto px-3 py-2 rounded-lg text-xs font-semibold border flex items-center justify-center gap-1.5 cursor-pointer transition-colors ${
-            memberFilter.strikeMin > 0
-              ? 'bg-rose-500/15 border-rose-500/40 text-rose-300'
-              : 'bg-slate-950/80 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'
-          }`}
-        >
-          <Flame className="w-3.5 h-3.5 text-rose-400" />
-          <span>With Strikes</span>
-        </button>
+          {/* Quick Filter for Strikes */}
+          <button
+            onClick={() => setMemberFilter(prev => ({ ...prev, strikeMin: prev.strikeMin > 0 ? 0 : 1 }))}
+            className={`w-full sm:w-auto px-2.5 sm:px-3 py-2 rounded-lg text-xs font-semibold border flex items-center justify-center gap-1.5 cursor-pointer transition-colors ${
+              memberFilter.strikeMin > 0
+                ? 'bg-rose-500/15 border-rose-500/40 text-rose-300'
+                : 'bg-slate-950/80 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'
+            }`}
+          >
+            <Flame className="w-3.5 h-3.5 text-rose-400" />
+            <span className="truncate">With Strikes</span>
+          </button>
+        </div>
       </div>
 
       {/* Mobile Member Cards (Visible on screens < md) */}
@@ -357,7 +360,11 @@ export const MembersView: React.FC<MembersViewProps> = ({
                       const s = partStats?.perType[eType];
                       const pct = s ? s.percentage : 0;
                       const isSelected = selectedEventType === eType;
-                      const shortName = eType.replace('Swordland ', 'SW').replace('Tri Alliance ', 'TRI');
+                      const shortName = eType
+                        .replace('Swordland L1', 'SW1')
+                        .replace('Swordland L2', 'SW2')
+                        .replace('Tri Alliance L1', 'TRI1')
+                        .replace('Tri Alliance L2', 'TRI2');
                       return (
                         <div
                           key={eType}
@@ -368,7 +375,7 @@ export const MembersView: React.FC<MembersViewProps> = ({
                               : 'bg-slate-900 border border-slate-800 text-slate-300 hover:border-slate-700'
                           }`}
                         >
-                          <span className="text-[9px] text-slate-400">{shortName}:</span>
+                          <span className="text-[9px] text-slate-400 font-semibold">{shortName}:</span>
                           <span className={`text-[10px] ${
                             s && s.total > 0
                               ? pct >= 75 ? 'text-emerald-400 font-bold' : pct >= 50 ? 'text-amber-400 font-bold' : 'text-rose-400 font-bold'
@@ -383,7 +390,7 @@ export const MembersView: React.FC<MembersViewProps> = ({
                 </div>
 
                 {/* Bottom row: Quick action buttons */}
-                <div className="flex items-center justify-end gap-2 pt-1 border-t border-slate-800">
+                <div className="flex items-center gap-2 pt-1.5 border-t border-slate-800">
                   <button
                     onClick={() => {
                       sounds.playClick();
@@ -411,7 +418,7 @@ export const MembersView: React.FC<MembersViewProps> = ({
                       sounds.playClick();
                       onOpenEditMember(member);
                     }}
-                    className="p-1.5 rounded-lg bg-slate-800/60 hover:bg-slate-800 text-slate-300 hover:text-white cursor-pointer"
+                    className="p-1.5 rounded-lg bg-slate-800/60 hover:bg-slate-800 text-slate-300 hover:text-white cursor-pointer shrink-0"
                     title="Edit"
                   >
                     <Edit className="w-3.5 h-3.5 text-amber-300" />
@@ -423,7 +430,7 @@ export const MembersView: React.FC<MembersViewProps> = ({
                         sounds.playClick();
                         setMemberToArchive(member);
                       }}
-                      className="p-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 hover:text-rose-400 cursor-pointer"
+                      className="p-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 hover:text-rose-400 cursor-pointer shrink-0"
                       title="Archive"
                     >
                       <Archive className="w-3.5 h-3.5" />

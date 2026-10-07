@@ -347,15 +347,15 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
               </span>
             )}
           </div>
-          <div className="text-xs text-slate-400 font-mono mt-1 flex items-center gap-2 flex-wrap">
-            <span>{safeFormatDate(currentEvent.date, { month: 'short', day: 'numeric', year: 'numeric' })} (UTC)</span>
-            <span>•</span>
-            <span className="text-amber-300 font-semibold bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
-              Slot 1 ({slot1?.slotName || 'Slot 1'}): {slot1?.startTime || '16:00 UTC'}
+          <div className="text-xs text-slate-400 font-mono mt-1.5 flex items-center gap-1.5 flex-wrap">
+            <span className="bg-slate-950/80 px-2 py-0.5 rounded border border-slate-800 text-slate-300">
+              {safeFormatDate(currentEvent.date, { month: 'short', day: 'numeric', year: 'numeric' })} (UTC)
             </span>
-            <span>•</span>
             <span className="text-amber-300 font-semibold bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
-              Slot 2 ({slot2?.slotName || 'Slot 2'}): {slot2?.startTime || '02:00 UTC'}
+              {slot1?.slotName || 'Slot 1'}: {slot1?.startTime || '16:00 UTC'}
+            </span>
+            <span className="text-amber-300 font-semibold bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
+              {slot2?.slotName || 'Slot 2'}: {slot2?.startTime || '02:00 UTC'}
             </span>
           </div>
         </div>
@@ -411,7 +411,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
           <div className="text-xl font-bold font-mono text-slate-100">
             {metrics.uniqueAttendees} <span className="text-xs text-slate-400 font-normal">/ {metrics.eligibleMembersCount}</span>
           </div>
-          <div className="text-[11px] text-slate-400 flex items-center justify-between pt-1 border-t border-slate-800/80">
+          <div className="text-[10px] sm:text-[11px] text-slate-400 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-0.5 sm:gap-1 pt-1.5 border-t border-slate-800/80">
             <span>{slot1?.slotName || 'Slot 1'}: <strong className="text-slate-200 font-mono">{slot1Metrics?.actualAttendees || 0}</strong></span>
             <span>{slot2?.slotName || 'Slot 2'}: <strong className="text-slate-200 font-mono">{slot2Metrics?.actualAttendees || 0}</strong></span>
           </div>
@@ -431,7 +431,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
           <div className="text-xl font-bold font-mono text-slate-100">
             {metrics.totalVoters} <span className="text-xs text-slate-400 font-normal">/ {metrics.eligibleMembersCount}</span>
           </div>
-          <div className="text-[11px] text-slate-400 flex items-center justify-between pt-1 border-t border-slate-800/80">
+          <div className="text-[10px] sm:text-[11px] text-slate-400 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-0.5 sm:gap-1 pt-1.5 border-t border-slate-800/80">
             <span>{slot1?.slotName || 'Slot 1'}: <strong className="text-slate-200 font-mono">{slot1Metrics?.votedCount || 0}</strong></span>
             <span>{slot2?.slotName || 'Slot 2'}: <strong className="text-slate-200 font-mono">{slot2Metrics?.votedCount || 0}</strong></span>
           </div>
@@ -451,7 +451,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
           <div className="text-xl font-bold font-mono text-rose-400">
             {absentCount} <span className="text-xs text-slate-400 font-normal">members</span>
           </div>
-          <div className="text-[11px] text-slate-400 flex items-center justify-between pt-1 border-t border-slate-800/80">
+          <div className="text-[10px] sm:text-[11px] text-slate-400 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-0.5 sm:gap-1 pt-1.5 border-t border-slate-800/80">
             <span>Not Marked: <strong className="text-slate-200 font-mono">{unmarkedCount}</strong></span>
             <span>{isBearTrap ? 'No Vote' : 'Unselected'}: <strong className="text-slate-200 font-mono">{metrics.noVoteCount}</strong></span>
           </div>
@@ -473,7 +473,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
           <div className="text-xl font-bold font-mono text-slate-100">
             {metrics.penaltiesIssuedCount} <span className="text-xs text-slate-400 font-normal">Issued</span>
           </div>
-          <div className="text-[11px] text-slate-400 flex items-center justify-between pt-1 border-t border-slate-800/80">
+          <div className="text-[10px] sm:text-[11px] text-slate-400 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-0.5 sm:gap-1 pt-1.5 border-t border-slate-800/80">
             <span>Waived: <strong className="text-emerald-400 font-mono">{metrics.penaltiesWaivedCount}</strong></span>
             <span>Review: <strong className="text-amber-300 font-mono">{metrics.potentialReviewsCount}</strong></span>
           </div>
@@ -599,42 +599,44 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
             />
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-            <select
-              value={rankFilter}
-              onChange={e => {
-                sounds.playClick();
-                setRankFilter(e.target.value);
-              }}
-              aria-label="Filter by Rank"
-              className="px-2.5 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-slate-300 text-xs focus:outline-none focus:border-amber-500 cursor-pointer"
-            >
-              <option value="ALL">All Ranks</option>
-              <option value="R5">Rank R5</option>
-              <option value="R4">Rank R4</option>
-              <option value="R3">Rank R3</option>
-              <option value="R2">Rank R2</option>
-              <option value="R1">Rank R1</option>
-              <option value="Visitor">Visitor</option>
-            </select>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto">
+            <div className="grid grid-cols-2 sm:flex gap-2 w-full sm:w-auto">
+              <select
+                value={rankFilter}
+                onChange={e => {
+                  sounds.playClick();
+                  setRankFilter(e.target.value);
+                }}
+                aria-label="Filter by Rank"
+                className="w-full sm:w-auto px-2.5 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-slate-300 text-xs focus:outline-none focus:border-amber-500 cursor-pointer"
+              >
+                <option value="ALL">All Ranks</option>
+                <option value="R5">Rank R5</option>
+                <option value="R4">Rank R4</option>
+                <option value="R3">Rank R3</option>
+                <option value="R2">Rank R2</option>
+                <option value="R1">Rank R1</option>
+                <option value="Visitor">Visitor</option>
+              </select>
 
-            <select
-              value={sortBy}
-              onChange={e => {
-                sounds.playClick();
-                setSortBy(e.target.value);
-              }}
-              aria-label="Sort members"
-              className="px-2.5 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-amber-300 text-xs focus:outline-none focus:border-amber-500 cursor-pointer"
-            >
-              <option value="rank_desc">Rank (High to Low)</option>
-              <option value="name_asc">Name (A to Z)</option>
-              <option value="name_desc">Name (Z to A)</option>
-            </select>
+              <select
+                value={sortBy}
+                onChange={e => {
+                  sounds.playClick();
+                  setSortBy(e.target.value);
+                }}
+                aria-label="Sort members"
+                className="w-full sm:w-auto px-2.5 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-amber-300 text-xs focus:outline-none focus:border-amber-500 cursor-pointer"
+              >
+                <option value="rank_desc">Rank (High to Low)</option>
+                <option value="name_asc">Name (A to Z)</option>
+                <option value="name_desc">Name (Z to A)</option>
+              </select>
+            </div>
 
             {/* Batch Actions */}
             {isMainAdmin && (
-              <div className="flex items-center gap-1.5 flex-wrap">
+              <div className="grid grid-cols-2 sm:flex items-center gap-1.5 w-full sm:w-auto">
                 <button
                   type="button"
                   onClick={handleAutoFillFromVotes}
@@ -643,23 +645,21 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
                       ? "Automatically mark attendance based on members' selected poll votes"
                       : "Automatically mark attendance based on members' assigned slots"
                   }
-                  className="px-2.5 py-1.5 rounded-lg bg-sky-500/15 hover:bg-sky-500/25 border border-sky-500/30 text-sky-300 text-xs font-semibold flex items-center gap-1 cursor-pointer transition-colors"
+                  className="w-full sm:w-auto justify-center px-2.5 py-1.5 rounded-lg bg-sky-500/15 hover:bg-sky-500/25 border border-sky-500/30 text-sky-300 text-xs font-semibold flex items-center gap-1 cursor-pointer transition-colors"
                 >
-                  <CheckCheck className="w-3.5 h-3.5" />
-                  <span className="hidden md:inline">
-                    {isBearTrap ? 'Auto-Fill from Votes' : 'Auto-Fill from Slots'}
+                  <CheckCheck className="w-3.5 h-3.5 shrink-0" />
+                  <span className="truncate">
+                    {isBearTrap ? 'Auto-Fill Votes' : 'Auto-Fill Slots'}
                   </span>
-                  <span className="md:hidden">Auto-Fill</span>
                 </button>
                 <button
                   type="button"
                   onClick={handleMarkUnmarkedAbsent}
                   title="Mark all remaining un-marked members as Absent"
-                  className="px-2.5 py-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-300 text-xs font-semibold flex items-center gap-1 cursor-pointer transition-colors"
+                  className="w-full sm:w-auto justify-center px-2.5 py-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-300 text-xs font-semibold flex items-center gap-1 cursor-pointer transition-colors"
                 >
-                  <X className="w-3.5 h-3.5" />
-                  <span className="hidden md:inline">Mark Unmarked Absent</span>
-                  <span className="md:hidden">Mark Absent</span>
+                  <X className="w-3.5 h-3.5 shrink-0" />
+                  <span className="truncate">Mark Absent</span>
                 </button>
               </div>
             )}
@@ -684,17 +684,17 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
               return (
                 <div
                   key={record.id}
-                  className={`p-3.5 rounded-xl border space-y-2.5 transition-colors ${
+                  className={`p-3.5 rounded-xl border space-y-3 transition-colors ${
                     isPotential
                       ? 'bg-rose-950/20 border-rose-500/40'
                       : 'bg-slate-950/60 border-slate-800'
                   }`}
                 >
-                  {/* Top row: Member info & Attendance badge */}
+                  {/* Row 1: Member info (Left) & Attendance Status Pill (Right) */}
                   <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2 min-w-0">
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
                       <RankBadge rank={member.currentRank} size="sm" />
-                      <div className="min-w-0">
+                      <div className="min-w-0 flex-1">
                         <button
                           type="button"
                           onClick={() => {
@@ -706,14 +706,14 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
                           {member.name}
                         </button>
                         {member.gameId && (
-                          <div className="text-[10px] text-slate-500 font-mono">
+                          <div className="text-[10px] text-slate-500 font-mono truncate">
                             ID: {member.gameId}
                           </div>
                         )}
                       </div>
                     </div>
 
-                    <div className="shrink-0 flex items-center gap-1.5">
+                    <div className="shrink-0">
                       {record.attendanceStatus === 'ATTENDED' ? (
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
                           <Check className="w-3 h-3" />
@@ -729,38 +729,18 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
                           Not Marked
                         </span>
                       )}
-
-                      {!isMainAdmin && (
-                        <button
-                          type="button"
-                          onClick={() => openEditModal(record)}
-                          title="Apply manual penalty"
-                          className="px-2 py-1 rounded bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-rose-300 text-[11px] font-semibold flex items-center gap-1 cursor-pointer transition-colors"
-                        >
-                          <ShieldAlert className="w-3 h-3 text-rose-400" />
-                          <span>Penalty</span>
-                        </button>
-                      )}
-
-                      <button
-                        type="button"
-                        onClick={() => openEditModal(record)}
-                        title={isMainAdmin ? 'Review / Edit participation & penalty' : 'View participation details'}
-                        className="p-1.5 rounded-lg bg-slate-800/80 hover:bg-amber-500/20 text-slate-300 hover:text-amber-300 transition-colors cursor-pointer"
-                      >
-                        {isMainAdmin ? <Edit3 className="w-3.5 h-3.5" /> : <FileText className="w-3.5 h-3.5" />}
-                      </button>
                     </div>
                   </div>
 
-                  {/* Middle: Vote / Slot Selection */}
-                  <div className="p-2 rounded-lg bg-slate-900/60 border border-slate-800/80 space-y-1">
+                  {/* Row 2: Vote / Selected Slot Box */}
+                  <div className="p-2.5 rounded-lg bg-slate-900/60 border border-slate-800/80 space-y-1.5">
                     <div className="text-[10px] uppercase font-semibold text-slate-400 flex items-center justify-between">
                       <span>{isBearTrap ? 'In-Game Vote:' : 'Selected Slot:'}</span>
                       <span className="font-mono text-sky-300 font-bold">
                         {votedSlot ? votedSlot.slotName : record.voteStatus === 'VOTED' ? (isBearTrap ? 'Voted' : 'Selected') : (isBearTrap ? 'No Vote' : 'Not Selected')}
                       </span>
                     </div>
+
                     {isMainAdmin ? (
                       <div className="flex items-center gap-1.5 pt-0.5">
                         {slot1 && (
@@ -779,7 +759,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
                             className={`flex-1 py-1 rounded text-xs font-mono font-bold transition-all cursor-pointer ${
                               record.voteStatus === 'VOTED' && record.selectedSlotId === slot1.id
                                 ? 'bg-sky-500 text-slate-950 font-black shadow-sm border border-sky-400'
-                                : 'bg-slate-950 border border-slate-800 text-sky-400'
+                                : 'bg-slate-950 border border-slate-800 text-sky-400 hover:border-slate-700'
                             }`}
                           >
                             {slot1.slotName}
@@ -801,7 +781,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
                             className={`flex-1 py-1 rounded text-xs font-mono font-bold transition-all cursor-pointer ${
                               record.voteStatus === 'VOTED' && record.selectedSlotId === slot2.id
                                 ? 'bg-sky-500 text-slate-950 font-black shadow-sm border border-sky-400'
-                                : 'bg-slate-950 border border-slate-800 text-sky-400'
+                                : 'bg-slate-950 border border-slate-800 text-sky-400 hover:border-slate-700'
                             }`}
                           >
                             {slot2.slotName}
@@ -835,9 +815,9 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
                     )}
                   </div>
 
-                  {/* Bottom: Attendance Status / Quick Mark Buttons */}
+                  {/* Row 3: Action Buttons */}
                   {isMainAdmin ? (
-                    <div className="flex items-center gap-1.5 pt-1">
+                    <div className="flex items-center gap-1.5 pt-0.5">
                       {slot1 && (
                         <button
                           type="button"
@@ -875,29 +855,39 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
                       >
                         Absent
                       </button>
+                      <button
+                        type="button"
+                        onClick={() => openEditModal(record)}
+                        title="Review / Edit participation & penalty"
+                        className="p-1.5 rounded-lg bg-slate-800/80 hover:bg-amber-500/20 text-slate-300 hover:text-amber-300 transition-colors cursor-pointer shrink-0"
+                      >
+                        <Edit3 className="w-3.5 h-3.5" />
+                      </button>
                     </div>
                   ) : (
-                    <div className="flex items-center justify-between pt-1 text-xs">
-                      <span className="text-slate-400">Attendance:</span>
-                      {record.attendanceStatus === 'ATTENDED' ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
-                          <Check className="w-3 h-3" />
-                          <span>{isBearTrap ? 'Attended' : 'Joined'} {attendedSlot ? `(${attendedSlot.slotName})` : ''}</span>
-                        </span>
-                      ) : record.attendanceStatus === 'ABSENT' ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold bg-rose-500/15 text-rose-300 border border-rose-500/30">
-                          <X className="w-3 h-3" />
-                          <span>Absent</span>
-                        </span>
-                      ) : (
-                        <span className="text-slate-500 italic text-[11px]">Not Marked</span>
-                      )}
+                    <div className="grid grid-cols-2 gap-2 pt-0.5">
+                      <button
+                        type="button"
+                        onClick={() => openEditModal(record)}
+                        className="w-full py-1.5 px-2 rounded-lg bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-rose-300 text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+                      >
+                        <ShieldAlert className="w-3.5 h-3.5 text-rose-400 shrink-0" />
+                        <span>Manual Penalty</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => openEditModal(record)}
+                        className="w-full py-1.5 px-2 rounded-lg bg-slate-800/80 hover:bg-slate-800 border border-slate-700/60 text-slate-300 hover:text-white text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+                      >
+                        <FileText className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                        <span>View Details</span>
+                      </button>
                     </div>
                   )}
 
-                  {/* Penalty / Notes Alert if any */}
+                  {/* Row 4: Penalty / Notes Alert if any */}
                   {(isPotential || record.penaltyStatus !== 'NONE' || record.penaltyNote) && (
-                    <div className="flex items-center justify-between text-[11px] pt-1 border-t border-slate-800/80">
+                    <div className="flex items-center justify-between text-[11px] pt-1.5 border-t border-slate-800/80">
                       <div className="flex items-center gap-1">
                         {record.penaltyStatus === 'ISSUED' ? (
                           <span className="font-bold text-rose-400 uppercase">Penalty: Issued</span>

@@ -153,7 +153,7 @@ export const EventsView: React.FC<EventsViewProps> = ({ onOpenCreateEvent }) => 
           </h2>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="grid grid-cols-3 gap-2 sm:gap-3">
           {mainEventTypes.map(eType => {
             const stats = typeAverages[eType] || { totalEvents: 0, avgParticipation: 0 };
             const isFilterActive = typeFilter === eType;
@@ -165,21 +165,21 @@ export const EventsView: React.FC<EventsViewProps> = ({ onOpenCreateEvent }) => 
                   sounds.playClick();
                   setTypeFilter(prev => (prev === eType ? 'ALL' : eType));
                 }}
-                className={`p-3.5 rounded-xl border transition-all cursor-pointer flex flex-col justify-between ${
+                className={`p-2.5 sm:p-3.5 rounded-xl border transition-all cursor-pointer flex flex-col justify-between ${
                   isFilterActive
                     ? 'bg-amber-500/15 border-amber-500/50 shadow-sm'
                     : 'bg-slate-900/80 border-slate-800 hover:border-slate-700'
                 }`}
               >
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-slate-200 font-fantasy">{eType}</span>
-                  <span className="text-[10px] text-slate-400">{stats.totalEvents} Cycles</span>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-0.5">
+                  <span className="text-[11px] sm:text-xs font-bold text-slate-200 font-fantasy truncate">{eType}</span>
+                  <span className="text-[9px] sm:text-[10px] text-slate-400 font-mono">{stats.totalEvents} Cycles</span>
                 </div>
-                <div className="mt-2 flex items-baseline justify-between">
-                  <div className="text-2xl font-black text-amber-400 font-mono">
+                <div className="mt-1.5 sm:mt-2 flex flex-col sm:flex-row sm:items-baseline justify-between">
+                  <div className="text-lg sm:text-2xl font-black text-amber-400 font-mono">
                     {stats.avgParticipation}%
                   </div>
-                  <div className="text-[10px] text-stone-400">Avg Turnout</div>
+                  <div className="text-[9px] sm:text-[10px] text-stone-400">Avg Turnout</div>
                 </div>
               </div>
             );
@@ -235,11 +235,11 @@ export const EventsView: React.FC<EventsViewProps> = ({ onOpenCreateEvent }) => 
         </div>
 
         {/* Type & Sort Controls */}
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="grid grid-cols-2 sm:flex items-center gap-2 w-full sm:w-auto">
           <select
             value={typeFilter}
             onChange={e => setTypeFilter(e.target.value)}
-            className="px-3 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500 cursor-pointer"
+            className="w-full sm:w-auto px-3 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500 cursor-pointer"
           >
             <option value="ALL">All Event Types</option>
             {mainEventTypes.map(t => (
@@ -254,10 +254,10 @@ export const EventsView: React.FC<EventsViewProps> = ({ onOpenCreateEvent }) => 
               sounds.playClick();
               setSortOrder(prev => (prev === 'earliest' ? 'latest' : 'earliest'));
             }}
-            className="px-3 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-slate-300 hover:text-white text-xs font-medium flex items-center gap-1.5 cursor-pointer"
+            className="w-full sm:w-auto justify-center px-3 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-slate-300 hover:text-white text-xs font-medium flex items-center gap-1.5 cursor-pointer"
           >
-            <ArrowUpDown className="w-3.5 h-3.5 text-slate-400" />
-            <span>{sortOrder === 'earliest' ? 'Earliest First' : 'Latest First'}</span>
+            <ArrowUpDown className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+            <span className="truncate">{sortOrder === 'earliest' ? 'Earliest First' : 'Latest First'}</span>
           </button>
         </div>
       </div>
@@ -310,13 +310,13 @@ export const EventsView: React.FC<EventsViewProps> = ({ onOpenCreateEvent }) => 
                 <div>
                   {/* Top: Event Type & Date */}
                   <div className="flex items-start justify-between gap-2 mb-2">
-                    <div>
-                      <div className="flex items-center gap-2">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5 flex-wrap">
                         <span className="font-bold text-base text-slate-100 font-fantasy">
                           {event.eventType}
                         </span>
                         <span
-                          className={`text-[10px] font-semibold uppercase px-2 py-0.5 rounded-md border flex items-center gap-1 ${
+                          className={`text-[10px] font-semibold uppercase px-2 py-0.5 rounded-md border flex items-center gap-1 shrink-0 ${
                             computedStatus === 'Upcoming'
                               ? 'bg-amber-500/15 text-amber-300 border-amber-500/30'
                               : 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
@@ -338,7 +338,7 @@ export const EventsView: React.FC<EventsViewProps> = ({ onOpenCreateEvent }) => 
                       <p className="text-xs text-slate-400 font-medium truncate mt-0.5">{event.eventName}</p>
                     </div>
 
-                    <div className="text-right text-xs text-slate-400 font-mono">
+                    <div className="text-right text-xs text-slate-400 font-mono shrink-0">
                       <div className="font-semibold text-slate-200">{formattedDate} UTC</div>
                       {relativeTime && (
                         <div className="text-[10px] text-amber-400 font-medium">{relativeTime}</div>
