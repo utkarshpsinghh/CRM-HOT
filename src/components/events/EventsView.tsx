@@ -16,7 +16,7 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import { sounds } from '../../utils/sound';
-import { safeFormatDate, getComputedEventStatus, getEventRelativeTime } from '../../utils/date';
+import { safeFormatDate, getComputedEventStatus, getEventRelativeTime, parseDateAsUtc } from '../../utils/date';
 
 interface EventsViewProps {
   onOpenCreateEvent: () => void;
@@ -73,8 +73,8 @@ export const EventsView: React.FC<EventsViewProps> = ({ onOpenCreateEvent }) => 
         return true;
       })
       .sort((a, b) => {
-        const tA = new Date(a.date).getTime() || 0;
-        const tB = new Date(b.date).getTime() || 0;
+        const tA = parseDateAsUtc(a.date)?.getTime() || new Date(a.date).getTime() || 0;
+        const tB = parseDateAsUtc(b.date)?.getTime() || new Date(b.date).getTime() || 0;
         return sortOrder === 'earliest' ? tA - tB : tB - tA;
       });
   }, [events, statusFilter, typeFilter, sortOrder]);

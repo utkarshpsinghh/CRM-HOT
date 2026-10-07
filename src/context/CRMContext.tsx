@@ -21,7 +21,7 @@ import { kingshotApiService } from '../services/kingshotApi';
 import { googleSheetService, GOOGLE_SHEET_TABS, SheetSyncResult } from '../services/googleSheet';
 import { initialMembers } from '../services/mockData';
 import { sounds } from '../utils/sound';
-import { formatCurrentUtcTime, getComputedEventStatus } from '../utils/date';
+import { formatCurrentUtcTime, getComputedEventStatus, parseDateAsUtc } from '../utils/date';
 import { useAuth } from './AuthContext';
 
 export interface ToastNotice {
@@ -1092,8 +1092,12 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       const id = `evt-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
       const now = new Date().toISOString();
+      const parsedUtc = parseDateAsUtc(data.date);
+      const normalizedDate = parsedUtc ? parsedUtc.toISOString() : data.date;
       const fullEvent: AllianceEvent = {
         ...data,
+        date: normalizedDate,
+        status: data.status || (getComputedEventStatus(normalizedDate) === 'Upcoming' ? 'Scheduled' : 'Completed'),
         id,
         createdAt: now,
       };

@@ -4,6 +4,7 @@ import { useCRM } from '../../context/CRMContext';
 import { Modal } from '../common/Modal';
 import { GameButton } from '../common/GameButton';
 import { Swords, Calendar, AlertCircle } from 'lucide-react';
+import { parseDateAsUtc, getComputedEventStatus, safeFormatDateTime } from '../../utils/date';
 
 interface CreateEventModalProps {
   isOpen: boolean;
@@ -26,11 +27,27 @@ export const CreateEventModal: React.FC<CreateEventModalProps> = ({ isOpen, onCl
   const [customType, setCustomType] = useState('');
   const [eventName, setEventName] = useState('Bear Trap 1');
   const [date, setDate] = useState(() => {
-    const d = new Date();
-    d.setHours(19, 0, 0, 0);
-    return d.toISOString().slice(0, 16);
+    const now = new Date();
+    const currentUtcHour = now.getUTCHours();
+    const targetUtc = new Date(Date.UTC(
+      now.getUTCFullYear(),
+      now.getUTCMonth(),
+      now.getUTCDate() + (currentUtcHour >= 19 ? 1 : 0),
+      currentUtcHour >= 19 ? 19 : Math.max(19, currentUtcHour + 1),
+      0,
+      0
+    ));
+    const y = targetUtc.getUTCFullYear();
+    const m = String(targetUtc.getUTCMonth() + 1).padStart(2, '0');
+    const d = String(targetUtc.getUTCDate()).padStart(2, '0');
+    const h = String(targetUtc.getUTCHours()).padStart(2, '0');
+    const mi = String(targetUtc.getUTCMinutes()).padStart(2, '0');
+    return `${y}-${m}-${d}T${h}:${mi}`;
   });
-  const [status, setStatus] = useState<EventStatus>('Scheduled');
+  const [status, setStatus] = useState<EventStatus>(() => {
+    const initialComputed = getComputedEventStatus(date);
+    return initialComputed === 'Upcoming' ? 'Scheduled' : 'Completed';
+  });
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -53,11 +70,15 @@ export const CreateEventModal: React.FC<CreateEventModalProps> = ({ isOpen, onCl
     const finalType = eventType === 'CUSTOM' ? customType.trim() : eventType;
     if (!finalType || !eventName.trim() || !date) return;
 
+    // Standardize date as unambiguous ISO UTC string (with Z offset)
+    const parsedUtc = parseDateAsUtc(date);
+    const finalDateIso = parsedUtc ? parsedUtc.toISOString() : date;
+
     setIsSubmitting(true);
     await createEvent({
       eventType: finalType,
       eventName: eventName.trim(),
-      date,
+      date: finalDateIso,
       status,
       notes: notes.trim(),
     });
@@ -151,11 +172,19 @@ export const CreateEventModal: React.FC<CreateEventModalProps> = ({ isOpen, onCl
               onChange={e => {
                 const newDate = e.target.value;
                 setDate(newDate);
-                const isFuture = new Date(newDate).getTime() > Date.now();
-                setStatus(isFuture ? 'Scheduled' : 'Completed');
+                const computed = getComputedEventStatus(newDate);
+                setStatus(computed === 'Upcoming' ? 'Scheduled' : 'Completed');
               }}
               className="w-full px-3 py-2 rounded-xl bg-[#120c08] border border-[#3e2716] text-stone-200 focus:outline-none focus:border-[#ca8a04]"
             />
+            {date && (
+              <div className="text-[11px] text-sky-400 font-mono mt-1 flex items-center justify-between">
+                <span>Game Time: {safeFormatDateTime(date)}</span>
+                <span className={status === 'Scheduled' ? 'text-emerald-400 font-bold' : 'text-stone-400'}>
+                  {status === 'Scheduled' ? '● Upcoming' : '● Completed'}
+                </span>
+              </div>
+            )}
           </div>
 
           <div>
