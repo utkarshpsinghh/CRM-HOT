@@ -4,6 +4,7 @@ import { DEFAULT_SUPABASE_URL, DEFAULT_SUPABASE_ANON_KEY } from '../config';
 import { getComputedEventStatus } from '../utils/date';
 import { resetLoginAttempts } from '../utils/security';
 import { migrateHistoricalEvents } from './eventMigration';
+import { syncAndAutoScheduleBearTraps } from './bearTrapScheduler';
 
 const STORAGE_KEYS = {
   MEMBERS: 'crm_hot_members_v1',
@@ -338,42 +339,55 @@ export const storageService = {
     const storedParticipations = this.getEventParticipations();
     const storedEvents = this.getEvents();
 
+    let currentEvents: AllianceEvent[];
+    let currentSlots: EventSlot[];
+    let currentParticipations: EventParticipation[];
+
     if (storedParticipations.length > 0 && storedSlots.length > 0) {
       // Find parent events (events that have slots or are parent events)
       const parentEventIds = new Set(storedSlots.map(s => s.eventId));
       const parentEvents = storedEvents.filter(e => parentEventIds.has(e.id));
-      return {
-        events: parentEvents.length > 0 ? parentEvents : storedEvents,
-        slots: storedSlots,
-        participations: storedParticipations,
-      };
+      currentEvents = parentEvents.length > 0 ? parentEvents : storedEvents;
+      currentSlots = storedSlots;
+      currentParticipations = storedParticipations;
+    } else {
+      // Auto-migrate from existing legacy events and attendance
+      const legacyAtt = this.getAttendance();
+      const bundle = migrateHistoricalEvents(storedEvents, legacyAtt);
+      if (bundle.participations.length > 0) {
+        this.setEventSlots(bundle.slots);
+        this.setEventParticipations(bundle.participations);
+        // Ensure parent events are present in stored events
+        const mergedEvents = [...bundle.events];
+        for (const e of storedEvents) {
+          if (!mergedEvents.some(m => m.id === e.id)) {
+            mergedEvents.push(e);
+          }
+        }
+        this.setEvents(mergedEvents);
+        currentEvents = bundle.events;
+        currentSlots = bundle.slots;
+        currentParticipations = bundle.participations;
+      } else {
+        currentEvents = storedEvents;
+        currentSlots = storedSlots;
+        currentParticipations = storedParticipations;
+      }
     }
 
-    // Auto-migrate from existing legacy events and attendance
-    const legacyAtt = this.getAttendance();
-    const bundle = migrateHistoricalEvents(storedEvents, legacyAtt);
-    if (bundle.participations.length > 0) {
-      this.setEventSlots(bundle.slots);
-      this.setEventParticipations(bundle.participations);
-      // Ensure parent events are present in stored events
-      const mergedEvents = [...bundle.events];
-      for (const e of storedEvents) {
-        if (!mergedEvents.some(m => m.id === e.id)) {
-          mergedEvents.push(e);
-        }
-      }
-      this.setEvents(mergedEvents);
-      return {
-        events: bundle.events,
-        slots: bundle.slots,
-        participations: bundle.participations,
-      };
+    // Enforce strict Bear Trap sequence and auto-schedule upcoming cycles
+    const members = this.getMembers();
+    const synced = syncAndAutoScheduleBearTraps(currentEvents, currentSlots, currentParticipations, members, 4);
+    if (synced.updatedCount > 0) {
+      this.setEvents(synced.events);
+      this.setEventSlots(synced.slots);
+      this.setEventParticipations(synced.participations);
     }
 
     return {
-      events: storedEvents,
-      slots: storedSlots,
-      participations: storedParticipations,
+      events: synced.events,
+      slots: synced.slots,
+      participations: synced.participations,
     };
   },
 

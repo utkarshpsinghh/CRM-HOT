@@ -44,10 +44,10 @@ export const HISTORICAL_PAIRS: Array<{
   {
     type: 'Bear Trap',
     name: 'Bear Trap',
-    date: '2026-09-30T16:00:00.000Z',
+    date: '2026-09-29T16:00:00.000Z',
     status: 'Completed',
-    slot1: { legacyId: 'evt-b7b108e7', name: 'BT1', time: '2026-09-30 16:00 UTC' },
-    slot2: { legacyId: 'evt-a7c586d3', name: 'BT2', time: '2026-10-01 00:30 UTC' },
+    slot1: { legacyId: 'evt-b7b108e7', name: 'BT1', time: '2026-09-29 16:00 UTC' },
+    slot2: { legacyId: 'evt-a7c586d3', name: 'BT2', time: '2026-09-30 00:30 UTC' },
   },
   {
     type: 'Bear Trap',
@@ -55,7 +55,7 @@ export const HISTORICAL_PAIRS: Array<{
     date: '2026-10-01T16:00:00.000Z',
     status: 'Completed',
     slot1: { legacyId: 'evt-6f6a9d3a', name: 'BT1', time: '2026-10-01 16:00 UTC' },
-    slot2: { legacyId: 'evt-61922e28', name: 'BT2', time: '2026-10-02 16:00 UTC' },
+    slot2: { legacyId: 'evt-61922e28', name: 'BT2', time: '2026-10-02 00:30 UTC' },
   },
   {
     type: 'Tri Alliance',
@@ -71,7 +71,7 @@ export const HISTORICAL_PAIRS: Array<{
     date: '2026-10-03T16:00:00.000Z',
     status: 'Completed',
     slot1: { legacyId: 'evt-c031d684', name: 'BT1', time: '2026-10-03 16:00 UTC' },
-    slot2: { legacyId: 'evt-f9234e34', name: 'BT2', time: '2026-10-04 02:00 UTC' },
+    slot2: { legacyId: 'evt-f9234e34', name: 'BT2', time: '2026-10-04 00:30 UTC' },
   },
   {
     type: 'Swordsland',
@@ -87,7 +87,7 @@ export const HISTORICAL_PAIRS: Array<{
     date: '2026-10-05T16:00:00.000Z',
     status: 'Completed',
     slot1: { legacyId: 'evt-4eee1101', name: 'BT1', time: '2026-10-05 16:00 UTC' },
-    slot2: { legacyId: 'evt-e4448cc6', name: 'BT2', time: '2026-10-06 02:00 UTC' },
+    slot2: { legacyId: 'evt-e4448cc6', name: 'BT2', time: '2026-10-06 00:30 UTC' },
   },
   {
     type: 'Bear Trap',
@@ -95,7 +95,7 @@ export const HISTORICAL_PAIRS: Array<{
     date: '2026-10-07T16:00:00.000Z',
     status: 'Scheduled',
     slot1: { legacyId: 'evt-1791372900265-foen', name: 'BT1', time: '2026-10-07 16:00 UTC' },
-    slot2: { legacyId: 'evt-1791369322863-f6fw', name: 'BT2', time: '2026-10-08 02:00 UTC' },
+    slot2: { legacyId: 'evt-1791369322863-f6fw', name: 'BT2', time: '2026-10-08 00:30 UTC' },
   },
 ];
 

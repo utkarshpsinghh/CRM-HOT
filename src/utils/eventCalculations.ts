@@ -23,7 +23,7 @@ export const MAIN_EVENT_TYPES: Array<{
     slot1Name: 'BT1',
     slot2Name: 'BT2',
     defaultTime1: '16:00',
-    defaultTime2: '02:00',
+    defaultTime2: '00:30',
   },
   {
     type: 'Swordsland',

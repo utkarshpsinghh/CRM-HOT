@@ -16,13 +16,6 @@ import {
   Eye,
   ArrowUpDown,
   X,
-  RefreshCw,
-  FileText,
-  Upload,
-  CheckCircle2,
-  ExternalLink,
-  FileSpreadsheet,
-  Shield,
   Filter,
 } from 'lucide-react';
 import { sounds } from '../../utils/sound';
@@ -43,15 +36,13 @@ export const MembersView: React.FC<MembersViewProps> = ({
     events,
     attendance,
     eventParticipations,
+    eventSlots,
     archiveMember,
     setSelectedMemberForProfile,
     inactiveInsights,
     memberFilter,
     setMemberFilter,
-    syncKingshotRoster,
-    wipeAllMembers,
     settings,
-    isSyncing,
   } = useCRM();
 
   const [sortBy, setSortBy] = useState<'rank' | 'name' | 'strikes' | 'participation'>('rank');
@@ -59,46 +50,14 @@ export const MembersView: React.FC<MembersViewProps> = ({
   const [selectedEventType, setSelectedEventType] = useState<string>('ALL');
   const [memberToArchive, setMemberToArchive] = useState<Member | null>(null);
 
-  // Sync Modal & Clean Refresh States
-  const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
-  const [syncTab, setSyncTab] = useState<'official' | 'paste' | 'file'>('official');
-  const [pastedRoster, setPastedRoster] = useState('');
-  const [replaceExisting, setReplaceExisting] = useState(true);
-  const [isWipeConfirmOpen, setIsWipeConfirmOpen] = useState(false);
-
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = ev => {
-        const text = ev.target?.result as string;
-        if (text) {
-          setPastedRoster(text);
-          setSyncTab('paste');
-        }
-      };
-      reader.readAsText(file);
-    }
-  };
-
-  const handleExecuteSync = async () => {
-    sounds.playClick();
-    const textToSync = (syncTab === 'paste' || syncTab === 'file') ? pastedRoster : undefined;
-    const res = await syncKingshotRoster(textToSync, replaceExisting);
-    if (res && res.success) {
-      setIsSyncModalOpen(false);
-      setPastedRoster('');
-    }
-  };
-
   // Pre-calculate participation stats for each member
   const memberParticipationMap = useMemo(() => {
     const map = new Map<string, ReturnType<typeof calculateMemberParticipation>>();
     members.forEach(m => {
-      map.set(m.id, calculateMemberParticipation(m.id, events, attendance, eventParticipations));
+      map.set(m.id, calculateMemberParticipation(m.id, events, attendance, eventParticipations, eventSlots));
     });
     return map;
-  }, [members, events, attendance, eventParticipations]);
+  }, [members, events, attendance, eventParticipations, eventSlots]);
 
   const rankWeights: Record<AllianceRank, number> = {
     R5: 5,
@@ -197,19 +156,6 @@ export const MembersView: React.FC<MembersViewProps> = ({
         </div>
 
         <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
-          <button
-            onClick={() => {
-              sounds.playClick();
-              setIsSyncModalOpen(true);
-            }}
-            disabled={isSyncing}
-            className="btn-secondary px-3.5 py-2 text-xs font-semibold flex items-center gap-1.5 cursor-pointer shadow-sm disabled:opacity-50"
-            title="Update & synchronize alliance members"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin text-amber-400' : 'text-amber-400'}`} />
-            <span>{isSyncing ? 'Syncing...' : 'Sync Members'}</span>
-          </button>
-
           <button
             onClick={() => {
               sounds.playClick();
@@ -530,18 +476,18 @@ export const MembersView: React.FC<MembersViewProps> = ({
                       No Alliance Members Found
                     </div>
                     <p className="text-xs text-slate-400 leading-relaxed">
-                      Use the sync tool below to paste your official HOT alliance roster or connect directly to your Google Sheet.
+                      Add alliance members to track attendance, ranks, and performance.
                     </p>
                     <button
                       type="button"
                       onClick={() => {
                         sounds.playClick();
-                        setIsSyncModalOpen(true);
+                        onOpenAddMember();
                       }}
                       className="btn-primary px-4 py-2 text-xs font-semibold inline-flex items-center gap-2 shadow cursor-pointer mt-1"
                     >
-                      <RefreshCw className="w-3.5 h-3.5" />
-                      <span>Sync Roster</span>
+                      <UserPlus className="w-3.5 h-3.5" />
+                      <span>Add Member</span>
                     </button>
                   </div>
                 </td>
@@ -735,232 +681,6 @@ export const MembersView: React.FC<MembersViewProps> = ({
         confirmLabel="Archive"
         variant="crimson"
       />
-
-      {/* Confirmation Modal for Wiping Previous Manual Members */}
-      <ConfirmModal
-        isOpen={isWipeConfirmOpen}
-        onClose={() => setIsWipeConfirmOpen(false)}
-        onConfirm={async () => {
-          setIsWipeConfirmOpen(false);
-          await wipeAllMembers();
-        }}
-        title="Wipe Previous Manual Members"
-        message="Are you sure you want to delete all current members? This will permanently remove all previous manual and mock members from both local storage and database, giving you a completely clean slate."
-        confirmLabel="Wipe All Members"
-        variant="crimson"
-      />
-
-      {/* Roster Sync & Import Modal */}
-      {isSyncModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl p-6 sm:p-7 w-full max-w-xl text-slate-200 space-y-4 max-h-[90vh] overflow-y-auto">
-            {/* Header */}
-            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-              <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
-                  <RefreshCw className="w-4 h-4" />
-                </div>
-                <div>
-                  <h2 className="font-bold text-base text-slate-100">
-                    Alliance Roster Synchronization
-                  </h2>
-                  <p className="text-xs text-slate-400">
-                    Kingdom #1391 • HOT Alliance
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsSyncModalOpen(false)}
-                className="text-slate-400 hover:text-slate-200 p-1 rounded-lg hover:bg-slate-800 transition-colors cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Sync Tabs */}
-            <div className="grid grid-cols-3 gap-1.5 p-1 rounded-xl bg-slate-950 border border-slate-800">
-              <button
-                type="button"
-                onClick={() => {
-                  sounds.playClick();
-                  setSyncTab('official');
-                }}
-                className={`py-1.5 px-2 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                  syncTab === 'official'
-                    ? 'bg-amber-500 text-slate-950 shadow-sm'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                <Shield className="w-3.5 h-3.5 shrink-0" />
-                <span className="truncate">Official HOT</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  sounds.playClick();
-                  setSyncTab('paste');
-                }}
-                className={`py-1.5 px-2 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                  syncTab === 'paste'
-                    ? 'bg-amber-500 text-slate-950 shadow-sm'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                <FileText className="w-3.5 h-3.5 shrink-0" />
-                <span className="truncate">Paste CSV</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  sounds.playClick();
-                  setSyncTab('file');
-                }}
-                className={`py-1.5 px-2 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                  syncTab === 'file'
-                    ? 'bg-amber-500 text-slate-950 shadow-sm'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                <Upload className="w-3.5 h-3.5 shrink-0" />
-                <span className="truncate">Upload File</span>
-              </button>
-            </div>
-
-            {/* TAB 1: OFFICIAL HOT ROSTER */}
-            {syncTab === 'official' && (
-              <div className="space-y-3 p-3.5 rounded-xl bg-slate-950 border border-slate-800">
-                <div className="flex items-center gap-2">
-                  <Shield className="w-4 h-4 text-amber-400 shrink-0" />
-                  <span className="text-xs font-semibold text-slate-200">
-                    Kingdom #1391 [HOT] Roster (94 Members)
-                  </span>
-                </div>
-                <div className="text-slate-300 text-xs leading-relaxed space-y-1.5">
-                  <p>
-                    <strong className="text-amber-400">Alliance Leader:</strong> Death Comes (R5)
-                  </p>
-                  <p>
-                    <strong className="text-amber-400">R4 Officers:</strong> MoonLight, Sally, SnackLemon, Beepers, Panda, Emma, Death Farm, Moha
-                  </p>
-                  <p className="text-[11px] text-slate-400">
-                    Includes all 94 registered alliance members with live status, former ranks, strikes, and communication records.
-                  </p>
-                </div>
-                <div className="pt-2 border-t border-slate-800 text-[11px] text-emerald-400 flex items-center gap-1.5">
-                  <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
-                  <span>Ready to synchronize directly into database.</span>
-                </div>
-              </div>
-            )}
-
-            {/* TAB 3: PASTE CSV / TEXT */}
-            {syncTab === 'paste' && (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between text-[11px] text-slate-400">
-                  <span>Paste CSV or player list:</span>
-                  <span className="text-amber-400 font-mono">Auto-detects CSV &amp; Ranks</span>
-                </div>
-                <textarea
-                  value={pastedRoster}
-                  onChange={e => setPastedRoster(e.target.value)}
-                  rows={6}
-                  placeholder={`Name,Current Rank,Former Rank,Strikes,Communication,Status\nMoonLight,R4,R5,0,Good,Active\nDeath Comes,R5,R4,0,Good,Active\nSally,R4,R3,0,Good,Active`}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-slate-100 text-xs font-mono focus:outline-none focus:border-amber-500 placeholder:text-slate-600"
-                />
-                <p className="text-[11px] text-slate-500">
-                  Supports comma-separated values (CSV) or player lines with R1–R5 ranks.
-                </p>
-              </div>
-            )}
-
-            {/* TAB 4: FILE UPLOAD */}
-            {syncTab === 'file' && (
-              <div className="space-y-3">
-                <label className="block text-xs font-semibold text-slate-300 uppercase">
-                  Select Roster File (.txt, .csv, .json)
-                </label>
-                <div className="border border-dashed border-slate-700 hover:border-amber-500/60 rounded-xl p-6 text-center cursor-pointer bg-slate-950 transition-colors">
-                  <input
-                    type="file"
-                    accept=".txt,.csv,.json"
-                    onChange={handleFileUpload}
-                    className="w-full text-xs text-slate-400 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-amber-500 file:text-slate-950 cursor-pointer"
-                  />
-                  <p className="text-[11px] text-slate-500 mt-2">
-                    Upload your roster export file from spreadsheets or Discord.
-                  </p>
-                </div>
-                {pastedRoster && (
-                  <p className="text-xs text-emerald-400">
-                    File loaded ({pastedRoster.split('\n').filter(Boolean).length} lines ready)
-                  </p>
-                )}
-              </div>
-            )}
-
-            {/* CLEAN REFRESH OPTION */}
-            <div className="p-3 rounded-xl bg-slate-950 border border-slate-800">
-              <label className="text-xs font-semibold text-amber-300 cursor-pointer flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={replaceExisting}
-                  onChange={e => setReplaceExisting(e.target.checked)}
-                  className="rounded border-slate-700 text-amber-500 focus:ring-amber-500 w-4 h-4 cursor-pointer"
-                />
-                <span>Clean Refresh: Replace All Previous Members</span>
-              </label>
-              <p className="text-[11px] text-slate-400 mt-0.5 ml-6">
-                Removes any previous manual or mock members and exclusively loads this roster.
-              </p>
-            </div>
-
-            {/* ACTION BUTTONS */}
-            <div className="flex flex-col sm:flex-row gap-2 pt-2 border-t border-slate-800">
-              <button
-                type="button"
-                onClick={handleExecuteSync}
-                disabled={
-                  isSyncing ||
-                  ((syncTab === 'paste' || syncTab === 'file') && !pastedRoster.trim())
-                }
-                className="btn-primary flex-1 py-2 text-xs font-semibold flex items-center justify-center gap-2 cursor-pointer shadow-sm disabled:opacity-50"
-              >
-                <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
-                <span>
-                  {isSyncing
-                    ? 'Synchronizing...'
-                    : syncTab === 'official'
-                    ? 'Sync Official Members (94)'
-                    : 'Sync & Save Members'}
-                </span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setIsSyncModalOpen(false)}
-                className="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium transition-colors cursor-pointer"
-              >
-                Cancel
-              </button>
-            </div>
-
-            {/* WIPE PREVIOUS MANUAL MEMBERS ACTION */}
-            <div className="pt-2 text-center">
-              <button
-                type="button"
-                onClick={() => {
-                  setIsSyncModalOpen(false);
-                  setIsWipeConfirmOpen(true);
-                }}
-                className="text-[11px] text-rose-400 hover:text-rose-300 underline font-medium cursor-pointer"
-              >
-                Wipe all previous manual/mock members (Clean Slate)
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

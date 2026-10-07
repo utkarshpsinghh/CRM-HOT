@@ -31,6 +31,7 @@ import { formatCurrentUtcTime, getComputedEventStatus, parseDateAsUtc } from '..
 import { useAuth } from './AuthContext';
 import { migrateHistoricalEvents } from '../services/eventMigration';
 import { getDefaultSlotsForEventType } from '../utils/eventCalculations';
+import { syncAndAutoScheduleBearTraps } from '../services/bearTrapScheduler';
 
 export interface ToastNotice {
   id: string;
@@ -336,6 +337,17 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               processedSlots = bundle.slots;
               processedParticipations = bundle.participations;
             }
+
+            // Enforce strict 48-hour Bear Trap cadence and auto-schedule upcoming Bear Traps
+            const scheduledBundle = syncAndAutoScheduleBearTraps(
+              processedEvents,
+              processedSlots,
+              processedParticipations,
+              remoteMembers
+            );
+            processedEvents = scheduledBundle.events;
+            processedSlots = scheduledBundle.slots;
+            processedParticipations = scheduledBundle.participations;
 
             storageService.saveAllData({
               ...allData,

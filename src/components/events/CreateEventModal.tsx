@@ -46,7 +46,7 @@ export const CreateEventModal: React.FC<CreateEventModalProps> = ({ isOpen, onCl
     const now = new Date();
     const nextD = new Date(now.getTime() + 24 * 60 * 60 * 1000);
     const dStr2 = nextD.toISOString().split('T')[0];
-    return `${dStr2} 02:00 UTC`;
+    return `${dStr2} 00:30 UTC`;
   });
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -55,7 +55,7 @@ export const CreateEventModal: React.FC<CreateEventModalProps> = ({ isOpen, onCl
     const matched = MAIN_EVENT_TYPES.find(m => m.type === type);
     const datePart = (baseDateStr || '').split('T')[0] || new Date().toISOString().split('T')[0];
     const time1 = matched ? matched.defaultTime1 : '16:00';
-    const time2 = matched ? matched.defaultTime2 : '02:00';
+    const time2 = matched ? matched.defaultTime2 : '00:30';
 
     let datePart2 = datePart;
     if (type === 'Bear Trap') {

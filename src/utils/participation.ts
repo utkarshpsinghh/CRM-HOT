@@ -1,4 +1,4 @@
-import { AllianceEvent, AttendanceRecord, EventParticipation } from '../types/crm';
+import { AllianceEvent, AttendanceRecord, EventParticipation, EventSlot } from '../types/crm';
 import { getComputedEventStatus } from './date';
 
 export interface MemberParticipationStats {
@@ -32,7 +32,8 @@ export function calculateMemberParticipation(
   memberId: string,
   events: AllianceEvent[],
   attendance: AttendanceRecord[] = [],
-  eventParticipations: EventParticipation[] = []
+  eventParticipations: EventParticipation[] = [],
+  eventSlots: EventSlot[] = []
 ): MemberParticipationStats {
   // Count completed, live, or past events for fair and accurate evaluation
   const activeEvents = events.filter(e => {
@@ -46,7 +47,31 @@ export function calculateMemberParticipation(
   const perEvent: MemberParticipationStats['perEvent'] = [];
   const perType: Record<string, { total: number; joined: number; percentage: number }> = {};
 
+  // Slot trackers
+  let totalBT = 0;
+  let totalSW = 0;
+  let totalTRI = 0;
+  let joinedBT1 = 0;
+  let joinedBT2 = 0;
+  let joinedSW1 = 0;
+  let joinedSW2 = 0;
+  let joinedTRI1 = 0;
+  let joinedTRI2 = 0;
+
+  const slotLookupMap = new Map(eventSlots.map(s => [s.id, s]));
+
+  const BT1_IDS = new Set(['evt-185df6f0', 'evt-b7b108e7', 'evt-6f6a9d3a', 'evt-c031d684', 'evt-4eee1101', 'evt-1791372900265-foen']);
+  const BT2_IDS = new Set(['evt-c233df90', 'evt-a7c586d3', 'evt-61922e28', 'evt-f9234e34', 'evt-e4448cc6', 'evt-1791369322863-f6fw', 'evt-1790607589476-kins']);
+
   activeEvents.forEach(evt => {
+    const isBT = evt.eventType.toLowerCase().includes('bear');
+    const isSW = evt.eventType.toLowerCase().includes('sword');
+    const isTRI = evt.eventType.toLowerCase().includes('tri');
+
+    if (isBT) totalBT++;
+    if (isSW) totalSW++;
+    if (isTRI) totalTRI++;
+
     // 1. Try modern event participation
     const modernPart = eventParticipations.find(
       p => p.eventId === evt.id && p.memberId === memberId
@@ -62,6 +87,22 @@ export function calculateMemberParticipation(
       isVoted = modernPart.voteStatus === 'VOTED';
       voteStatusStr = modernPart.voteStatus;
       attendanceStatusStr = modernPart.attendanceStatus;
+
+      if (isJoined) {
+        const slot = modernPart.attendanceSlotId ? slotLookupMap.get(modernPart.attendanceSlotId) : null;
+        const isSlot1 = (slot && slot.slotNumber === 1) || (modernPart.attendanceSlotId && modernPart.attendanceSlotId.endsWith('-1'));
+        const isSlot2 = (slot && slot.slotNumber === 2) || (modernPart.attendanceSlotId && modernPart.attendanceSlotId.endsWith('-2'));
+
+        if (isSlot1) {
+          if (isBT) joinedBT1++;
+          else if (isSW) joinedSW1++;
+          else if (isTRI) joinedTRI1++;
+        } else if (isSlot2) {
+          if (isBT) joinedBT2++;
+          else if (isSW) joinedSW2++;
+          else if (isTRI) joinedTRI2++;
+        }
+      }
     } else {
       // 2. Fallback to legacy attendance record
       const rec = attendance.find(a => a.eventId === evt.id && a.memberId === memberId);
@@ -70,6 +111,15 @@ export function calculateMemberParticipation(
         isVoted = rec.voteStatus === 'YES' || rec.voteStatus === 'NO';
         voteStatusStr = rec.voteStatus;
         attendanceStatusStr = rec.attendanceStatus;
+
+        if (isJoined) {
+          if (BT1_IDS.has(rec.eventId)) joinedBT1++;
+          else if (BT2_IDS.has(rec.eventId)) joinedBT2++;
+          else if (rec.eventId === 'evt-6f769167') joinedSW1++;
+          else if (rec.eventId === 'evt-41fb9613') joinedSW2++;
+          else if (rec.eventId === 'evt-d9a52459') joinedTRI1++;
+          else if (rec.eventId === 'evt-de673b18') joinedTRI2++;
+        }
       }
     }
 
@@ -97,11 +147,38 @@ export function calculateMemberParticipation(
     }
   });
 
-  // Calculate percentages for each type
+  // Calculate percentages for each parent type
   Object.keys(perType).forEach(key => {
     const t = perType[key];
     t.percentage = t.total > 0 ? (t.joined / t.total) * 100 : 0;
   });
+
+  // Slot Breakdown Stats
+  const bt1Stat = { total: totalBT, joined: joinedBT1, percentage: totalBT > 0 ? (joinedBT1 / totalBT) * 100 : 0 };
+  const bt2Stat = { total: totalBT, joined: joinedBT2, percentage: totalBT > 0 ? (joinedBT2 / totalBT) * 100 : 0 };
+  const sw1Stat = { total: totalSW, joined: joinedSW1, percentage: totalSW > 0 ? (joinedSW1 / totalSW) * 100 : 0 };
+  const sw2Stat = { total: totalSW, joined: joinedSW2, percentage: totalSW > 0 ? (joinedSW2 / totalSW) * 100 : 0 };
+  const tri1Stat = { total: totalTRI, joined: joinedTRI1, percentage: totalTRI > 0 ? (joinedTRI1 / totalTRI) * 100 : 0 };
+  const tri2Stat = { total: totalTRI, joined: joinedTRI2, percentage: totalTRI > 0 ? (joinedTRI2 / totalTRI) * 100 : 0 };
+
+  perType['BT1'] = bt1Stat;
+  perType['BT2'] = bt2Stat;
+  perType['Swordland L1'] = sw1Stat;
+  perType['Swordland L2'] = sw2Stat;
+  perType['SWL1'] = sw1Stat;
+  perType['SWL2'] = sw2Stat;
+  perType['SW1'] = sw1Stat;
+  perType['SW2'] = sw2Stat;
+  perType['Swordsland 1'] = sw1Stat;
+  perType['Swordsland 2'] = sw2Stat;
+  perType['Tri Alliance L1'] = tri1Stat;
+  perType['Tri Alliance L2'] = tri2Stat;
+  perType['TRIL1'] = tri1Stat;
+  perType['TRIL2'] = tri2Stat;
+  perType['TRI1'] = tri1Stat;
+  perType['TRI2'] = tri2Stat;
+  perType['Tri Alliance 1'] = tri1Stat;
+  perType['Tri Alliance 2'] = tri2Stat;
 
   const percentage = totalEvents > 0 ? (joinedCount / totalEvents) * 100 : 0;
   const votePercentage = totalEvents > 0 ? (votedCount / totalEvents) * 100 : 0;
