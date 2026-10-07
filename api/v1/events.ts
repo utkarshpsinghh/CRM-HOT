@@ -1,4 +1,4 @@
-import { getSupabase, handleCors, validateApiKey } from '../_lib';
+import { getSupabase, handleCors, validateApiKey } from '../_lib.ts';
 
 export default async function handler(req: any, res: any) {
   if (handleCors(req, res)) return;

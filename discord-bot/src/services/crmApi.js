@@ -24,9 +24,16 @@ class CrmApiClient {
 
       if (!response.ok) {
         const errorText = await response.text();
-        let errorJson;
-        try { errorJson = JSON.parse(errorText); } catch {}
-        throw new Error(errorJson?.error || `HTTP ${response.status}: ${response.statusText}`);
+        let errMsg = `HTTP ${response.status}: ${response.statusText}`;
+        try {
+          const parsed = JSON.parse(errorText);
+          if (typeof parsed?.error === 'string') errMsg = parsed.error;
+          else if (typeof parsed?.error?.message === 'string') errMsg = parsed.error.message;
+          else if (typeof parsed?.message === 'string') errMsg = parsed.message;
+        } catch {
+          if (errorText && errorText.length < 200) errMsg = errorText;
+        }
+        throw new Error(errMsg);
       }
 
       return await response.json();

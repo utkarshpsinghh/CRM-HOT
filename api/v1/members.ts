@@ -1,4 +1,4 @@
-import { getSupabase, handleCors, validateApiKey } from '../_lib';
+import { getSupabase, handleCors, validateApiKey } from '../_lib.ts';
 
 export default async function handler(req: any, res: any) {
   if (handleCors(req, res)) return;
@@ -28,10 +28,11 @@ export default async function handler(req: any, res: any) {
       query = query.ilike('current_rank', rankParam.trim());
     }
 
-    // Optional search filter
+    // Optional search filter (matches player name, gameId inside communication_note, or member ID)
     const searchParam = req.query?.search;
     if (typeof searchParam === 'string' && searchParam.trim()) {
-      query = query.ilike('name', `%${searchParam.trim()}%`);
+      const term = searchParam.trim();
+      query = query.or(`name.ilike.%${term}%,communication_note.ilike.%${term}%,id.eq.${term}`);
     }
 
     // Pagination
