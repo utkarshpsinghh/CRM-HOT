@@ -45,10 +45,8 @@ export const SettingsView: React.FC = () => {
     connectSupabase,
     disconnectSupabase,
     testSupabaseConnection,
-    migrateToSupabase,
     activeDbProvider,
     refreshData,
-    clearLocalData,
     isSyncing,
     lastSyncTime,
     resetDatabase,
@@ -66,9 +64,6 @@ export const SettingsView: React.FC = () => {
   const [kingdomId, setKingdomId] = useState(settings.kingdomId || '1391');
   const [allianceTag, setAllianceTag] = useState(settings.allianceTag || 'HOT');
   const [showSupaKey, setShowSupaKey] = useState(false);
-  const [warningDays, setWarningDays] = useState(settings.inactivityWarningDays);
-  const [inactiveDays, setInactiveDays] = useState(settings.inactivityInactiveDays);
-  const [criticalDays, setCriticalDays] = useState(settings.inactivityCriticalDays);
   const [underDevelopment, setUnderDevelopment] = useState(Boolean(settings.underDevelopment));
 
   // Sync state when settings update across tabs or from background fetch
@@ -81,12 +76,8 @@ export const SettingsView: React.FC = () => {
   const [supaTestResult, setSupaTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const [isConnectingSupa, setIsConnectingSupa] = useState(false);
   const [isTestingSupa, setIsTestingSupa] = useState(false);
-  const [isMigratingSupa, setIsMigratingSupa] = useState(false);
-  const [migrationStatusText, setMigrationStatusText] = useState('');
-  const [migrationResult, setMigrationResult] = useState<{ success: boolean; message: string; counts?: Record<string, number> } | null>(null);
 
   const [showResetConfirm, setShowResetConfirm] = useState(false);
-  const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
 
   // Sub-admin creation state
@@ -111,9 +102,9 @@ export const SettingsView: React.FC = () => {
       kingdomId: kingdomId.trim() || '1391',
       allianceTag: allianceTag.trim() || 'HOT',
       dbProvider: cleanUrl ? 'supabase' : 'local',
-      inactivityWarningDays: Number(warningDays),
-      inactivityInactiveDays: Number(inactiveDays),
-      inactivityCriticalDays: Number(criticalDays),
+      inactivityWarningDays: settings.inactivityWarningDays || 3,
+      inactivityInactiveDays: settings.inactivityInactiveDays || 7,
+      inactivityCriticalDays: settings.inactivityCriticalDays || 14,
       underDevelopment,
     });
     setSavedSuccess(true);
@@ -158,56 +149,6 @@ export const SettingsView: React.FC = () => {
     const result = await testSupabaseConnection(cleanUrl, supaKey.trim());
     setIsTestingSupa(false);
     setSupaTestResult(result);
-  };
-
-  const handleMigrateToSupabase = async () => {
-    const cleanUrl = normalizeSupabaseUrl(supaUrl);
-    const cleanKey = supaKey.trim();
-
-    if (!cleanUrl || !cleanKey) {
-      setMigrationResult({
-        success: false,
-        message: 'Both Supabase Project URL and Anon Public API Key are required before uploading records.',
-      });
-      return;
-    }
-
-    setIsMigratingSupa(true);
-    setMigrationResult(null);
-    setMigrationStatusText('Verifying Supabase connection...');
-
-    let activeSettings: AllianceSettings = {
-      ...settings,
-      supabaseUrl: cleanUrl,
-      supabaseAnonKey: cleanKey,
-      dbProvider: 'supabase',
-      demoMode: false,
-    };
-
-    if (settings.supabaseUrl !== cleanUrl || settings.supabaseAnonKey !== cleanKey || settings.dbProvider !== 'supabase') {
-      const conn = await connectSupabase(cleanUrl, cleanKey);
-      if (!conn.success) {
-        setIsMigratingSupa(false);
-        setMigrationStatusText('');
-        setMigrationResult({ success: false, message: `Could not connect to Supabase: ${conn.message}` });
-        return;
-      }
-      activeSettings = {
-        ...settings,
-        supabaseUrl: cleanUrl,
-        supabaseAnonKey: cleanKey,
-        dbProvider: 'supabase',
-        demoMode: false,
-      };
-    }
-
-    setMigrationStatusText('Starting PostgreSQL upload...');
-    const result = await migrateToSupabase((msg) => {
-      setMigrationStatusText(msg);
-    }, activeSettings);
-    setIsMigratingSupa(false);
-    setMigrationStatusText('');
-    setMigrationResult(result);
   };
 
   const handleCreateAdmin = async (e: React.FormEvent) => {
@@ -589,142 +530,6 @@ export const SettingsView: React.FC = () => {
             </div>
           )}
 
-          {/* Upload Local Data to PostgreSQL */}
-          <div className="p-3.5 rounded-xl bg-[#120c08] border border-[#3e2716] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="space-y-0.5">
-              <div className="text-xs font-fantasy font-bold text-amber-300 uppercase flex items-center gap-1.5">
-                <Upload className="w-3.5 h-3.5" />
-                <span>Upload Local Records to Cloud Vault</span>
-              </div>
-              <div className="text-[11px] text-stone-400">
-                Upload all currently loaded members, battle events, attendance, and logs into your permanent cloud vault.
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={handleMigrateToSupabase}
-              disabled={isMigratingSupa}
-              className="btn-kingshot-gold px-3.5 py-2 text-xs font-fantasy font-black uppercase cursor-pointer shrink-0 transition-all flex items-center justify-center gap-1.5 shadow-md disabled:opacity-50"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${isMigratingSupa ? 'animate-spin' : ''}`} />
-              <span>{isMigratingSupa ? 'Uploading...' : 'Save All to Vault'}</span>
-            </button>
-          </div>
-
-          {/* Progress Banner */}
-          {isMigratingSupa && migrationStatusText && (
-            <div className="p-3 rounded-xl border border-amber-600/60 bg-amber-950/40 text-amber-300 text-xs flex items-center gap-2.5 animate-pulse">
-              <RefreshCw className="w-4 h-4 animate-spin text-amber-400 shrink-0" />
-              <span className="font-semibold">{migrationStatusText}</span>
-            </div>
-          )}
-
-          {/* Migration Result Banner */}
-          {migrationResult && (
-            <div
-              className={`p-3 rounded-xl border text-xs flex items-start gap-2 ${
-                migrationResult.success
-                  ? 'bg-emerald-950/60 border-emerald-600 text-emerald-300'
-                  : 'bg-red-950/60 border-red-600 text-red-300'
-              }`}
-            >
-              {migrationResult.success ? (
-                <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400 mt-0.5" />
-              ) : (
-                <AlertCircle className="w-4 h-4 shrink-0 text-red-400 mt-0.5" />
-              )}
-              <div>
-                <p className="font-bold">{migrationResult.message}</p>
-                {migrationResult.counts && (
-                  <p className="text-[11px] text-stone-300 mt-0.5">
-                    Uploaded: {migrationResult.counts.members || 0} members, {migrationResult.counts.events || 0} events, {migrationResult.counts.attendance || 0} attendance records, {migrationResult.counts.strikes || 0} strikes, {migrationResult.counts.communications || 0} comm logs.
-                  </p>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Cleanliness Option */}
-          <div className="p-3.5 rounded-xl bg-[#120c08] border border-[#3e2716] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <div className="text-xs font-fantasy font-bold text-stone-200 uppercase">
-                Clean Slate Mode (Remove Local Demo Data)
-              </div>
-              <div className="text-xs text-stone-400 mt-0.5">
-                Remove all starter demo members, fake events, and dates so the CRM exclusively displays live records from Supabase.
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={() => setShowClearConfirm(true)}
-              className="px-3.5 py-1.5 rounded-lg bg-red-950/80 border border-red-700 hover:bg-red-900 text-red-200 text-xs font-bold uppercase cursor-pointer shrink-0 transition-colors flex items-center gap-1.5"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-              <span>Clear Local Demo Data</span>
-            </button>
-          </div>
-        </div>
-
-        {/* SECTION 4: INACTIVITY THRESHOLDS */}
-        <div className="p-4 sm:p-5 rounded-2xl bg-[#1a1410] border-2 border-[#3e2716] shadow-md space-y-4">
-          <div>
-            <h2 className="font-fantasy font-bold text-base text-[#fef08a]">
-              Inactivity Alert Days
-            </h2>
-            <p className="text-xs text-stone-400 mt-0.5">
-              Set how many days without vote or attendance triggers inactive warnings.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div className="p-3 rounded-xl bg-[#120c08] border border-[#3e2716]">
-              <label className="block text-xs font-fantasy font-bold text-yellow-300 uppercase mb-1">
-                Warning (Days)
-              </label>
-              <input
-                type="number"
-                min={1}
-                max={30}
-                required
-                value={warningDays}
-                onChange={e => setWarningDays(Number(e.target.value))}
-                className="w-full px-3 py-1.5 rounded-lg bg-[#1a1410] border border-[#3e2716] text-stone-200 text-sm font-mono focus:outline-none focus:border-[#ca8a04]"
-              />
-              <p className="text-[11px] text-stone-500 mt-1">Default: 3 days</p>
-            </div>
-
-            <div className="p-3 rounded-xl bg-[#120c08] border border-[#3e2716]">
-              <label className="block text-xs font-fantasy font-bold text-amber-300 uppercase mb-1">
-                Inactive (Days)
-              </label>
-              <input
-                type="number"
-                min={2}
-                max={60}
-                required
-                value={inactiveDays}
-                onChange={e => setInactiveDays(Number(e.target.value))}
-                className="w-full px-3 py-1.5 rounded-lg bg-[#1a1410] border border-[#3e2716] text-stone-200 text-sm font-mono focus:outline-none focus:border-[#ca8a04]"
-              />
-              <p className="text-[11px] text-stone-500 mt-1">Default: 7 days</p>
-            </div>
-
-            <div className="p-3 rounded-xl bg-[#120c08] border border-[#3e2716]">
-              <label className="block text-xs font-fantasy font-bold text-red-400 uppercase mb-1">
-                Critical (Days)
-              </label>
-              <input
-                type="number"
-                min={3}
-                max={90}
-                required
-                value={criticalDays}
-                onChange={e => setCriticalDays(Number(e.target.value))}
-                className="w-full px-3 py-1.5 rounded-lg bg-[#1a1410] border border-[#3e2716] text-stone-200 text-sm font-mono focus:outline-none focus:border-[#ca8a04]"
-              />
-              <p className="text-[11px] text-stone-500 mt-1">Default: 14 days</p>
-            </div>
-          </div>
         </div>
 
         {/* SECTION 5: SITE ACCESS & MAINTENANCE LOCK */}
@@ -862,17 +667,6 @@ export const SettingsView: React.FC = () => {
         title="⚠️ Reset Alliance Database"
         message="Are you sure you want to reset to the default HOT Alliance roster and event ledger? Any unsaved edits will be replaced with fresh starter data."
         confirmLabel="Confirm Reset"
-        variant="crimson"
-      />
-
-      {/* Clear Local Data Confirmation Dialog */}
-      <ConfirmModal
-        isOpen={showClearConfirm}
-        onClose={() => setShowClearConfirm(false)}
-        onConfirm={clearLocalData}
-        title="⚠️ Remove Local Demo Data"
-        message="This will wipe all starter demo members, fake events, and dates from local storage. The CRM will only contain and display records from your connected Supabase database. Continue?"
-        confirmLabel="Wipe Demo Data"
         variant="crimson"
       />
 

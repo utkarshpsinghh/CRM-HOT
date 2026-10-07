@@ -552,5 +552,23 @@ export const storageService = {
     } catch {
       return false;
     }
+  },
+
+  getRevokedNotice(): string | null {
+    try {
+      return localStorage.getItem('crm_revoked_notice');
+    } catch {
+      return null;
+    }
+  },
+
+  setRevokedNotice(notice: string | null): void {
+    try {
+      if (notice) {
+        localStorage.setItem('crm_revoked_notice', notice);
+      } else {
+        localStorage.removeItem('crm_revoked_notice');
+      }
+    } catch {}
   }
 };

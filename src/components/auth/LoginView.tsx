@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { sounds } from '../../utils/sound';
 import { getLoginAttemptState, resetLoginAttempts } from '../../utils/security';
+import { storageService } from '../../services/storage';
 
 export const LoginView: React.FC = () => {
   const { login } = useAuth();
@@ -23,8 +24,17 @@ export const LoginView: React.FC = () => {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [revokedNotice, setRevokedNotice] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [lockoutSeconds, setLockoutSeconds] = useState(0);
+
+  useEffect(() => {
+    const notice = storageService.getRevokedNotice();
+    if (notice) {
+      setRevokedNotice(notice);
+      storageService.setRevokedNotice(null);
+    }
+  }, []);
 
   useEffect(() => {
     const checkLockout = () => {
@@ -132,6 +142,17 @@ export const LoginView: React.FC = () => {
               >
                 Reset
               </button>
+            </div>
+          )}
+
+          {/* Access Revoked Banner */}
+          {revokedNotice && (
+            <div className="mb-4 p-3 rounded-xl bg-rose-950/60 border border-rose-600/80 text-rose-200 text-xs flex items-start gap-2.5">
+              <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <p className="font-bold text-rose-300">Access Revoked</p>
+                <p className="text-[11px] text-rose-200 mt-0.5">{revokedNotice}</p>
+              </div>
             </div>
           )}
 

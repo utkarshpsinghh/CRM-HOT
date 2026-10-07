@@ -370,6 +370,20 @@ export const apiService = {
     return success;
   },
 
+  async checkAdminValid(adminId: string, username: string, settings: AllianceSettings): Promise<boolean> {
+    const cleanUser = (username || '').trim().toLowerCase();
+    // Seoyoon is the master alliance admin and is never revoked
+    if (cleanUser === 'seoyoon') return true;
+
+    if (this.isSupabase(settings)) {
+      return await supabaseService.checkAdminValid(adminId, username, settings);
+    }
+    const localAdmins = storageService.getAdminAccounts();
+    return localAdmins.some(
+      a => a.id === adminId || a.username.toLowerCase() === cleanUser
+    );
+  },
+
   async updateAdminPassword(adminId: string, newPass: string, settings: AllianceSettings): Promise<boolean> {
     const ok = storageService.updateAdminPassword(adminId, newPass);
     if (this.isSupabase(settings)) {

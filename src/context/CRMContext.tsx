@@ -110,7 +110,7 @@ interface CRMContextType {
 const CRMContext = createContext<CRMContextType | undefined>(undefined);
 
 export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { admin, updateCurrentAdmin } = useAuth();
+  const { admin, logout, updateCurrentAdmin } = useAuth();
   const [members, setMembers] = useState<Member[]>(() => {
     storageService.purgeMockJunk();
     return deduplicateMembers(storageService.getMembers().filter(m => !/^mem-\d+$/.test(m.id)));
@@ -140,6 +140,94 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setActiveTab('dashboard');
     }
   }, [admin, activeTab]);
+
+  // Active session heartbeat & realtime revocation check for officers
+  useEffect(() => {
+    if (!admin || admin.username.toLowerCase() === 'seoyoon') return;
+
+    let isCancelled = false;
+
+    const checkRevocation = async () => {
+      if (isCancelled) return;
+      const currentSettings = storageService.getSettings();
+      const isValid = await apiService.checkAdminValid(admin.id, admin.username, currentSettings);
+      if (!isValid && !isCancelled) {
+        console.warn(`Officer "${admin.username}" access was revoked by Main Admin. Automatically logging out.`);
+        storageService.setRevokedNotice('Your officer access has been revoked by the Main Admin.');
+        sounds.playAlert();
+        logout();
+      }
+    };
+
+    // Run active heartbeat every 5 seconds
+    const interval = setInterval(checkRevocation, 5000);
+
+    // Run check immediately on window focus and tab visibility change
+    const handleVisibility = () => {
+      if (!document.hidden) {
+        checkRevocation();
+      }
+    };
+    window.addEventListener('focus', checkRevocation);
+    window.addEventListener('visibilitychange', handleVisibility);
+
+    // Cross-tab storage listener for instantaneous same-browser revocation
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === 'crm_officer_revoked') {
+        const revokedUser = (e.newValue || '').toLowerCase();
+        if (admin.username.toLowerCase() === revokedUser || admin.id === revokedUser) {
+          storageService.setRevokedNotice('Your officer access has been revoked by the Main Admin.');
+          sounds.playAlert();
+          logout();
+        }
+      }
+    };
+    window.addEventListener('storage', handleStorage);
+
+    // Supabase Realtime Channel: Instant push notification on admin deletion
+    let channel: any = null;
+    const currentSettings = storageService.getSettings();
+    if (supabaseService.isConfigured(currentSettings)) {
+      const client = supabaseService.getClient(currentSettings);
+      if (client) {
+        try {
+          channel = client
+            .channel(`officer-revocation-${admin.id || admin.username}`)
+            .on(
+              'postgres_changes',
+              { event: 'DELETE', schema: 'public', table: 'admins' },
+              (payload: any) => {
+                const deletedId = payload.old?.id;
+                const deletedUsername = (payload.old?.username || '').toLowerCase();
+                if (
+                  (deletedId && deletedId === admin.id) ||
+                  (deletedUsername && deletedUsername === admin.username.toLowerCase())
+                ) {
+                  console.warn(`Realtime DELETE event for officer "${admin.username}". Logging out immediately.`);
+                  storageService.setRevokedNotice('Your officer access has been revoked by the Main Admin.');
+                  sounds.playAlert();
+                  logout();
+                }
+              }
+            )
+            .subscribe();
+        } catch (err) {
+          console.warn('Realtime channel subscription warning:', err);
+        }
+      }
+    }
+
+    return () => {
+      isCancelled = true;
+      clearInterval(interval);
+      window.removeEventListener('focus', checkRevocation);
+      window.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('storage', handleStorage);
+      if (channel && supabaseService.getClient(currentSettings)) {
+        supabaseService.getClient(currentSettings)?.removeChannel(channel);
+      }
+    };
+  }, [admin, logout]);
 
   const [memberFilter, setMemberFilter] = useState({
     search: '',
@@ -225,6 +313,20 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                   return a;
                 });
               setAdmins(cleanAdmins);
+
+              // Auto-logout if current logged-in officer was revoked
+              if (admin && admin.username.toLowerCase() !== 'seoyoon') {
+                const stillOfficer = cleanAdmins.some(
+                  (a: AdminAccount) => a.id === admin.id || a.username.toLowerCase() === admin.username.toLowerCase()
+                );
+                if (!stillOfficer) {
+                  console.warn(`Officer ${admin.username} access revoked by Main Admin. Auto-logging out.`);
+                  storageService.setRevokedNotice('Your officer access has been revoked by the Main Admin.');
+                  sounds.playAlert();
+                  logout();
+                  return;
+                }
+              }
             }
             if (Array.isArray(allData.contributions)) setContributions(allData.contributions);
 
@@ -1596,14 +1698,32 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const deleteAdminUser = async (adminId: string): Promise<boolean> => {
     try {
+      const targetAdmin = admins.find(a => a.id === adminId);
+      const targetUsername = targetAdmin?.username;
       const success = await apiService.deleteAdmin(adminId, settings);
       if (success) {
         setAdmins(prev => prev.filter(a => a.id !== adminId));
+
+        // Signal cross-tab revocation in current browser
+        try {
+          if (targetUsername) {
+            localStorage.setItem('crm_officer_revoked', targetUsername.toLowerCase());
+          }
+        } catch {}
+
+        // If revoked officer is currently logged into this active session, log out immediately
+        if (admin && (admin.id === adminId || admin.username.toLowerCase() === targetUsername?.toLowerCase())) {
+          storageService.setRevokedNotice('Your officer access has been revoked by the Main Admin.');
+          sounds.playAlert();
+          logout();
+          return true;
+        }
+
         sounds.playSuccess();
         addToast({
           type: 'success',
-          title: 'Officer Admin Removed',
-          message: 'Officer access has been revoked.',
+          title: 'Officer Access Revoked',
+          message: `Officer access for "${targetUsername || adminId}" has been revoked permanently.`,
         });
         return true;
       } else {

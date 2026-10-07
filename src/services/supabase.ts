@@ -687,6 +687,35 @@ export const supabaseService = {
     return true;
   },
 
+  async checkAdminValid(adminId: string, username: string, settings: AllianceSettings): Promise<boolean> {
+    const client = this.getClient(settings);
+    if (!client) return true;
+
+    try {
+      const cleanUser = (username || '').trim();
+      let query = client.from('admins').select('id, username').limit(1);
+      if (adminId && cleanUser) {
+        query = query.or(`id.eq.${adminId},username.ilike.${cleanUser}`);
+      } else if (cleanUser) {
+        query = query.ilike('username', cleanUser);
+      } else if (adminId) {
+        query = query.eq('id', adminId);
+      } else {
+        return false;
+      }
+
+      const { data, error } = await query;
+      if (error) {
+        console.warn('checkAdminValid warning (keeping session on transient error):', error);
+        return true;
+      }
+      return Boolean(data && data.length > 0);
+    } catch (err) {
+      console.warn('checkAdminValid exception:', err);
+      return true;
+    }
+  },
+
   async updateAdminPassword(adminId: string, newPass: string, settings: AllianceSettings): Promise<boolean> {
     const client = this.getClient(settings);
     if (!client) return false;
