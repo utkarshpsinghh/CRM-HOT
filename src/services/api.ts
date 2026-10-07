@@ -11,6 +11,12 @@ import {
   AttendanceStatus,
   OfficerContribution,
   InactiveMemberInsight,
+  EventSlot,
+  EventParticipation,
+  PenaltyStatus,
+  ParticipationVoteStatus,
+  ParticipationAttendanceStatus,
+  MainEventType,
 } from '../types/crm';
 import { storageService } from './storage';
 import { supabaseService } from './supabase';
@@ -272,6 +278,217 @@ export const apiService = {
     storageService.setAttendance(updated);
     if (this.isSupabase(settings)) {
       return await supabaseService.bulkUpdateAttendance(eventId, updates, settings);
+    }
+    return true;
+  },
+
+  // --------------------------------------------------------------------------
+  // EVENT SLOTS & PARTICIPATIONS (Redesigned System)
+  // --------------------------------------------------------------------------
+  async getEventSlots(settings: AllianceSettings): Promise<EventSlot[]> {
+    if (this.isSupabase(settings)) {
+      const remote = await supabaseService.getEventSlots(settings);
+      if (remote && remote.length > 0) return remote;
+    }
+    return storageService.getEventSlots();
+  },
+
+  async getEventParticipations(eventId: string | undefined, settings: AllianceSettings): Promise<EventParticipation[]> {
+    if (this.isSupabase(settings)) {
+      const remote = await supabaseService.getEventParticipations(eventId, settings);
+      if (remote && remote.length > 0) return remote;
+    }
+    const all = storageService.getEventParticipations();
+    return eventId ? all.filter(p => p.eventId === eventId) : all;
+  },
+
+  async createParentEvent(
+    event: AllianceEvent,
+    slots: EventSlot[],
+    members: Member[],
+    settings: AllianceSettings
+  ): Promise<boolean> {
+    const list = storageService.getEvents();
+    storageService.setEvents([event, ...list.filter(e => e.id !== event.id)]);
+
+    const curSlots = storageService.getEventSlots();
+    storageService.setEventSlots([...slots, ...curSlots.filter(s => s.eventId !== event.id)]);
+
+    const now = new Date().toISOString();
+    const participations: EventParticipation[] = members
+      .filter(m => m.status !== 'Archived')
+      .map(m => ({
+        id: `part-${event.id}-${m.id}`,
+        eventId: event.id,
+        memberId: m.id,
+        selectedSlotId: null,
+        voteStatus: 'NO_VOTE' as const,
+        attendanceStatus: 'NOT_MARKED' as const,
+        attendanceSlotId: null,
+        penaltyStatus: 'NONE' as const,
+        penaltyNote: null,
+        createdAt: now,
+        updatedAt: now,
+      }));
+
+    const curPart = storageService.getEventParticipations();
+    storageService.setEventParticipations([...participations, ...curPart.filter(p => p.eventId !== event.id)]);
+
+    if (this.isSupabase(settings)) {
+      return await supabaseService.createParentEvent(event, slots, participations, settings);
+    }
+    return true;
+  },
+
+  async updateParticipationVote(
+    eventId: string,
+    memberId: string,
+    slotId: string | null,
+    voteStatus: ParticipationVoteStatus,
+    settings: AllianceSettings
+  ): Promise<boolean> {
+    const all = storageService.getEventParticipations();
+    const now = new Date().toISOString();
+    let updatedRecord: EventParticipation | null = null;
+
+    const updated = all.map(p => {
+      if (p.eventId === eventId && p.memberId === memberId) {
+        const next: EventParticipation = {
+          ...p,
+          voteStatus,
+          selectedSlotId: voteStatus === 'VOTED' ? slotId : null,
+          updatedAt: now,
+        };
+        updatedRecord = next;
+        return next;
+      }
+      return p;
+    });
+
+    if (!updatedRecord) {
+      // If record doesn't exist yet for this member, create it
+      const newPart: EventParticipation = {
+        id: `part-${eventId}-${memberId}`,
+        eventId,
+        memberId,
+        selectedSlotId: voteStatus === 'VOTED' ? slotId : null,
+        voteStatus,
+        attendanceStatus: 'NOT_MARKED',
+        attendanceSlotId: null,
+        penaltyStatus: 'NONE',
+        penaltyNote: null,
+        createdAt: now,
+        updatedAt: now,
+      };
+      updated.push(newPart);
+      updatedRecord = newPart;
+    }
+
+    storageService.setEventParticipations(updated);
+    if (this.isSupabase(settings) && updatedRecord) {
+      return await supabaseService.updateParticipation(updatedRecord, settings);
+    }
+    return true;
+  },
+
+  async updateParticipationAttendance(
+    eventId: string,
+    memberId: string,
+    slotId: string | null,
+    attendanceStatus: ParticipationAttendanceStatus,
+    settings: AllianceSettings
+  ): Promise<boolean> {
+    const all = storageService.getEventParticipations();
+    const now = new Date().toISOString();
+    let updatedRecord: EventParticipation | null = null;
+
+    const updated = all.map(p => {
+      if (p.eventId === eventId && p.memberId === memberId) {
+        const next: EventParticipation = {
+          ...p,
+          attendanceStatus,
+          attendanceSlotId: attendanceStatus === 'ATTENDED' ? slotId : null,
+          updatedAt: now,
+        };
+        updatedRecord = next;
+        return next;
+      }
+      return p;
+    });
+
+    if (!updatedRecord) {
+      const newPart: EventParticipation = {
+        id: `part-${eventId}-${memberId}`,
+        eventId,
+        memberId,
+        selectedSlotId: null,
+        voteStatus: 'NO_VOTE',
+        attendanceStatus,
+        attendanceSlotId: attendanceStatus === 'ATTENDED' ? slotId : null,
+        penaltyStatus: 'NONE',
+        penaltyNote: null,
+        createdAt: now,
+        updatedAt: now,
+      };
+      updated.push(newPart);
+      updatedRecord = newPart;
+    }
+
+    storageService.setEventParticipations(updated);
+    if (this.isSupabase(settings) && updatedRecord) {
+      return await supabaseService.updateParticipation(updatedRecord, settings);
+    }
+    return true;
+  },
+
+  async updateParticipationPenalty(
+    eventId: string,
+    memberId: string,
+    penaltyStatus: PenaltyStatus,
+    penaltyNote: string | undefined,
+    settings: AllianceSettings
+  ): Promise<boolean> {
+    const all = storageService.getEventParticipations();
+    const now = new Date().toISOString();
+    let updatedRecord: EventParticipation | null = null;
+
+    const updated = all.map(p => {
+      if (p.eventId === eventId && p.memberId === memberId) {
+        const next: EventParticipation = {
+          ...p,
+          penaltyStatus,
+          penaltyNote: penaltyNote !== undefined ? (penaltyNote || null) : p.penaltyNote,
+          updatedAt: now,
+        };
+        updatedRecord = next;
+        return next;
+      }
+      return p;
+    });
+
+    storageService.setEventParticipations(updated);
+    if (this.isSupabase(settings) && updatedRecord) {
+      return await supabaseService.updateParticipation(updatedRecord, settings);
+    }
+    return true;
+  },
+
+  async bulkUpdateParticipations(
+    eventId: string,
+    updates: EventParticipation[],
+    settings: AllianceSettings
+  ): Promise<boolean> {
+    const all = storageService.getEventParticipations();
+    const updateMap = new Map(updates.map(u => [u.memberId, u]));
+    const updated = all.map(p => {
+      if (p.eventId === eventId && updateMap.has(p.memberId)) {
+        return updateMap.get(p.memberId)!;
+      }
+      return p;
+    });
+    storageService.setEventParticipations(updated);
+    if (this.isSupabase(settings)) {
+      return await supabaseService.bulkUpdateParticipations(eventId, updates, settings);
     }
     return true;
   },

@@ -13,6 +13,12 @@ import {
   AttendanceStatus,
   OfficerContribution,
   ContributionActionType,
+  EventSlot,
+  EventParticipation,
+  PenaltyStatus,
+  ParticipationVoteStatus,
+  ParticipationAttendanceStatus,
+  MainEventType,
 } from '../types/crm';
 import { storageService, deduplicateMembers } from '../services/storage';
 import { apiService } from '../services/api';
@@ -23,6 +29,8 @@ import { initialMembers } from '../services/mockData';
 import { sounds } from '../utils/sound';
 import { formatCurrentUtcTime, getComputedEventStatus, parseDateAsUtc } from '../utils/date';
 import { useAuth } from './AuthContext';
+import { migrateHistoricalEvents } from '../services/eventMigration';
+import { getDefaultSlotsForEventType } from '../utils/eventCalculations';
 
 export interface ToastNotice {
   id: string;
@@ -35,6 +43,8 @@ interface CRMContextType {
   members: Member[];
   events: AllianceEvent[];
   attendance: AttendanceRecord[];
+  eventSlots: EventSlot[];
+  eventParticipations: EventParticipation[];
   strikes: StrikeRecord[];
   communications: CommunicationRecord[];
   settings: AllianceSettings;
@@ -86,9 +96,14 @@ interface CRMContextType {
   updateMember: (member: Member) => Promise<boolean>;
   archiveMember: (memberId: string) => Promise<boolean>;
   createEvent: (data: Omit<AllianceEvent, 'id' | 'createdAt'>) => Promise<boolean>;
+  createParentEvent: (data: { eventType: MainEventType; eventName: string; date: string; notes?: string; slot1Time?: string; slot2Time?: string }) => Promise<boolean>;
   updateVote: (eventId: string, memberId: string, vote: VoteStatus) => Promise<void>;
   updateAttendance: (eventId: string, memberId: string, att: AttendanceStatus) => Promise<void>;
+  updateParticipationVote: (eventId: string, memberId: string, slotId: string | null, voteStatus: ParticipationVoteStatus) => Promise<void>;
+  updateParticipationAttendance: (eventId: string, memberId: string, slotId: string | null, attendanceStatus: ParticipationAttendanceStatus) => Promise<void>;
+  updateParticipationPenalty: (eventId: string, memberId: string, penaltyStatus: PenaltyStatus, penaltyNote?: string) => Promise<void>;
   bulkUpdateAttendance: (eventId: string, updates: Array<{ memberId: string; voteStatus?: VoteStatus; attendanceStatus?: AttendanceStatus }>) => Promise<void>;
+  bulkUpdateParticipations: (eventId: string, updates: EventParticipation[]) => Promise<void>;
   addStrike: (memberId: string, reason: string) => Promise<boolean>;
   removeStrike: (strikeId: string, memberId: string) => Promise<boolean>;
   addCommunication: (memberId: string, status: Member['communication'], note: string) => Promise<boolean>;
@@ -115,7 +130,18 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     storageService.purgeMockJunk();
     return deduplicateMembers(storageService.getMembers().filter(m => !/^mem-\d+$/.test(m.id)));
   });
-  const [events, setEvents] = useState<AllianceEvent[]>(() => storageService.getEvents());
+  const [events, setEvents] = useState<AllianceEvent[]>(() => {
+    const bundle = storageService.getMigratedOrStoredEvents();
+    return bundle.events;
+  });
+  const [eventSlots, setEventSlots] = useState<EventSlot[]>(() => {
+    const bundle = storageService.getMigratedOrStoredEvents();
+    return bundle.slots;
+  });
+  const [eventParticipations, setEventParticipations] = useState<EventParticipation[]>(() => {
+    const bundle = storageService.getMigratedOrStoredEvents();
+    return bundle.participations;
+  });
   const [attendance, setAttendance] = useState<AttendanceRecord[]>(() => storageService.getAttendance());
   const [strikes, setStrikes] = useState<StrikeRecord[]>(() => storageService.getStrikes());
   const [communications, setCommunications] = useState<CommunicationRecord[]>(() => storageService.getCommunications());
@@ -296,10 +322,33 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               kingshotApiService.syncMembersToDatabase(initialMembers, currentSettings, false).catch(console.warn);
             }
 
-            storageService.saveAllData({ ...allData, members: remoteMembers });
+            // Synthesize parent events, slots, and participations if needed
+            let processedEvents = allData.events || [];
+            let processedSlots: EventSlot[] = allData.slots || [];
+            let processedParticipations: EventParticipation[] = allData.participations || [];
+
+            if (processedSlots.length === 0 || processedParticipations.length === 0) {
+              const bundle = migrateHistoricalEvents(
+                Array.isArray(allData.events) && allData.events.length > 0 ? allData.events : storageService.getEvents(),
+                Array.isArray(allData.attendance) && allData.attendance.length > 0 ? allData.attendance : storageService.getAttendance()
+              );
+              processedEvents = bundle.events;
+              processedSlots = bundle.slots;
+              processedParticipations = bundle.participations;
+            }
+
+            storageService.saveAllData({
+              ...allData,
+              members: remoteMembers,
+              events: processedEvents,
+              slots: processedSlots,
+              participations: processedParticipations,
+            });
 
             setMembers(remoteMembers);
-            if (Array.isArray(allData.events)) setEvents(allData.events);
+            setEvents(processedEvents);
+            setEventSlots(processedSlots);
+            setEventParticipations(processedParticipations);
             if (Array.isArray(allData.attendance)) setAttendance(allData.attendance);
             if (Array.isArray(allData.strikes)) setStrikes(allData.strikes);
             if (Array.isArray(allData.communications)) setCommunications(allData.communications);
@@ -346,7 +395,10 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           const rawLocal = storageService.getMembers().filter(m => !/^mem-\d+$/.test(m.id));
           const cleanLocal = deduplicateMembers(rawLocal.length > 0 ? rawLocal : initialMembers);
           setMembers(cleanLocal);
-          setEvents(storageService.getEvents());
+          const cachedBundle = storageService.getMigratedOrStoredEvents();
+          setEvents(cachedBundle.events);
+          setEventSlots(cachedBundle.slots);
+          setEventParticipations(cachedBundle.participations);
           setAttendance(storageService.getAttendance());
           setStrikes(storageService.getStrikes());
           setCommunications(storageService.getCommunications());
@@ -359,7 +411,10 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         const rawRoster = storageService.getMembers().filter(m => !/^mem-\d+$/.test(m.id));
         const currentRoster = deduplicateMembers(rawRoster.length > 0 ? rawRoster : initialMembers);
         setMembers(currentRoster);
-        setEvents(storageService.getEvents());
+        const localBundle = storageService.getMigratedOrStoredEvents();
+        setEvents(localBundle.events);
+        setEventSlots(localBundle.slots);
+        setEventParticipations(localBundle.participations);
         setAttendance(storageService.getAttendance());
         setStrikes(storageService.getStrikes());
         setCommunications(storageService.getCommunications());
@@ -1276,6 +1331,279 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
   };
 
+  const createParentEvent = async (data: {
+    eventType: MainEventType;
+    eventName: string;
+    date: string;
+    notes?: string;
+    slot1Time?: string;
+    slot2Time?: string;
+  }) => {
+    try {
+      const parentId = `evt-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+      const now = new Date().toISOString();
+      const parsedUtc = parseDateAsUtc(data.date);
+      const normalizedDate = parsedUtc ? parsedUtc.toISOString() : data.date;
+
+      const parentEvent: AllianceEvent = {
+        id: parentId,
+        eventType: data.eventType,
+        eventName: data.eventName,
+        date: normalizedDate,
+        status: getComputedEventStatus(normalizedDate) === 'Upcoming' ? 'Scheduled' : 'Completed',
+        notes: data.notes,
+        createdAt: now,
+        updatedAt: now,
+      };
+
+      const defaultSlots = getDefaultSlotsForEventType(data.eventType, parentId, normalizedDate);
+      const slot1: EventSlot = {
+        id: `slot-${parentId}-1`,
+        eventId: parentId,
+        slotNumber: 1,
+        slotName: defaultSlots[0].slotName,
+        startTime: data.slot1Time || defaultSlots[0].startTime,
+        createdAt: now,
+      };
+      const slot2: EventSlot = {
+        id: `slot-${parentId}-2`,
+        eventId: parentId,
+        slotNumber: 2,
+        slotName: defaultSlots[1].slotName,
+        startTime: data.slot2Time || defaultSlots[1].startTime,
+        createdAt: now,
+      };
+      const newSlots = [slot1, slot2];
+
+      const activeMembers = members.filter(m => m.status !== 'Archived');
+      const newParticipations: EventParticipation[] = activeMembers.map(m => ({
+        id: `part-${parentId}-${m.id}`,
+        eventId: parentId,
+        memberId: m.id,
+        selectedSlotId: null,
+        voteStatus: 'NO_VOTE',
+        attendanceStatus: 'NOT_MARKED',
+        attendanceSlotId: null,
+        penaltyStatus: 'NONE',
+        penaltyNote: null,
+        createdAt: now,
+        updatedAt: now,
+      }));
+
+      // Update state & storage
+      setEvents(prev => [parentEvent, ...prev]);
+      setEventSlots(prev => [...newSlots, ...prev]);
+      setEventParticipations(prev => [...newParticipations, ...prev]);
+
+      const curEvents = storageService.getEvents();
+      storageService.setEvents([parentEvent, ...curEvents]);
+      const curSlots = storageService.getEventSlots();
+      storageService.setEventSlots([...newSlots, ...curSlots]);
+      const curPart = storageService.getEventParticipations();
+      storageService.setEventParticipations([...newParticipations, ...curPart]);
+
+      sounds.playSuccess();
+      addToast({
+        type: 'success',
+        title: 'Event Scheduled',
+        message: `${data.eventName} created with 2 slots! Participation initialized for ${activeMembers.length} members.`,
+      });
+
+      // Background cloud sync
+      if (apiService.isSupabase(settings)) {
+        apiService.createParentEvent(parentEvent, newSlots, activeMembers, settings).catch(err =>
+          console.warn('Background createParentEvent sync error:', err)
+        );
+      }
+
+      logContribution('EVENT_CREATED', `Scheduled event: ${parentEvent.eventName} (${parentEvent.eventType})`, parentEvent.eventName, 1);
+      return true;
+    } catch {
+      sounds.playAlert();
+      addToast({
+        type: 'error',
+        title: 'Event Creation Failed',
+        message: 'Could not create event.',
+      });
+      return false;
+    }
+  };
+
+  const updateParticipationVote = async (
+    eventId: string,
+    memberId: string,
+    slotId: string | null,
+    voteStatus: ParticipationVoteStatus
+  ) => {
+    sounds.playClick();
+    const now = new Date().toISOString();
+
+    setEventParticipations(prev => {
+      let found = false;
+      const next = prev.map(p => {
+        if (p.eventId === eventId && p.memberId === memberId) {
+          found = true;
+          return {
+            ...p,
+            voteStatus,
+            selectedSlotId: voteStatus === 'VOTED' ? slotId : null,
+            updatedAt: now,
+          };
+        }
+        return p;
+      });
+      if (!found) {
+        const newPart: EventParticipation = {
+          id: `part-${eventId}-${memberId}`,
+          eventId,
+          memberId,
+          selectedSlotId: voteStatus === 'VOTED' ? slotId : null,
+          voteStatus,
+          attendanceStatus: 'NOT_MARKED',
+          attendanceSlotId: null,
+          penaltyStatus: 'NONE',
+          penaltyNote: null,
+          createdAt: now,
+          updatedAt: now,
+        };
+        next.push(newPart);
+      }
+      storageService.setEventParticipations(next);
+      return next;
+    });
+
+    if (apiService.isSupabase(settings)) {
+      apiService.updateParticipationVote(eventId, memberId, slotId, voteStatus, settings).catch(err =>
+        console.warn('Background participation vote sync error:', err)
+      );
+    }
+
+    const targetEvt = events.find(e => e.id === eventId);
+    const targetMem = members.find(m => m.id === memberId);
+    logContribution('ATTENDANCE_MARKED', `Updated vote (${voteStatus}) for ${targetMem?.name || 'member'} in ${targetEvt?.eventName || 'event'}`, targetEvt?.eventName, 1);
+  };
+
+  const updateParticipationAttendance = async (
+    eventId: string,
+    memberId: string,
+    slotId: string | null,
+    attendanceStatus: ParticipationAttendanceStatus
+  ) => {
+    sounds.playClick();
+    const now = new Date().toISOString();
+
+    setEventParticipations(prev => {
+      let found = false;
+      const next = prev.map(p => {
+        if (p.eventId === eventId && p.memberId === memberId) {
+          found = true;
+          return {
+            ...p,
+            attendanceStatus,
+            attendanceSlotId: attendanceStatus === 'ATTENDED' ? slotId : null,
+            updatedAt: now,
+          };
+        }
+        return p;
+      });
+      if (!found) {
+        const newPart: EventParticipation = {
+          id: `part-${eventId}-${memberId}`,
+          eventId,
+          memberId,
+          selectedSlotId: null,
+          voteStatus: 'NO_VOTE',
+          attendanceStatus,
+          attendanceSlotId: attendanceStatus === 'ATTENDED' ? slotId : null,
+          penaltyStatus: 'NONE',
+          penaltyNote: null,
+          createdAt: now,
+          updatedAt: now,
+        };
+        next.push(newPart);
+      }
+      storageService.setEventParticipations(next);
+      return next;
+    });
+
+    if (apiService.isSupabase(settings)) {
+      apiService.updateParticipationAttendance(eventId, memberId, slotId, attendanceStatus, settings).catch(err =>
+        console.warn('Background participation attendance sync error:', err)
+      );
+    }
+
+    const targetEvt = events.find(e => e.id === eventId);
+    const targetMem = members.find(m => m.id === memberId);
+    logContribution('ATTENDANCE_MARKED', `Marked attendance (${attendanceStatus}) for ${targetMem?.name || 'member'} in ${targetEvt?.eventName || 'event'}`, targetEvt?.eventName, 1);
+  };
+
+  const updateParticipationPenalty = async (
+    eventId: string,
+    memberId: string,
+    penaltyStatus: PenaltyStatus,
+    penaltyNote?: string
+  ) => {
+    sounds.playSuccess();
+    const now = new Date().toISOString();
+
+    setEventParticipations(prev => {
+      const next = prev.map(p => {
+        if (p.eventId === eventId && p.memberId === memberId) {
+          return {
+            ...p,
+            penaltyStatus,
+            penaltyNote: penaltyNote !== undefined ? (penaltyNote || null) : p.penaltyNote,
+            updatedAt: now,
+          };
+        }
+        return p;
+      });
+      storageService.setEventParticipations(next);
+      return next;
+    });
+
+    if (apiService.isSupabase(settings)) {
+      apiService.updateParticipationPenalty(eventId, memberId, penaltyStatus, penaltyNote, settings).catch(err =>
+        console.warn('Background participation penalty sync error:', err)
+      );
+    }
+
+    const targetEvt = events.find(e => e.id === eventId);
+    const targetMem = members.find(m => m.id === memberId);
+    logContribution('ATTENDANCE_MARKED', `Officer set penalty to ${penaltyStatus} for ${targetMem?.name || 'member'} in ${targetEvt?.eventName || 'event'}`, targetEvt?.eventName, 1);
+    addToast({
+      type: penaltyStatus === 'ISSUED' ? 'warning' : 'info',
+      title: 'Penalty Updated',
+      message: `Penalty set to ${penaltyStatus} for ${targetMem?.name || 'member'}.`,
+    });
+  };
+
+  const bulkUpdateParticipations = async (eventId: string, updates: EventParticipation[]) => {
+    sounds.playSuccess();
+    const updateMap = new Map(updates.map(u => [u.memberId, u]));
+    setEventParticipations(prev => {
+      const next = prev.map(p => {
+        if (p.eventId === eventId && updateMap.has(p.memberId)) {
+          return updateMap.get(p.memberId)!;
+        }
+        return p;
+      });
+      storageService.setEventParticipations(next);
+      return next;
+    });
+
+    if (apiService.isSupabase(settings)) {
+      apiService.bulkUpdateParticipations(eventId, updates, settings).catch(err =>
+        console.warn('Background bulk participation sync error:', err)
+      );
+    }
+    addToast({
+      type: 'success',
+      title: 'Batch Attendance Updated',
+      message: `Updated records for ${updates.length} members.`,
+    });
+  };
+
   const addStrike = async (memberId: string, reason: string) => {
     try {
       sounds.playStrike();
@@ -1751,6 +2079,8 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         members,
         events,
         attendance,
+        eventSlots,
+        eventParticipations,
         strikes,
         communications,
         settings,
@@ -1789,9 +2119,14 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         updateMember,
         archiveMember,
         createEvent,
+        createParentEvent,
         updateVote,
         updateAttendance,
+        updateParticipationVote,
+        updateParticipationAttendance,
+        updateParticipationPenalty,
         bulkUpdateAttendance,
+        bulkUpdateParticipations,
         addStrike,
         removeStrike,
         addCommunication,

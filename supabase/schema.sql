@@ -31,10 +31,48 @@ CREATE TABLE IF NOT EXISTS public.events (
     date TEXT NOT NULL,
     status TEXT NOT NULL DEFAULT 'Scheduled',
     notes TEXT,
-    created_at TIMESTAMPTZ DEFAULT NOW()
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 3. ATTENDANCE TABLE
+ALTER TABLE public.events ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
+
+-- 2B. EVENT SLOTS TABLE (Slot 1 and Slot 2 per Event)
+CREATE TABLE IF NOT EXISTS public.event_slots (
+    id TEXT PRIMARY KEY,
+    event_id TEXT NOT NULL REFERENCES public.events(id) ON DELETE CASCADE,
+    slot_number INTEGER NOT NULL CHECK (slot_number IN (1, 2)),
+    slot_name TEXT NOT NULL,
+    start_time TEXT NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT uq_event_slot_number UNIQUE (event_id, slot_number)
+);
+
+-- 2C. EVENT PARTICIPATIONS TABLE (Vote, Slot Attendance, and Officer Penalty Review)
+CREATE TABLE IF NOT EXISTS public.event_participations (
+    id TEXT PRIMARY KEY,
+    event_id TEXT NOT NULL REFERENCES public.events(id) ON DELETE CASCADE,
+    member_id TEXT NOT NULL REFERENCES public.members(id) ON DELETE CASCADE,
+    selected_slot_id TEXT REFERENCES public.event_slots(id) ON DELETE SET NULL,
+    vote_status TEXT NOT NULL CHECK (vote_status IN ('VOTED', 'NO_VOTE')),
+    attendance_status TEXT NOT NULL CHECK (attendance_status IN ('ATTENDED', 'ABSENT', 'NOT_MARKED')),
+    attendance_slot_id TEXT REFERENCES public.event_slots(id) ON DELETE SET NULL,
+    penalty_status TEXT NOT NULL DEFAULT 'NONE' CHECK (penalty_status IN ('NONE', 'ISSUED', 'WAIVED')),
+    penalty_note TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT uq_event_member_participation UNIQUE (event_id, member_id),
+    CONSTRAINT chk_attendance_slot CHECK (
+        (attendance_status = 'ATTENDED' AND attendance_slot_id IS NOT NULL) OR
+        (attendance_status != 'ATTENDED' AND attendance_slot_id IS NULL)
+    ),
+    CONSTRAINT chk_vote_slot CHECK (
+        (vote_status = 'VOTED' AND selected_slot_id IS NOT NULL) OR
+        (vote_status = 'NO_VOTE' AND selected_slot_id IS NULL)
+    )
+);
+
+-- 3. LEGACY ATTENDANCE TABLE (Preserved for historical data backward-compatibility)
 CREATE TABLE IF NOT EXISTS public.attendance (
     id TEXT PRIMARY KEY,
     event_id TEXT NOT NULL REFERENCES public.events(id) ON DELETE CASCADE,

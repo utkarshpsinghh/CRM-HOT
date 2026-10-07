@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { EventType, EventStatus } from '../../types/crm';
+import { MainEventType, EventStatus } from '../../types/crm';
 import { useCRM } from '../../context/CRMContext';
 import { Modal } from '../common/Modal';
 import { GameButton } from '../common/GameButton';
-import { Swords, Calendar, AlertCircle } from 'lucide-react';
+import { Swords, Calendar, AlertCircle, Clock } from 'lucide-react';
 import { parseDateAsUtc, getComputedEventStatus, safeFormatDateTime } from '../../utils/date';
+import { MAIN_EVENT_TYPES } from '../../utils/eventCalculations';
 
 interface CreateEventModalProps {
   isOpen: boolean;
@@ -12,20 +13,11 @@ interface CreateEventModalProps {
 }
 
 export const CreateEventModal: React.FC<CreateEventModalProps> = ({ isOpen, onClose }) => {
-  const { createEvent, members } = useCRM();
+  const { createParentEvent, members } = useCRM();
 
-  const standardEventTypes: EventType[] = [
-    'BT1',
-    'BT2',
-    'Swordland L1',
-    'Swordland L2',
-    'Tri Alliance L1',
-    'Tri Alliance L2',
-  ];
-
-  const [eventType, setEventType] = useState<EventType>('BT1');
+  const [eventType, setEventType] = useState<MainEventType>('Bear Trap');
   const [customType, setCustomType] = useState('');
-  const [eventName, setEventName] = useState('Bear Trap 1');
+  const [eventName, setEventName] = useState('Bear Trap');
   const [date, setDate] = useState(() => {
     const now = new Date();
     const currentUtcHour = now.getUTCHours();
@@ -33,7 +25,7 @@ export const CreateEventModal: React.FC<CreateEventModalProps> = ({ isOpen, onCl
       now.getUTCFullYear(),
       now.getUTCMonth(),
       now.getUTCDate() + (currentUtcHour >= 19 ? 1 : 0),
-      currentUtcHour >= 19 ? 19 : Math.max(19, currentUtcHour + 1),
+      currentUtcHour >= 19 ? 19 : Math.max(16, currentUtcHour + 1),
       0,
       0
     ));
@@ -44,23 +36,24 @@ export const CreateEventModal: React.FC<CreateEventModalProps> = ({ isOpen, onCl
     const mi = String(targetUtc.getUTCMinutes()).padStart(2, '0');
     return `${y}-${m}-${d}T${h}:${mi}`;
   });
-  const [status, setStatus] = useState<EventStatus>(() => {
-    const initialComputed = getComputedEventStatus(date);
-    return initialComputed === 'Upcoming' ? 'Scheduled' : 'Completed';
-  });
+
+  const [slot1Time, setSlot1Time] = useState('16:00 UTC');
+  const [slot2Time, setSlot2Time] = useState('02:00 UTC');
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Auto-generate title suggestion when event type changes
-  const handleTypeChange = (type: string) => {
+  const handleTypeChange = (type: MainEventType) => {
     setEventType(type);
-    if (type === 'BT1') setEventName('Bear Trap 1');
-    else if (type === 'BT2') setEventName('Bear Trap 2');
-    else if (type === 'Swordland L1') setEventName('Swordland Legion 1');
-    else if (type === 'Swordland L2') setEventName('Swordland Legion 2');
-    else if (type === 'Tri Alliance L1') setEventName('Tri Alliance Legion 1');
-    else if (type === 'Tri Alliance L2') setEventName('Tri Alliance Legion 2');
-    else setEventName(`${type} Event`);
+    const matched = MAIN_EVENT_TYPES.find(m => m.type === type);
+    if (matched) {
+      setEventName(type);
+      setSlot1Time(`${matched.defaultTime1} UTC`);
+      setSlot2Time(`${matched.defaultTime2} UTC`);
+    } else {
+      setEventName(type === 'CUSTOM' ? '' : `${type} Event`);
+      setSlot1Time('16:00 UTC');
+      setSlot2Time('02:00 UTC');
+    }
   };
 
   const activeRosterCount = members.filter(m => m.status !== 'Archived').length;
@@ -70,28 +63,32 @@ export const CreateEventModal: React.FC<CreateEventModalProps> = ({ isOpen, onCl
     const finalType = eventType === 'CUSTOM' ? customType.trim() : eventType;
     if (!finalType || !eventName.trim() || !date) return;
 
-    // Standardize date as unambiguous ISO UTC string (with Z offset)
     const parsedUtc = parseDateAsUtc(date);
     const finalDateIso = parsedUtc ? parsedUtc.toISOString() : date;
 
     setIsSubmitting(true);
-    await createEvent({
+    await createParentEvent({
       eventType: finalType,
       eventName: eventName.trim(),
       date: finalDateIso,
-      status,
       notes: notes.trim(),
+      slot1Time: slot1Time.trim(),
+      slot2Time: slot2Time.trim(),
     });
     setIsSubmitting(false);
     onClose();
   };
 
+  const matchedConfig = MAIN_EVENT_TYPES.find(m => m.type === eventType);
+  const slot1Label = matchedConfig ? matchedConfig.slot1Name : 'Slot 1';
+  const slot2Label = matchedConfig ? matchedConfig.slot2Name : 'Slot 2';
+
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Create New Event"
-      subtitle={`Enrolls all ${activeRosterCount} active alliance members`}
+      title="Create Alliance Event"
+      subtitle={`Enrolls all ${activeRosterCount} active alliance members into 2-slot event`}
       icon={<Swords className="w-5 h-5 text-[#ca8a04]" />}
       maxWidth="md"
     >
@@ -101,8 +98,8 @@ export const CreateEventModal: React.FC<CreateEventModalProps> = ({ isOpen, onCl
           <label className="block text-xs font-fantasy font-bold text-[#fef08a] uppercase mb-1.5">
             Event Type *
           </label>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-            {standardEventTypes.map(t => (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {(['Bear Trap', 'Swordsland', 'Tri Alliance', 'CUSTOM'] as const).map(t => (
               <button
                 type="button"
                 key={t}
@@ -113,32 +110,21 @@ export const CreateEventModal: React.FC<CreateEventModalProps> = ({ isOpen, onCl
                     : 'bg-[#120c08] border-[#3e2716] text-stone-300 hover:border-[#ca8a04]'
                 }`}
               >
-                {t === 'BT1' ? 'BT1 (Bear Trap 1)' : t === 'BT2' ? 'BT2 (Bear Trap 2)' : t}
+                {t === 'CUSTOM' ? '+ Custom' : t}
               </button>
             ))}
           </div>
 
-          <div className="mt-2">
-            <button
-              type="button"
-              onClick={() => handleTypeChange('CUSTOM')}
-              className={`text-xs text-stone-400 hover:text-[#fef08a] cursor-pointer underline ${
-                eventType === 'CUSTOM' ? 'text-[#fef08a] font-bold' : ''
-              }`}
-            >
-              + Custom Event Type
-            </button>
-            {eventType === 'CUSTOM' && (
-              <input
-                type="text"
-                required
-                value={customType}
-                onChange={e => setCustomType(e.target.value)}
-                placeholder="e.g. Castle Siege..."
-                className="mt-1.5 w-full px-3 py-2 rounded-xl bg-[#120c08] border border-[#3e2716] text-stone-200 focus:outline-none focus:border-[#ca8a04]"
-              />
-            )}
-          </div>
+          {eventType === 'CUSTOM' && (
+            <input
+              type="text"
+              required
+              value={customType}
+              onChange={e => setCustomType(e.target.value)}
+              placeholder="e.g. Castle Siege..."
+              className="mt-2 w-full px-3 py-2 rounded-xl bg-[#120c08] border border-[#3e2716] text-stone-200 focus:outline-none focus:border-[#ca8a04]"
+            />
+          )}
         </div>
 
         {/* Event Name */}
@@ -155,51 +141,67 @@ export const CreateEventModal: React.FC<CreateEventModalProps> = ({ isOpen, onCl
           />
         </div>
 
-        {/* Date / Time & Status */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div>
-            <label className="block text-xs font-fantasy font-bold text-[#fef08a] uppercase mb-1 flex items-center justify-between">
-              <span className="flex items-center gap-1.5">
-                <Calendar className="w-3.5 h-3.5 text-[#ca8a04]" />
-                <span>Date & Time *</span>
+        {/* Date / Time */}
+        <div>
+          <label className="block text-xs font-fantasy font-bold text-[#fef08a] uppercase mb-1 flex items-center justify-between">
+            <span className="flex items-center gap-1.5">
+              <Calendar className="w-3.5 h-3.5 text-[#ca8a04]" />
+              <span>Event Date *</span>
+            </span>
+            <span className="text-[10px] text-sky-400 font-mono font-bold">Game Time (UTC)</span>
+          </label>
+          <input
+            type="datetime-local"
+            required
+            value={date}
+            onChange={e => setDate(e.target.value)}
+            className="w-full px-3 py-2 rounded-xl bg-[#120c08] border border-[#3e2716] text-stone-200 focus:outline-none focus:border-[#ca8a04]"
+          />
+          {date && (
+            <div className="text-[11px] text-sky-400 font-mono mt-1 flex items-center justify-between">
+              <span>Game Time: {safeFormatDateTime(date)}</span>
+              <span className={getComputedEventStatus(date) === 'Upcoming' ? 'text-emerald-400 font-bold' : 'text-stone-400'}>
+                {getComputedEventStatus(date) === 'Upcoming' ? '● Upcoming' : '● Completed'}
               </span>
-              <span className="text-[10px] text-sky-400 font-mono font-bold">Game Time (UTC)</span>
-            </label>
-            <input
-              type="datetime-local"
-              required
-              value={date}
-              onChange={e => {
-                const newDate = e.target.value;
-                setDate(newDate);
-                const computed = getComputedEventStatus(newDate);
-                setStatus(computed === 'Upcoming' ? 'Scheduled' : 'Completed');
-              }}
-              className="w-full px-3 py-2 rounded-xl bg-[#120c08] border border-[#3e2716] text-stone-200 focus:outline-none focus:border-[#ca8a04]"
-            />
-            {date && (
-              <div className="text-[11px] text-sky-400 font-mono mt-1 flex items-center justify-between">
-                <span>Game Time: {safeFormatDateTime(date)}</span>
-                <span className={status === 'Scheduled' ? 'text-emerald-400 font-bold' : 'text-stone-400'}>
-                  {status === 'Scheduled' ? '● Upcoming' : '● Completed'}
-                </span>
-              </div>
-            )}
-          </div>
+            </div>
+          )}
+        </div>
 
-          <div>
-            <label className="block text-xs font-fantasy font-bold text-[#fef08a] uppercase mb-1">
-              Event Status (Auto-detected)
-            </label>
-            <select
-              value={status}
-              onChange={e => setStatus(e.target.value as EventStatus)}
-              className="w-full px-3 py-2 rounded-xl bg-[#120c08] border border-[#3e2716] text-stone-200 focus:outline-none focus:border-[#ca8a04]"
-            >
-              <option value="Scheduled">Upcoming (Scheduled)</option>
-              <option value="Completed">Completed</option>
-            </select>
+        {/* 2-Slot Times */}
+        <div className="p-3 rounded-xl bg-[#17100b] border border-[#452d19] space-y-2.5">
+          <div className="flex items-center gap-1.5 text-xs font-fantasy font-bold text-[#fef08a] uppercase">
+            <Clock className="w-3.5 h-3.5 text-[#ca8a04]" />
+            <span>Event Slots (Two Slots Per Event)</span>
           </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-[11px] text-amber-300/80 mb-1 font-semibold">
+                Slot 1: {slot1Label}
+              </label>
+              <input
+                type="text"
+                value={slot1Time}
+                onChange={e => setSlot1Time(e.target.value)}
+                placeholder="16:00 UTC"
+                className="w-full px-3 py-1.5 rounded-lg bg-[#120c08] border border-[#3e2716] text-stone-200 text-xs focus:outline-none focus:border-[#ca8a04]"
+              />
+            </div>
+            <div>
+              <label className="block text-[11px] text-amber-300/80 mb-1 font-semibold">
+                Slot 2: {slot2Label}
+              </label>
+              <input
+                type="text"
+                value={slot2Time}
+                onChange={e => setSlot2Time(e.target.value)}
+                placeholder="02:00 UTC"
+                className="w-full px-3 py-1.5 rounded-lg bg-[#120c08] border border-[#3e2716] text-stone-200 text-xs focus:outline-none focus:border-[#ca8a04]"
+              />
+            </div>
+          </div>
+          <p className="text-[10px] text-stone-400 italic">
+            Alliance members will select Slot 1 or Slot 2 during the in-game vote.
+          </p>
         </div>
 
         {/* Notes */}
@@ -220,8 +222,8 @@ export const CreateEventModal: React.FC<CreateEventModalProps> = ({ isOpen, onCl
         <div className="p-3 rounded-xl bg-[#120c08] border border-[#3e2716] text-xs text-stone-300 flex items-start gap-2">
           <AlertCircle className="w-4 h-4 text-[#ca8a04] shrink-0 mt-0.5" />
           <span>
-            Attendance ledger will be automatically initialized for all{' '}
-            <strong className="text-[#fef08a]">{activeRosterCount} active members</strong>.
+            Participation ledger will be initialized for all{' '}
+            <strong className="text-[#fef08a]">{activeRosterCount} active members</strong> with independent voting & actual attendance tracking.
           </span>
         </div>
 

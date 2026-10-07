@@ -11,6 +11,11 @@ import {
   OfficerContribution,
   VoteStatus,
   AttendanceStatus,
+  EventSlot,
+  EventParticipation,
+  PenaltyStatus,
+  ParticipationVoteStatus,
+  ParticipationAttendanceStatus,
 } from '../types/crm';
 import { hashPasswordSha256 } from '../utils/security';
 import { getComputedEventStatus } from '../utils/date';
@@ -107,6 +112,8 @@ export const supabaseService = {
   async getAllData(settings: AllianceSettings): Promise<{
     members: Member[];
     events: AllianceEvent[];
+    slots?: EventSlot[];
+    participations?: EventParticipation[];
     attendance: AttendanceRecord[];
     strikes: StrikeRecord[];
     communications: CommunicationRecord[];
@@ -171,9 +178,28 @@ export const supabaseService = {
         // settings table might not be initialized yet
       }
 
+      let remoteSlots: EventSlot[] = [];
+      let remoteParticipations: EventParticipation[] = [];
+      try {
+        const [slotsRes, partRes] = await Promise.all([
+          client.from('event_slots').select('*'),
+          client.from('event_participations').select('*'),
+        ]);
+        if (slotsRes.data && !slotsRes.error) {
+          remoteSlots = slotsRes.data.map(this.mapEventSlotFromRow);
+        }
+        if (partRes.data && !partRes.error) {
+          remoteParticipations = partRes.data.map(this.mapEventParticipationFromRow);
+        }
+      } catch {
+        // new tables not yet present in supabase schema cache
+      }
+
         return {
           members: deduplicateMembers((membersRes.data || []).map(this.mapMemberFromRow)),
           events: (eventsRes.data || []).map(this.mapEventFromRow),
+          slots: remoteSlots,
+          participations: remoteParticipations,
           attendance: (allAttendanceRows || []).map(this.mapAttendanceFromRow),
           strikes: (strikesRes.data || []).map(this.mapStrikeFromRow),
           communications: (commsRes.data || []).map(this.mapCommFromRow),
@@ -519,6 +545,128 @@ export const supabaseService = {
       return false;
     }
     return true;
+  },
+
+  // ==========================================================================
+  // EVENT SLOTS & PARTICIPATION
+  // ==========================================================================
+  async getEventSlots(settings: AllianceSettings): Promise<EventSlot[]> {
+    const client = this.getClient(settings);
+    if (!client) return [];
+    try {
+      const { data, error } = await client.from('event_slots').select('*').order('slot_number', { ascending: true });
+      if (error || !data) return [];
+      return data.map(this.mapEventSlotFromRow);
+    } catch {
+      return [];
+    }
+  },
+
+  async getEventParticipations(eventId: string | undefined, settings: AllianceSettings): Promise<EventParticipation[]> {
+    const client = this.getClient(settings);
+    if (!client) return [];
+    try {
+      let query = client.from('event_participations').select('*');
+      if (eventId) {
+        query = query.eq('event_id', eventId);
+      }
+      const { data, error } = await query;
+      if (error || !data) return [];
+      return data.map(this.mapEventParticipationFromRow);
+    } catch {
+      return [];
+    }
+  },
+
+  async createParentEvent(
+    event: AllianceEvent,
+    slots: EventSlot[],
+    participations: EventParticipation[],
+    settings: AllianceSettings
+  ): Promise<boolean> {
+    const client = this.getClient(settings);
+    if (!client) return false;
+
+    // 1. Insert parent event
+    const eventRow = this.mapEventToRow(event);
+    const { error: eventError } = await client.from('events').insert(eventRow);
+    if (eventError) {
+      console.warn('createParentEvent events table error:', eventError);
+    }
+
+    // 2. Insert slots into event_slots
+    if (slots.length > 0) {
+      try {
+        const slotRows = slots.map(this.mapEventSlotToRow);
+        const { error: slotError } = await client.from('event_slots').insert(slotRows);
+        if (slotError) {
+          console.warn('insert event_slots warning:', slotError.message);
+        }
+      } catch (err) {
+        console.warn('insert event_slots exception:', err);
+      }
+    }
+
+    // 3. Insert participations into event_participations
+    if (participations.length > 0) {
+      try {
+        const partRows = participations.map(this.mapEventParticipationToRow);
+        for (let i = 0; i < partRows.length; i += 100) {
+          const chunk = partRows.slice(i, i + 100);
+          const { error: partError } = await client.from('event_participations').insert(chunk);
+          if (partError) {
+            console.warn('insert event_participations chunk warning:', partError.message);
+          }
+        }
+      } catch (err) {
+        console.warn('insert event_participations exception:', err);
+      }
+    }
+
+    return true;
+  },
+
+  async updateParticipation(
+    participation: EventParticipation,
+    settings: AllianceSettings
+  ): Promise<boolean> {
+    const client = this.getClient(settings);
+    if (!client) return false;
+    try {
+      const row = this.mapEventParticipationToRow(participation);
+      const { error } = await client.from('event_participations').upsert(row, { onConflict: 'id' });
+      if (error) {
+        console.warn('updateParticipation warning:', error.message);
+        return false;
+      }
+      return true;
+    } catch (err) {
+      console.warn('updateParticipation exception:', err);
+      return false;
+    }
+  },
+
+  async bulkUpdateParticipations(
+    eventId: string,
+    updates: EventParticipation[],
+    settings: AllianceSettings
+  ): Promise<boolean> {
+    const client = this.getClient(settings);
+    if (!client) return false;
+    try {
+      const rows = updates.map(this.mapEventParticipationToRow);
+      for (let i = 0; i < rows.length; i += 100) {
+        const chunk = rows.slice(i, i + 100);
+        const { error } = await client.from('event_participations').upsert(chunk, { onConflict: 'id' });
+        if (error) {
+          console.warn('bulkUpdateParticipations warning:', error.message);
+        }
+      }
+      return true;
+    } catch (err) {
+      console.warn('bulkUpdateParticipations exception:', err);
+      return false;
+    }
   },
 
   // ==========================================================================
@@ -1186,6 +1334,64 @@ export const supabaseService = {
       target_name: c.targetName || null,
       count: c.count || 1,
       timestamp: c.timestamp,
+    };
+  },
+
+  mapEventSlotFromRow(row: any): EventSlot {
+    return {
+      id: row.id,
+      eventId: row.event_id,
+      slotNumber: (Number(row.slot_number) === 2 ? 2 : 1) as 1 | 2,
+      slotName: row.slot_name || `Slot ${row.slot_number || 1}`,
+      startTime: row.start_time || new Date().toISOString(),
+      createdAt: row.created_at || new Date().toISOString(),
+    };
+  },
+
+  mapEventSlotToRow(s: EventSlot) {
+    return {
+      id: s.id,
+      event_id: s.eventId,
+      slot_number: s.slotNumber,
+      slot_name: s.slotName,
+      start_time: s.startTime,
+      created_at: s.createdAt,
+    };
+  },
+
+  mapEventParticipationFromRow(row: any): EventParticipation {
+    return {
+      id: row.id,
+      eventId: row.event_id,
+      memberId: row.member_id,
+      selectedSlotId: row.selected_slot_id || null,
+      voteStatus: (row.vote_status === 'VOTED' ? 'VOTED' : 'NO_VOTE') as ParticipationVoteStatus,
+      attendanceStatus: (['ATTENDED', 'ABSENT', 'NOT_MARKED'].includes(row.attendance_status)
+        ? row.attendance_status
+        : 'NOT_MARKED') as ParticipationAttendanceStatus,
+      attendanceSlotId: row.attendance_slot_id || null,
+      penaltyStatus: (['NONE', 'ISSUED', 'WAIVED'].includes(row.penalty_status)
+        ? row.penalty_status
+        : 'NONE') as PenaltyStatus,
+      penaltyNote: row.penalty_note || null,
+      createdAt: row.created_at || new Date().toISOString(),
+      updatedAt: row.updated_at || new Date().toISOString(),
+    };
+  },
+
+  mapEventParticipationToRow(p: EventParticipation) {
+    return {
+      id: p.id,
+      event_id: p.eventId,
+      member_id: p.memberId,
+      selected_slot_id: p.selectedSlotId,
+      vote_status: p.voteStatus,
+      attendance_status: p.attendanceStatus,
+      attendance_slot_id: p.attendanceSlotId,
+      penalty_status: p.penaltyStatus,
+      penalty_note: p.penaltyNote,
+      created_at: p.createdAt,
+      updated_at: p.updatedAt,
     };
   },
 };

@@ -1,13 +1,16 @@
-import { Member, AllianceEvent, AttendanceRecord, StrikeRecord, CommunicationRecord, AllianceSettings, AdminAccount, OfficerContribution } from '../types/crm';
+import { Member, AllianceEvent, AttendanceRecord, StrikeRecord, CommunicationRecord, AllianceSettings, AdminAccount, OfficerContribution, EventSlot, EventParticipation } from '../types/crm';
 import { initialMembers, initialEvents, generateInitialAttendance, initialStrikes, initialCommunications, initialSettings, initialAdmins, initialContributions } from './mockData';
 import { DEFAULT_SUPABASE_URL, DEFAULT_SUPABASE_ANON_KEY } from '../config';
 import { getComputedEventStatus } from '../utils/date';
 import { resetLoginAttempts } from '../utils/security';
+import { migrateHistoricalEvents } from './eventMigration';
 
 const STORAGE_KEYS = {
   MEMBERS: 'crm_hot_members_v1',
   EVENTS: 'crm_hot_events_v1',
   ATTENDANCE: 'crm_hot_attendance_v1',
+  EVENT_SLOTS: 'crm_hot_event_slots_v1',
+  EVENT_PARTICIPATIONS: 'crm_hot_event_participations_v1',
   STRIKES: 'crm_hot_strikes_v1',
   COMMUNICATION: 'crm_hot_comms_v1',
   SETTINGS: 'crm_hot_settings_v1',
@@ -218,6 +221,8 @@ export const storageService = {
     members?: Member[];
     events?: AllianceEvent[];
     attendance?: AttendanceRecord[];
+    slots?: EventSlot[];
+    participations?: EventParticipation[];
     strikes?: StrikeRecord[];
     communications?: CommunicationRecord[];
     admins?: AdminAccount[];
@@ -227,6 +232,8 @@ export const storageService = {
       if (Array.isArray(bundle.members)) localStorage.setItem(STORAGE_KEYS.MEMBERS, JSON.stringify(deduplicateMembers(bundle.members)));
       if (Array.isArray(bundle.events)) localStorage.setItem(STORAGE_KEYS.EVENTS, JSON.stringify(bundle.events));
       if (Array.isArray(bundle.attendance)) localStorage.setItem(STORAGE_KEYS.ATTENDANCE, JSON.stringify(bundle.attendance));
+      if (Array.isArray(bundle.slots)) localStorage.setItem(STORAGE_KEYS.EVENT_SLOTS, JSON.stringify(bundle.slots));
+      if (Array.isArray(bundle.participations)) localStorage.setItem(STORAGE_KEYS.EVENT_PARTICIPATIONS, JSON.stringify(bundle.participations));
       if (Array.isArray(bundle.strikes)) localStorage.setItem(STORAGE_KEYS.STRIKES, JSON.stringify(bundle.strikes));
       if (Array.isArray(bundle.communications)) localStorage.setItem(STORAGE_KEYS.COMMUNICATION, JSON.stringify(bundle.communications));
       if (Array.isArray(bundle.admins)) localStorage.setItem(STORAGE_KEYS.ADMIN_ACCOUNTS, JSON.stringify(bundle.admins));
@@ -306,6 +313,68 @@ export const storageService = {
       return mapped !== a.eventId ? { ...a, eventId: mapped } : a;
     });
     localStorage.setItem(STORAGE_KEYS.ATTENDANCE, JSON.stringify(normalized));
+  },
+
+  getEventSlots(): EventSlot[] {
+    const raw = localStorage.getItem(STORAGE_KEYS.EVENT_SLOTS);
+    return raw ? JSON.parse(raw) : [];
+  },
+
+  setEventSlots(slots: EventSlot[]) {
+    localStorage.setItem(STORAGE_KEYS.EVENT_SLOTS, JSON.stringify(slots));
+  },
+
+  getEventParticipations(): EventParticipation[] {
+    const raw = localStorage.getItem(STORAGE_KEYS.EVENT_PARTICIPATIONS);
+    return raw ? JSON.parse(raw) : [];
+  },
+
+  setEventParticipations(participations: EventParticipation[]) {
+    localStorage.setItem(STORAGE_KEYS.EVENT_PARTICIPATIONS, JSON.stringify(participations));
+  },
+
+  getMigratedOrStoredEvents(): { events: AllianceEvent[]; slots: EventSlot[]; participations: EventParticipation[] } {
+    const storedSlots = this.getEventSlots();
+    const storedParticipations = this.getEventParticipations();
+    const storedEvents = this.getEvents();
+
+    if (storedParticipations.length > 0 && storedSlots.length > 0) {
+      // Find parent events (events that have slots or are parent events)
+      const parentEventIds = new Set(storedSlots.map(s => s.eventId));
+      const parentEvents = storedEvents.filter(e => parentEventIds.has(e.id));
+      return {
+        events: parentEvents.length > 0 ? parentEvents : storedEvents,
+        slots: storedSlots,
+        participations: storedParticipations,
+      };
+    }
+
+    // Auto-migrate from existing legacy events and attendance
+    const legacyAtt = this.getAttendance();
+    const bundle = migrateHistoricalEvents(storedEvents, legacyAtt);
+    if (bundle.participations.length > 0) {
+      this.setEventSlots(bundle.slots);
+      this.setEventParticipations(bundle.participations);
+      // Ensure parent events are present in stored events
+      const mergedEvents = [...bundle.events];
+      for (const e of storedEvents) {
+        if (!mergedEvents.some(m => m.id === e.id)) {
+          mergedEvents.push(e);
+        }
+      }
+      this.setEvents(mergedEvents);
+      return {
+        events: bundle.events,
+        slots: bundle.slots,
+        participations: bundle.participations,
+      };
+    }
+
+    return {
+      events: storedEvents,
+      slots: storedSlots,
+      participations: storedParticipations,
+    };
   },
 
   getStrikes(): StrikeRecord[] {

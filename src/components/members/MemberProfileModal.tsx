@@ -1,23 +1,25 @@
-import React, { useState } from 'react';
-import { Member, CommunicationStatus } from '../../types/crm';
+import React, { useState, useMemo } from 'react';
+import { Member } from '../../types/crm';
 import { useCRM } from '../../context/CRMContext';
 import { Modal } from '../common/Modal';
 import { RankBadge } from '../common/RankBadge';
-import { ActivityBadge, VoteBadge, AttendanceBadge } from '../common/StatusBadge';
+import { ActivityBadge } from '../common/StatusBadge';
 import { StrikeBadge } from '../common/StrikeBadge';
 import { ProgressBar } from '../common/ProgressBar';
-import { calculateMemberParticipation } from '../../utils/participation';
+import { calculateMemberEventStats } from '../../utils/eventCalculations';
 import {
   Shield,
   Flame,
-  MessageSquare,
   Swords,
-  PlusCircle,
   Edit3,
   Copy,
   Check,
   Calendar,
   Clock,
+  ShieldAlert,
+  CheckCircle2,
+  X,
+  AlertTriangle,
 } from 'lucide-react';
 import { sounds } from '../../utils/sound';
 import { safeFormatDateTime } from '../../utils/date';
@@ -37,7 +39,7 @@ export const MemberProfileModal: React.FC<MemberProfileModalProps> = ({
   onOpenAddStrike,
   onOpenEditMember,
 }) => {
-  const { events, attendance, strikes, removeStrike, addCommunication } = useCRM();
+  const { events, eventSlots, eventParticipations, strikes, removeStrike, addCommunication } = useCRM();
 
   const [activeTab, setActiveTab] = useState<'events' | 'strikes' | 'notes'>('events');
   const [commNoteInput, setCommNoteInput] = useState('');
@@ -50,10 +52,49 @@ export const MemberProfileModal: React.FC<MemberProfileModalProps> = ({
     }
   }, [member]);
 
-  if (!member) return null;
+  const memberStrikes = useMemo(() => {
+    if (!member) return [];
+    return strikes.filter(s => s.memberId === member.id);
+  }, [strikes, member]);
 
-  const partStats = calculateMemberParticipation(member.id, events, attendance);
-  const memberStrikes = strikes.filter(s => s.memberId === member.id);
+  // Requirement 16: Member Profile Event Stats per event type
+  const eventStats = useMemo(() => {
+    if (!member) return {};
+    return calculateMemberEventStats(member.id, events, eventSlots, eventParticipations);
+  }, [member, events, eventSlots, eventParticipations]);
+
+  // Overall member participations list
+  const memberParticipationsList = useMemo(() => {
+    if (!member) return [];
+    const eventMap = new Map(events.map(e => [e.id, e]));
+    const slotMap = new Map(eventSlots.map(s => [s.id, s]));
+
+    return eventParticipations
+      .filter(p => p.memberId === member.id)
+      .map(p => {
+        const evt = eventMap.get(p.eventId);
+        const votedSlot = p.selectedSlotId ? slotMap.get(p.selectedSlotId) : null;
+        const attendedSlot = p.attendanceSlotId ? slotMap.get(p.attendanceSlotId) : null;
+        return {
+          participation: p,
+          event: evt,
+          votedSlot,
+          attendedSlot,
+        };
+      })
+      .filter(item => Boolean(item.event))
+      .sort((a, b) => new Date(b.event!.date).getTime() - new Date(a.event!.date).getTime());
+  }, [member, events, eventSlots, eventParticipations]);
+
+  // Overall attendance rate across completed parent events
+  const overallStats = useMemo(() => {
+    const totalEvents = events.length;
+    const attendedCount = memberParticipationsList.filter(item => item.participation.attendanceStatus === 'ATTENDED').length;
+    const rate = totalEvents > 0 ? (attendedCount / totalEvents) * 100 : 0;
+    return { totalEvents, attendedCount, rate };
+  }, [events, memberParticipationsList]);
+
+  if (!member) return null;
 
   const handleCopyGameId = () => {
     if (!member.gameId) return;
@@ -75,6 +116,8 @@ export const MemberProfileModal: React.FC<MemberProfileModalProps> = ({
     await removeStrike(strikeId, member.id);
   };
 
+  const mainTypes = ['Bear Trap', 'Swordsland', 'Tri Alliance'];
+
   return (
     <Modal
       isOpen={isOpen}
@@ -89,7 +132,7 @@ export const MemberProfileModal: React.FC<MemberProfileModalProps> = ({
         <div className="p-4 rounded-xl bg-slate-900/80 border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="space-y-1.5">
             <div className="flex items-center gap-2.5 flex-wrap">
-              <span className="font-bold text-xl text-slate-100">{member.name}</span>
+              <span className="font-bold text-xl text-slate-100 font-fantasy">{member.name}</span>
               <RankBadge rank={member.currentRank} size="sm" />
               <ActivityBadge status={member.status} size="sm" />
               {member.gameId && (
@@ -143,20 +186,20 @@ export const MemberProfileModal: React.FC<MemberProfileModalProps> = ({
         {/* Clean Attendance Bar */}
         <div className="p-3.5 rounded-xl bg-slate-900/80 border border-slate-800 space-y-1.5">
           <div className="flex items-center justify-between text-xs">
-            <span className="font-semibold text-slate-300">Attendance Rate</span>
-            <span className="font-mono font-bold text-emerald-400">
-              {partStats.percentage.toFixed(0)}% ({partStats.joinedCount} of {partStats.totalEvents} joined)
+            <span className="font-semibold text-slate-300">Overall Event Attendance</span>
+            <span className="font-mono font-bold text-amber-400">
+              {overallStats.rate.toFixed(0)}% ({overallStats.attendedCount} of {overallStats.totalEvents} events)
             </span>
           </div>
           <ProgressBar
-            percentage={partStats.percentage}
-            color={partStats.percentage >= 75 ? 'emerald' : partStats.percentage >= 50 ? 'gold' : 'crimson'}
+            percentage={overallStats.rate}
+            color={overallStats.rate >= 75 ? 'emerald' : overallStats.rate >= 50 ? 'gold' : 'crimson'}
             size="sm"
             showPercentage={false}
           />
         </div>
 
-        {/* 3 Simple Tabs */}
+        {/* 3 Tabs */}
         <div className="flex items-center gap-2 border-b border-slate-800 pb-1">
           <button
             onClick={() => setActiveTab('events')}
@@ -166,7 +209,7 @@ export const MemberProfileModal: React.FC<MemberProfileModalProps> = ({
                 : 'text-slate-400 hover:text-slate-200'
             }`}
           >
-            Events ({events.length})
+            Event History ({events.length})
           </button>
 
           <button
@@ -194,52 +237,69 @@ export const MemberProfileModal: React.FC<MemberProfileModalProps> = ({
 
         {/* Tab 1: Events */}
         {activeTab === 'events' && (
-          <div className="space-y-3">
-            {/* All-Time Specific Event Type Attendance Percentages */}
-            <div className="p-3.5 rounded-xl bg-slate-900/80 border border-slate-800 space-y-2.5">
-              <div className="text-xs font-semibold text-slate-300 uppercase tracking-wider">
-                All-Time Attendance by Event
+          <div className="space-y-4">
+            {/* Requirement 16: Breakdown for Bear Trap, Swordsland, Tri Alliance */}
+            <div className="space-y-2">
+              <div className="text-xs font-bold text-slate-300 uppercase tracking-wider font-fantasy flex items-center gap-1.5">
+                <Swords className="w-3.5 h-3.5 text-amber-400" />
+                <span>War Discipline by Event Type</span>
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                {['BT1', 'BT2', 'Swordland L1', 'Swordland L2', 'Tri Alliance L1', 'Tri Alliance L2'].map(eventType => {
-                  const typeData = partStats.perType[eventType];
-                  const total = typeData ? typeData.total : 0;
-                  const joined = typeData ? typeData.joined : 0;
-                  const pct = total > 0 ? (joined / total) * 100 : 0;
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                {mainTypes.map(eType => {
+                  const s = eventStats[eType] || {
+                    eventType: eType,
+                    eventsParticipated: 0,
+                    slot1Attendance: 0,
+                    slot2Attendance: 0,
+                    totalAttendance: 0,
+                    totalVotes: 0,
+                    voteFulfillmentCount: 0,
+                    voteFulfillmentRate: 0,
+                    penaltiesCount: 0,
+                  };
+
+                  const totalCyclesOfType = events.filter(e => e.eventType === eType).length;
+                  const attRate = totalCyclesOfType > 0 ? Math.round((s.eventsParticipated / totalCyclesOfType) * 100) : 0;
+
+                  const slot1Name = eType === 'Bear Trap' ? 'BT1' : `${eType} 1`;
+                  const slot2Name = eType === 'Bear Trap' ? 'BT2' : `${eType} 2`;
 
                   return (
                     <div
-                      key={eventType}
-                      className="p-2.5 rounded-lg bg-slate-950 border border-slate-800 space-y-1"
+                      key={eType}
+                      className="p-3 rounded-xl bg-slate-950/80 border border-slate-800 space-y-2"
                     >
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="font-semibold text-slate-200 truncate">{eventType}</span>
-                        <span
-                          className={`font-mono font-bold text-xs ${
-                            pct >= 75
-                              ? 'text-emerald-400'
-                              : pct >= 50
-                              ? 'text-amber-400'
-                              : total > 0
-                              ? 'text-rose-400'
-                              : 'text-slate-500'
-                          }`}
-                        >
-                          {total > 0 ? `${pct.toFixed(0)}%` : '—'}
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-xs text-amber-300 font-fantasy">{eType}</span>
+                        <span className="text-[10px] text-slate-400 font-mono">
+                          {s.eventsParticipated}/{totalCyclesOfType} ({attRate}%)
                         </span>
                       </div>
 
-                      <div className="w-full bg-slate-900 rounded-full h-1.5 overflow-hidden">
-                        <div
-                          className={`h-full rounded-full transition-all ${
-                            pct >= 75 ? 'bg-emerald-500' : pct >= 50 ? 'bg-amber-500' : 'bg-rose-500'
-                          }`}
-                          style={{ width: `${pct}%` }}
-                        />
+                      <div className="grid grid-cols-2 gap-1.5 text-[11px] p-2 rounded bg-slate-900/60 border border-slate-800/80">
+                        <div>
+                          <span className="text-slate-400 block text-[10px]">{slot1Name}:</span>
+                          <span className="font-mono font-bold text-slate-200">{s.slot1Attendance} times</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400 block text-[10px]">{slot2Name}:</span>
+                          <span className="font-mono font-bold text-slate-200">{s.slot2Attendance} times</span>
+                        </div>
                       </div>
 
-                      <div className="text-[10px] text-slate-400 font-mono text-right">
-                        {joined}/{total} joined
+                      <div className="flex items-center justify-between text-[11px] pt-1 border-t border-slate-800/80">
+                        <span className="text-slate-400">Vote Fulfillment:</span>
+                        <span className="font-mono font-bold text-purple-300">
+                          {s.voteFulfillmentRate}%
+                        </span>
+                      </div>
+
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="text-slate-400">Penalties Issued:</span>
+                        <span className={`font-mono font-bold ${s.penaltiesCount > 0 ? 'text-rose-400' : 'text-slate-400'}`}>
+                          {s.penaltiesCount}
+                        </span>
                       </div>
                     </div>
                   );
@@ -247,32 +307,80 @@ export const MemberProfileModal: React.FC<MemberProfileModalProps> = ({
               </div>
             </div>
 
-            {/* Individual Battle Attendance Ledger */}
-            <div className="rounded-xl bg-slate-900/80 border border-slate-800 max-h-56 overflow-y-auto divide-y divide-slate-800">
-              {partStats.perEvent.map(pe => (
-                <div
-                  key={pe.eventId}
-                  className="p-3 flex items-center justify-between text-xs hover:bg-slate-800/30 transition-colors gap-3"
-                >
-                  <div className="space-y-0.5 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-semibold text-slate-200">{pe.eventType}</span>
-                      {pe.date && (
-                        <span className="text-[10px] text-amber-400 font-mono flex items-center gap-1 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20">
-                          <Calendar className="w-2.5 h-2.5 text-amber-400" />
-                          <span>{safeFormatDateTime(pe.date)}</span>
-                        </span>
-                      )}
-                    </div>
-                    <div className="text-[11px] text-slate-400 truncate">{pe.eventName}</div>
-                  </div>
+            {/* Individual Event Ledger */}
+            <div className="space-y-1.5">
+              <div className="text-xs font-bold text-slate-300 uppercase tracking-wider font-fantasy">
+                Event Participation History
+              </div>
 
-                  <div className="flex items-center gap-2 shrink-0">
-                    <VoteBadge status={pe.voteStatus as any} size="sm" />
-                    <AttendanceBadge status={pe.attendanceStatus as any} size="sm" />
+              <div className="rounded-xl bg-slate-900/80 border border-slate-800 max-h-56 overflow-y-auto divide-y divide-slate-800">
+                {memberParticipationsList.length === 0 ? (
+                  <div className="p-4 text-center text-xs text-slate-500">
+                    No participation records found for this member.
                   </div>
-                </div>
-              ))}
+                ) : (
+                  memberParticipationsList.map(({ participation, event, votedSlot, attendedSlot }) => (
+                    <div
+                      key={participation.id}
+                      className="p-3 flex items-center justify-between text-xs hover:bg-slate-800/30 transition-colors gap-3"
+                    >
+                      <div className="space-y-0.5 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-bold text-slate-200 font-fantasy">{event?.eventType}</span>
+                          {event?.date && (
+                            <span className="text-[10px] text-amber-400 font-mono flex items-center gap-1 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20">
+                              <Calendar className="w-2.5 h-2.5 text-amber-400" />
+                              <span>{safeFormatDateTime(event.date)}</span>
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-[11px] text-slate-400 truncate">{event?.eventName}</div>
+                        {participation.penaltyNote && (
+                          <div className="text-[10px] text-rose-300 italic mt-0.5">
+                            Note: {participation.penaltyNote}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0 text-right">
+                        {/* Voted Slot */}
+                        <div className="text-[10px]">
+                          <span className="text-slate-500 block">Voted:</span>
+                          <span className="font-mono font-semibold text-sky-300">
+                            {votedSlot ? votedSlot.slotName : 'No Vote'}
+                          </span>
+                        </div>
+
+                        {/* Attended Slot */}
+                        <div className="text-[10px]">
+                          <span className="text-slate-500 block">Attended:</span>
+                          {participation.attendanceStatus === 'ATTENDED' && attendedSlot ? (
+                            <span className="font-mono font-bold text-emerald-400">
+                              {attendedSlot.slotName}
+                            </span>
+                          ) : participation.attendanceStatus === 'ABSENT' ? (
+                            <span className="font-mono font-bold text-rose-400">Absent</span>
+                          ) : (
+                            <span className="text-slate-500 italic">Not Marked</span>
+                          )}
+                        </div>
+
+                        {/* Penalty */}
+                        {participation.penaltyStatus === 'ISSUED' && (
+                          <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-rose-500 text-slate-950">
+                            Penalty
+                          </span>
+                        )}
+                        {participation.penaltyStatus === 'WAIVED' && (
+                          <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                            Waived
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
           </div>
         )}

@@ -1,19 +1,18 @@
 import React, { useState, useMemo } from 'react';
 import { useCRM } from '../../context/CRMContext';
 import { useAuth } from '../../context/AuthContext';
-import { ProgressBar } from '../common/ProgressBar';
-import { calculateAllEventAverages } from '../../utils/participation';
+import { calculateEventHealthMetrics } from '../../utils/eventCalculations';
 import {
   Swords,
   Plus,
   Calendar,
   Clock,
   ChevronRight,
-  TrendingUp,
   BarChart3,
   ArrowUpDown,
   CheckCircle2,
-  RefreshCw,
+  AlertTriangle,
+  Users,
 } from 'lucide-react';
 import { sounds } from '../../utils/sound';
 import { safeFormatDate, getComputedEventStatus, getEventRelativeTime, parseDateAsUtc } from '../../utils/date';
@@ -25,7 +24,8 @@ interface EventsViewProps {
 export const EventsView: React.FC<EventsViewProps> = ({ onOpenCreateEvent }) => {
   const {
     events,
-    attendance,
+    eventSlots,
+    eventParticipations,
     members,
     setSelectedEventIdForAttendance,
     setActiveTab,
@@ -35,21 +35,9 @@ export const EventsView: React.FC<EventsViewProps> = ({ onOpenCreateEvent }) => 
   // Filters and Sorting
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'Upcoming' | 'Completed'>('ALL');
   const [typeFilter, setTypeFilter] = useState<string>('ALL');
-  const [sortOrder, setSortOrder] = useState<'earliest' | 'latest'>('earliest');
+  const [sortOrder, setSortOrder] = useState<'earliest' | 'latest'>('latest');
 
-  // Compute all-time averages for each event type
-  const eventAverages = useMemo(() => {
-    return calculateAllEventAverages(events, attendance);
-  }, [events, attendance]);
-
-  const coreEventTypes = [
-    'BT1',
-    'BT2',
-    'Swordland L1',
-    'Swordland L2',
-    'Tri Alliance L1',
-    'Tri Alliance L2',
-  ];
+  const mainEventTypes = ['Bear Trap', 'Swordsland', 'Tri Alliance'];
 
   // Count upcoming vs completed based strictly on date/time
   const statusCounts = useMemo(() => {
@@ -63,7 +51,42 @@ export const EventsView: React.FC<EventsViewProps> = ({ onOpenCreateEvent }) => 
     return { total: events.length, upcoming, completed };
   }, [events]);
 
-  // Filter and sort events (Earliest First by default)
+  // Overall benchmark participation stats per main event type
+  const typeAverages = useMemo(() => {
+    const map: Record<string, { totalEvents: number; avgParticipation: number; avgVoting: number }> = {
+      'Bear Trap': { totalEvents: 0, avgParticipation: 0, avgVoting: 0 },
+      'Swordsland': { totalEvents: 0, avgParticipation: 0, avgVoting: 0 },
+      'Tri Alliance': { totalEvents: 0, avgParticipation: 0, avgVoting: 0 },
+    };
+
+    let btSum = 0, btCount = 0;
+    let slSum = 0, slCount = 0;
+    let triSum = 0, triCount = 0;
+
+    const eligibleCount = members.filter(m => m.status !== 'Archived').length;
+    events.forEach(e => {
+      const metrics = calculateEventHealthMetrics(e.id, eventSlots, eventParticipations, eligibleCount);
+      const t = e.eventType;
+      if (t === 'Bear Trap') {
+        btSum += metrics.overallParticipationRate;
+        btCount++;
+      } else if (t === 'Swordsland') {
+        slSum += metrics.overallParticipationRate;
+        slCount++;
+      } else if (t === 'Tri Alliance') {
+        triSum += metrics.overallParticipationRate;
+        triCount++;
+      }
+    });
+
+    map['Bear Trap'] = { totalEvents: btCount, avgParticipation: btCount > 0 ? Math.round(btSum / btCount) : 0, avgVoting: 0 };
+    map['Swordsland'] = { totalEvents: slCount, avgParticipation: slCount > 0 ? Math.round(slSum / slCount) : 0, avgVoting: 0 };
+    map['Tri Alliance'] = { totalEvents: triCount, avgParticipation: triCount > 0 ? Math.round(triSum / triCount) : 0, avgVoting: 0 };
+
+    return map;
+  }, [events, members, eventSlots, eventParticipations]);
+
+  // Filter and sort events
   const processedEvents = useMemo(() => {
     return events
       .filter(e => {
@@ -94,12 +117,12 @@ export const EventsView: React.FC<EventsViewProps> = ({ onOpenCreateEvent }) => 
             <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
               <Swords className="w-5 h-5" />
             </div>
-            <h1 className="font-bold text-2xl sm:text-3xl text-slate-100 tracking-tight">
+            <h1 className="font-bold text-2xl sm:text-3xl text-slate-100 tracking-tight font-fantasy">
               Alliance Events
             </h1>
           </div>
           <p className="text-xs sm:text-sm text-slate-400 font-medium mt-1">
-            Track alliance event turnout benchmarks and upcoming operations.
+            2-Slot War Events (Bear Trap, Swordsland, Tri Alliance) with independent voting & slot attendance tracking.
           </p>
         </div>
 
@@ -121,18 +144,16 @@ export const EventsView: React.FC<EventsViewProps> = ({ onOpenCreateEvent }) => 
 
       {/* Benchmark Turnout Rates Cards */}
       <div className="space-y-2.5">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <BarChart3 className="w-4 h-4 text-amber-400" />
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-              Historical Turnout Benchmarks
-            </h2>
-          </div>
+        <div className="flex items-center gap-2">
+          <BarChart3 className="w-4 h-4 text-amber-400" />
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-400 font-fantasy">
+            Event Turnout Benchmarks
+          </h2>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-          {coreEventTypes.map(eType => {
-            const stats = eventAverages[eType] || { totalEvents: 0, averageAttendancePercentage: 0 };
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {mainEventTypes.map(eType => {
+            const stats = typeAverages[eType] || { totalEvents: 0, avgParticipation: 0 };
             const isFilterActive = typeFilter === eType;
 
             return (
@@ -148,28 +169,15 @@ export const EventsView: React.FC<EventsViewProps> = ({ onOpenCreateEvent }) => 
                     : 'bg-slate-900/80 border-slate-800 hover:border-slate-700'
                 }`}
               >
-                <div>
-                  <div className="text-xs font-semibold text-slate-200 truncate">
-                    {eType}
-                  </div>
-                  <div className="text-[11px] text-slate-400 mt-0.5">
-                    {stats.totalEvents} recorded
-                  </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-200 font-fantasy">{eType}</span>
+                  <span className="text-[10px] text-slate-400">{stats.totalEvents} Cycles</span>
                 </div>
-
-                <div className="mt-3 flex items-baseline justify-between">
-                  <div className={`text-xl font-bold font-mono ${
-                    stats.averageAttendancePercentage >= 75
-                      ? 'text-emerald-400'
-                      : stats.averageAttendancePercentage >= 50
-                      ? 'text-amber-400'
-                      : 'text-slate-400'
-                  }`}>
-                    {stats.totalEvents > 0 ? `${stats.averageAttendancePercentage.toFixed(0)}%` : '—'}
+                <div className="mt-2 flex items-baseline justify-between">
+                  <div className="text-2xl font-black text-amber-400 font-mono">
+                    {stats.avgParticipation}%
                   </div>
-                  {stats.totalEvents > 0 && (
-                    <TrendingUp className="w-3.5 h-3.5 text-slate-500" />
-                  )}
+                  <div className="text-[10px] text-stone-400">Avg Turnout</div>
                 </div>
               </div>
             );
@@ -177,10 +185,10 @@ export const EventsView: React.FC<EventsViewProps> = ({ onOpenCreateEvent }) => 
         </div>
       </div>
 
-      {/* Controls & Filter Toolbar */}
-      <div className="p-3 sm:p-4 rounded-xl bg-slate-900/80 border border-slate-800 flex flex-wrap gap-2.5 items-center justify-between">
+      {/* Filter and Control Bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
         {/* Status Pills */}
-        <div className="flex items-center gap-1.5 p-1 rounded-lg bg-slate-950 border border-slate-800/80 overflow-x-auto scrollbar-none">
+        <div className="flex items-center gap-1.5 p-1 rounded-lg bg-slate-900/80 border border-slate-800 w-fit">
           <button
             onClick={() => {
               sounds.playClick();
@@ -226,21 +234,19 @@ export const EventsView: React.FC<EventsViewProps> = ({ onOpenCreateEvent }) => 
 
         {/* Type & Sort Controls */}
         <div className="flex items-center gap-2 flex-wrap">
-          {/* Type dropdown */}
           <select
             value={typeFilter}
             onChange={e => setTypeFilter(e.target.value)}
             className="px-3 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500 cursor-pointer"
           >
             <option value="ALL">All Event Types</option>
-            {coreEventTypes.map(t => (
+            {mainEventTypes.map(t => (
               <option key={t} value={t}>
                 {t}
               </option>
             ))}
           </select>
 
-          {/* Sort button */}
           <button
             onClick={() => {
               sounds.playClick();
@@ -254,7 +260,7 @@ export const EventsView: React.FC<EventsViewProps> = ({ onOpenCreateEvent }) => 
         </div>
       </div>
 
-      {/* War Events Grid */}
+      {/* Events Grid */}
       {processedEvents.length === 0 ? (
         <div className="p-12 text-center text-slate-400 bg-slate-900/60 rounded-xl border border-slate-800 space-y-3">
           <div className="w-12 h-12 mx-auto rounded-xl bg-slate-800 flex items-center justify-center text-slate-400">
@@ -272,21 +278,8 @@ export const EventsView: React.FC<EventsViewProps> = ({ onOpenCreateEvent }) => 
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {processedEvents.map(event => {
-            const EVENT_ID_ALIASES: Record<string, string> = {
-              'evt-1790607589476-kins': 'evt-c233df90',
-              'evt-1791048690819-7icl': 'evt-6f6a9d3a',
-              'evt-1791048703740-v7b9': 'evt-61922e28',
-              'evt-1791049152771-k1qw': 'evt-c031d684',
-              'evt-1791049171203-10e5': 'evt-f9234e34',
-              'evt-1791223308841-6mkk': 'evt-4eee1101',
-            };
-            const records = attendance.filter(a => a.eventId === event.id || EVENT_ID_ALIASES[a.eventId] === event.id);
-            const total = records.length > 0 ? records.length : (members.length || 94);
-            const joined = records.filter(r => r.attendanceStatus === 'JOINED').length;
-            const missed = records.filter(r => r.attendanceStatus === 'DIDNT_JOIN').length;
-            const votedYes = records.filter(r => r.voteStatus === 'YES').length;
-            const votedNo = records.filter(r => r.voteStatus === 'NO').length;
-            const attendancePct = total > 0 ? (joined / total) * 100 : 0;
+            const eligibleCount = members.filter(m => m.status !== 'Archived').length;
+            const metrics = calculateEventHealthMetrics(event.id, eventSlots, eventParticipations, eligibleCount);
             const computedStatus = getComputedEventStatus(event.date);
             const relativeTime = getEventRelativeTime(event.date);
 
@@ -296,6 +289,13 @@ export const EventsView: React.FC<EventsViewProps> = ({ onOpenCreateEvent }) => 
               hour: '2-digit',
               minute: '2-digit',
             });
+
+            const slotsForEvent = eventSlots.filter(s => s.eventId === event.id);
+            const slot1 = slotsForEvent.find(s => s.slotNumber === 1);
+            const slot2 = slotsForEvent.find(s => s.slotNumber === 2);
+
+            const slot1Metrics = metrics.slots.find(s => s.slotNumber === 1);
+            const slot2Metrics = metrics.slots.find(s => s.slotNumber === 2);
 
             return (
               <div
@@ -307,10 +307,11 @@ export const EventsView: React.FC<EventsViewProps> = ({ onOpenCreateEvent }) => 
                 }`}
               >
                 <div>
+                  {/* Top: Event Type & Date */}
                   <div className="flex items-start justify-between gap-2 mb-2">
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className="font-bold text-base text-slate-100">
+                        <span className="font-bold text-base text-slate-100 font-fantasy">
                           {event.eventType}
                         </span>
                         <span
@@ -337,56 +338,83 @@ export const EventsView: React.FC<EventsViewProps> = ({ onOpenCreateEvent }) => 
                     </div>
 
                     <div className="text-right text-xs text-slate-400 font-mono">
-                      <div className="font-semibold text-slate-200">{formattedDate}</div>
+                      <div className="font-semibold text-slate-200">{formattedDate} UTC</div>
                       {relativeTime && (
                         <div className="text-[10px] text-amber-400 font-medium">{relativeTime}</div>
                       )}
                     </div>
                   </div>
 
-                  {/* Turnout Progress Bar */}
-                  <div className="my-3 space-y-1">
-                    <ProgressBar
-                      percentage={attendancePct}
-                      label="Turnout Rate"
-                      subLabel={`${joined}/${total}`}
-                      color={
-                        attendancePct >= 75 ? 'emerald' : attendancePct >= 50 ? 'gold' : 'crimson'
-                      }
-                    />
+                  {/* Overall Turnout Stats */}
+                  <div className="my-3 p-3 rounded-lg bg-slate-950/60 border border-slate-800/80 space-y-2">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-slate-400">Actual Participation:</span>
+                      <span className="font-mono font-bold text-amber-400 text-sm">
+                        {metrics.overallParticipationRate}% ({metrics.uniqueAttendees}/{metrics.eligibleMembersCount})
+                      </span>
+                    </div>
+                    <div className="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
+                      <div
+                        className="bg-gradient-to-r from-amber-600 to-amber-400 h-2 rounded-full transition-all"
+                        style={{ width: `${Math.min(100, metrics.overallParticipationRate)}%` }}
+                      />
+                    </div>
+                    <div className="flex items-center justify-between text-[11px] text-slate-400 pt-0.5">
+                      <span>Voted: {metrics.votingRate}% ({metrics.totalVoters})</span>
+                      <span>No Vote: {metrics.noVoteCount}</span>
+                    </div>
                   </div>
 
-                  {/* Summary Metric Strip */}
-                  <div className="grid grid-cols-2 gap-2 text-xs py-2 px-3 rounded-lg bg-slate-950/60 border border-slate-800/80 mb-3">
-                    <div>
-                      <span className="text-slate-400 text-[11px] block">Committed Votes:</span>
-                      <span className="font-mono font-semibold text-slate-200">
-                        <span className="text-emerald-400">{votedYes} YES</span>
-                        <span className="text-slate-600 mx-1">/</span>
-                        <span className="text-rose-400">{votedNo} NO</span>
-                      </span>
+                  {/* 2-Slot Health Breakdown */}
+                  <div className="grid grid-cols-2 gap-2 text-xs py-2 px-3 rounded-lg bg-slate-950/40 border border-slate-800/60 mb-3">
+                    <div className="border-r border-slate-800 pr-2">
+                      <div className="text-[11px] font-bold text-amber-300 font-fantasy truncate">
+                        {slot1?.slotName || 'Slot 1'}
+                      </div>
+                      <div className="text-[10px] text-slate-400 truncate">{slot1?.startTime || '16:00 UTC'}</div>
+                      <div className="mt-1 font-mono text-xs">
+                        <span className="text-slate-200 font-bold">{slot1Metrics?.actualAttendees || 0}</span>
+                        <span className="text-slate-400 text-[10px]"> ({slot1Metrics?.participationRate || 0}%)</span>
+                      </div>
                     </div>
-                    <div>
-                      <span className="text-slate-400 text-[11px] block">Turnout Count:</span>
-                      <span className="font-mono font-semibold text-slate-200">
-                        <span className="text-emerald-400">{joined} Joined</span>
-                        <span className="text-slate-600 mx-1">/</span>
-                        <span className="text-rose-400">{missed} Missed</span>
-                      </span>
+
+                    <div className="pl-1">
+                      <div className="text-[11px] font-bold text-amber-300 font-fantasy truncate">
+                        {slot2?.slotName || 'Slot 2'}
+                      </div>
+                      <div className="text-[10px] text-slate-400 truncate">{slot2?.startTime || '02:00 UTC'}</div>
+                      <div className="mt-1 font-mono text-xs">
+                        <span className="text-slate-200 font-bold">{slot2Metrics?.actualAttendees || 0}</span>
+                        <span className="text-slate-400 text-[10px]"> ({slot2Metrics?.participationRate || 0}%)</span>
+                      </div>
                     </div>
                   </div>
+
+                  {/* Potential Penalty Notice */}
+                  {metrics.potentialReviewsCount > 0 && (
+                    <div className="mb-3 px-2.5 py-1.5 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-300 text-[11px] flex items-center justify-between">
+                      <span className="flex items-center gap-1.5 font-medium">
+                        <AlertTriangle className="w-3.5 h-3.5 text-rose-400" />
+                        <span>Potential Penalty Review</span>
+                      </span>
+                      <span className="font-mono font-bold bg-rose-500/20 px-1.5 py-0.2 rounded text-rose-200">
+                        {metrics.potentialReviewsCount}
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Card Action Link */}
                 <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between">
-                  <span className="text-[11px] text-slate-400 font-medium">
-                    {total} members registered
+                  <span className="text-[11px] text-slate-400 font-medium flex items-center gap-1">
+                    <Users className="w-3 h-3 text-slate-500" />
+                    <span>{metrics.eligibleMembersCount} members</span>
                   </span>
                   <button
                     onClick={() => handleOpenAttendance(event.id)}
                     className="text-xs font-semibold text-amber-400 hover:text-amber-300 flex items-center gap-1 cursor-pointer transition-colors"
                   >
-                    <span>War Ledger</span>
+                    <span>Dashboard & Attendance</span>
                     <ChevronRight className="w-3.5 h-3.5" />
                   </button>
                 </div>
