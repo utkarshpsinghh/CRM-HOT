@@ -1,5 +1,6 @@
 import { REST, Routes } from 'discord.js';
 import { config, validateConfig } from './config.js';
+import * as startCmd from './commands/start.js';
 import * as profileCmd from './commands/profile.js';
 import * as linkCmd from './commands/link.js';
 import * as meCmd from './commands/me.js';
@@ -23,6 +24,7 @@ import * as triviaCmd from './commands/trivia.js';
 validateConfig();
 
 const commands = [
+  startCmd.data.toJSON(),
   profileCmd.data.toJSON(),
   linkCmd.data.toJSON(),
   meCmd.data.toJSON(),

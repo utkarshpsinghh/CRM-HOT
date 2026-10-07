@@ -1,5 +1,18 @@
-import { Client, Collection, GatewayIntentBits, ActivityType } from 'discord.js';
+import {
+  Client,
+  Collection,
+  GatewayIntentBits,
+  ActivityType,
+  ModalBuilder,
+  TextInputBuilder,
+  TextInputStyle,
+  ActionRowBuilder,
+} from 'discord.js';
 import { config, validateConfig } from './config.js';
+import { crmApi } from './services/crmApi.js';
+import { createBaseEmbed, COLORS, formatRank } from './utils/embedBuilder.js';
+
+import * as startCmd from './commands/start.js';
 import * as profileCmd from './commands/profile.js';
 import * as linkCmd from './commands/link.js';
 import * as meCmd from './commands/me.js';
@@ -29,6 +42,7 @@ const client = new Client({
 // Map commands
 client.commands = new Collection();
 const commandModules = [
+  startCmd,
   profileCmd,
   linkCmd,
   meCmd,
@@ -68,7 +82,7 @@ client.once('ready', () => {
   client.user.setPresence({
     activities: [
       {
-        name: 'Kingdom #1391 [HOT] Roster • /help',
+        name: 'Kingdom #1391 [HOT] Roster • /start',
         type: ActivityType.Watching,
       },
     ],
@@ -78,6 +92,88 @@ client.once('ready', () => {
 
 // Interaction handling
 client.on('interactionCreate', async interaction => {
+  // 1. BUTTON INTERACTIONS (e.g. "Link In-Game Account" Modal Trigger)
+  if (interaction.isButton()) {
+    if (interaction.customId === 'btn_open_link_modal') {
+      const modal = new ModalBuilder()
+        .setCustomId('modal_link_account')
+        .setTitle('Link Kingdom #1391 In-Game ID')
+        .addComponents(
+          new ActionRowBuilder().addComponents(
+            new TextInputBuilder()
+              .setCustomId('input_player_query')
+              .setLabel('In-Game Name or Player ID (e.g. 205063171)')
+              .setStyle(TextInputStyle.Short)
+              .setPlaceholder('Enter your exact in-game name or numeric Player ID')
+              .setRequired(true)
+              .setMinLength(2)
+              .setMaxLength(50)
+          )
+        );
+
+      await interaction.showModal(modal);
+      return;
+    }
+  }
+
+  // 2. MODAL SUBMISSION (Handling instant in-game account link)
+  if (interaction.isModalSubmit()) {
+    if (interaction.customId === 'modal_link_account') {
+      await interaction.deferReply({ ephemeral: true });
+
+      const query = interaction.fields.getTextInputValue('input_player_query');
+      const member = await crmApi.searchMember(query);
+
+      if (!member) {
+        return await interaction.editReply({
+          embeds: [
+            createBaseEmbed('Player Not Found', COLORS.CRIMSON).setDescription(
+              `Could not find any member matching **"${query}"** in the [HOT] roster.\n\n` +
+              `*Tip: Please check spelling or use your exact numeric in-game Player ID (e.g. \`205063171\`).*`
+            ),
+          ],
+        });
+      }
+
+      const success = await crmApi.linkDiscordUser(interaction.user.id, member);
+      if (!success) {
+        return await interaction.editReply({
+          embeds: [
+            createBaseEmbed('Linking Failed', COLORS.CRIMSON).setDescription(
+              'Unable to store your account link right now. Please try again later.'
+            ),
+          ],
+        });
+      }
+
+      const embed = createBaseEmbed('🎉 Account Successfully Linked!', COLORS.EMERALD)
+        .setDescription(
+          `Hail **${member.name}**! Your Discord identity <@${interaction.user.id}> is now securely bound to your in-game profile.`
+        )
+        .addFields(
+          { name: '👤 In-Game Name', value: member.name, inline: true },
+          { name: '🆔 Player ID', value: `\`${member.gameId || 'Not Linked'}\``, inline: true },
+          { name: '🛡️ Alliance Rank', value: formatRank(member.rank), inline: true },
+          {
+            name: '🚀 What to do next?',
+            value: [
+              '• Type **/me** to view your personal combat dossier',
+              '• Type **/checkin** to start your daily war room battle streak',
+              '• Type **/beartrap** to view live countdown to the next trap',
+              '• Type **/duel <opponent>** to challenge an alliance comrade',
+              '• Type **/help** to browse all 20 alliance commands',
+            ].join('\n'),
+            inline: false,
+          }
+        )
+        .setFooter({ text: 'Kingdom #1391 • House of Titans • Welcome to the Ranks!' });
+
+      await interaction.editReply({ embeds: [embed] });
+      return;
+    }
+  }
+
+  // 3. CHAT INPUT COMMANDS
   if (!interaction.isChatInputCommand()) return;
 
   const command = client.commands.get(interaction.commandName);

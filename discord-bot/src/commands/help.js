@@ -1,20 +1,38 @@
 import { SlashCommandBuilder } from 'discord.js';
+import { crmApi } from '../services/crmApi.js';
 import { createBaseEmbed, COLORS } from '../utils/embedBuilder.js';
+import { createLinkButton } from '../utils/authCheck.js';
 
 export const data = new SlashCommandBuilder()
   .setName('help')
   .setDescription('List all available Kingdom #1391 [HOT] Alliance bot commands');
 
 export async function execute(interaction) {
-  const embed = createBaseEmbed('🛡️ [HOT] Alliance Bot — Command Directory', COLORS.GOLD)
-    .setDescription(
-      'Welcome to the official **Kingdom #1391 House of Titans [HOT] Bot**!\n' +
-      'Here are all the slash commands available across the alliance:'
-    )
-    .addFields(
+  await interaction.deferReply();
+
+  try {
+    const linkedMember = await crmApi.getLinkedMember(interaction.user.id);
+
+    const embed = createBaseEmbed('🛡️ [HOT] Alliance Bot — Command Directory', COLORS.GOLD);
+
+    if (linkedMember) {
+      embed.setDescription(
+        `Welcome back, **${linkedMember.name}** [${linkedMember.rank}]!\n` +
+        `Here is your full access command console for **Kingdom #1391 [HOT]**:`
+      );
+    } else {
+      embed.setDescription(
+        `Welcome to the official **Kingdom #1391 House of Titans [HOT] Bot**!\n\n` +
+        `⚠️ **Step 1: Link Your Account**\n` +
+        `You have not linked your Discord identity yet. Click the button below to link and unlock personal combat features!`
+      );
+    }
+
+    embed.addFields(
       {
         name: '👤 Identity & Personal Dossier',
         value: [
+          '• `/start` — Interactive onboarding portal & quick action console.',
           '• `/link <player>` — Link your Discord account to your in-game Name or Player ID.',
           '• `/me` — View your own combat dossier, attendance, and strikes instantly.',
           '• `/profile <player>` — Inspect any alliance member by Name or Player ID.',
@@ -61,10 +79,26 @@ export async function execute(interaction) {
         ].join('\n'),
         inline: false,
       }
-    )
-    .setFooter({
+    );
+
+    embed.setFooter({
       text: 'Kingdom #1391 • House of Titans • Powered by HOT Alliance Command',
     });
 
-  await interaction.reply({ embeds: [embed] });
+    const replyOptions = { embeds: [embed] };
+    if (!linkedMember) {
+      replyOptions.components = [createLinkButton()];
+    }
+
+    await interaction.editReply(replyOptions);
+  } catch (err) {
+    console.error('Execute /help error:', err);
+    await interaction.editReply({
+      embeds: [
+        createBaseEmbed('Command Error', COLORS.CRIMSON).setDescription(
+          `Failed to load command directory: \`${err.message}\``
+        ),
+      ],
+    });
+  }
 }

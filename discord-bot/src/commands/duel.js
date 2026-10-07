@@ -2,6 +2,8 @@ import { SlashCommandBuilder } from 'discord.js';
 import { crmApi } from '../services/crmApi.js';
 import { createBaseEmbed, COLORS, renderProgressBar } from '../utils/embedBuilder.js';
 
+import { requireLinkedMember } from '../utils/authCheck.js';
+
 export const data = new SlashCommandBuilder()
   .setName('duel')
   .setDescription('Challenge an alliance comrade to a simulated Whiteout Survival combat duel!')
@@ -17,6 +19,9 @@ export async function execute(interaction) {
   await interaction.deferReply();
 
   try {
+    const callerMember = await requireLinkedMember(interaction, 'duel');
+    if (!callerMember) return;
+
     const p2Member = await crmApi.searchMember(opponentQuery);
     if (!p2Member) {
       return await interaction.editReply({
@@ -28,11 +33,10 @@ export async function execute(interaction) {
       });
     }
 
-    const callerLinked = await crmApi.getLinkedMember(interaction.user.id).catch(() => null);
-    const p1Name = callerLinked ? callerLinked.name : (interaction.member?.displayName || interaction.user.username);
+    const p1Name = callerMember.name;
     const p2Name = p2Member.name;
 
-    if (callerLinked && callerLinked.id === p2Member.id) {
+    if (callerMember.id === p2Member.id) {
       return await interaction.editReply({
         embeds: [
           createBaseEmbed('Self-Harm Prohibited', COLORS.GOLD).setDescription(

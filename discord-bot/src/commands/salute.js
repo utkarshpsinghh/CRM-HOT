@@ -1,6 +1,7 @@
 import { SlashCommandBuilder } from 'discord.js';
 import { crmApi } from '../services/crmApi.js';
 import { createBaseEmbed, COLORS, formatRank } from '../utils/embedBuilder.js';
+import { requireLinkedMember } from '../utils/authCheck.js';
 
 export const data = new SlashCommandBuilder()
   .setName('salute')
@@ -73,6 +74,9 @@ export async function execute(interaction) {
     }
 
     // 2. GIVE SALUTE SUBCOMMAND
+    const callerMember = await requireLinkedMember(interaction, 'salute');
+    if (!callerMember) return;
+
     const playerQuery = interaction.options.getString('player');
     const reason = interaction.options.getString('reason') || 'Exemplary valor and alliance dedication!';
 
@@ -88,8 +92,7 @@ export async function execute(interaction) {
     }
 
     // Check self-salute
-    const callerLinked = await crmApi.getLinkedMember(interaction.user.id).catch(() => null);
-    if (callerLinked && callerLinked.id === targetMember.id) {
+    if (callerMember.id === targetMember.id) {
       return await interaction.editReply({
         embeds: [
           createBaseEmbed('Self-Salute Prohibited', COLORS.GOLD).setDescription(

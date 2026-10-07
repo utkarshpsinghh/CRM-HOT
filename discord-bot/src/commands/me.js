@@ -2,6 +2,8 @@ import { SlashCommandBuilder } from 'discord.js';
 import { crmApi } from '../services/crmApi.js';
 import { createBaseEmbed, COLORS, formatRank, renderProgressBar } from '../utils/embedBuilder.js';
 
+import { requireLinkedMember } from '../utils/authCheck.js';
+
 export const data = new SlashCommandBuilder()
   .setName('me')
   .setDescription('View your personal Kingdom #1391 [HOT] combat dossier and attendance');
@@ -10,19 +12,8 @@ export async function execute(interaction) {
   await interaction.deferReply();
 
   try {
-    const member = await crmApi.getLinkedMember(interaction.user.id);
-
-    if (!member) {
-      return await interaction.editReply({
-        embeds: [
-          createBaseEmbed('Account Not Linked', COLORS.GOLD).setDescription(
-            `You haven't linked your Discord account to your in-game profile yet!\n\n` +
-            `👉 Use **\`/link <player>\`** with your in-game name or Player ID to link your account.\n` +
-            `*Example: \`/link 205063171\` or \`/link Death Comes\`*`
-          ),
-        ],
-      });
-    }
+    const member = await requireLinkedMember(interaction, 'me');
+    if (!member) return;
 
     // Fetch attendance history and leaderboard for this member
     const [attRes, leaderboardRes] = await Promise.all([

@@ -2,6 +2,8 @@ import { SlashCommandBuilder } from 'discord.js';
 import { crmApi } from '../services/crmApi.js';
 import { createBaseEmbed, COLORS } from '../utils/embedBuilder.js';
 
+import { requireLinkedMember } from '../utils/authCheck.js';
+
 export const data = new SlashCommandBuilder()
   .setName('checkin')
   .setDescription('Daily War Room check-in to build your battle streak and earn Titan glory');
@@ -18,12 +20,11 @@ export async function execute(interaction) {
   await interaction.deferReply();
 
   try {
-    const userId = interaction.user.id;
-    const displayName = interaction.member?.displayName || interaction.user.username;
+    const member = await requireLinkedMember(interaction, 'checkin');
+    if (!member) return;
 
-    // Check if user is linked to an in-game profile
-    const linked = await crmApi.getLinkedMember(userId).catch(() => null);
-    const warriorName = linked ? linked.name : displayName;
+    const userId = interaction.user.id;
+    const warriorName = member.name;
 
     const checkins = await crmApi.getSetting('bot_checkins', {});
     const today = new Date().toISOString().slice(0, 10);
