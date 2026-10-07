@@ -342,3 +342,93 @@ export function migrateHistoricalEvents(
     report,
   };
 }
+
+/**
+ * Map a single EventParticipation record back to one or two legacy AttendanceRecord entries
+ * to ensure 100% backward compatibility with Supabase 'attendance' table.
+ */
+export function mapParticipationToLegacyAttendanceRows(
+  participation: EventParticipation
+): AttendanceRecord[] {
+  const records: AttendanceRecord[] = [];
+  const now = participation.updatedAt || new Date().toISOString();
+
+  // Find if this event corresponds to a known historical pair
+  const pairIdx = HISTORICAL_PAIRS.findIndex((p, idx) => {
+    const parentId = `evt-parent-${idx + 1}-${p.type.toLowerCase().replace(/\s+/g, '-')}-${p.date.slice(0, 10)}`;
+    return parentId === participation.eventId;
+  });
+
+  if (pairIdx !== -1) {
+    const pair = HISTORICAL_PAIRS[pairIdx];
+    const parentId = `evt-parent-${pairIdx + 1}-${pair.type.toLowerCase().replace(/\s+/g, '-')}-${pair.date.slice(0, 10)}`;
+    const slot1Id = `slot-${parentId}-1`;
+    const slot2Id = `slot-${parentId}-2`;
+
+    // Slot 1 vote & attendance
+    let s1Vote: 'YES' | 'NO RESPONSE' = 'NO RESPONSE';
+    let s2Vote: 'YES' | 'NO RESPONSE' = 'NO RESPONSE';
+    if (participation.voteStatus === 'VOTED') {
+      if (participation.selectedSlotId === slot1Id) {
+        s1Vote = 'YES';
+      } else if (participation.selectedSlotId === slot2Id) {
+        s2Vote = 'YES';
+      }
+    }
+
+    let s1Att: 'JOINED' | 'DIDNT_JOIN' | 'NOT_APPLICABLE' = 'NOT_APPLICABLE';
+    let s2Att: 'JOINED' | 'DIDNT_JOIN' | 'NOT_APPLICABLE' = 'NOT_APPLICABLE';
+    if (participation.attendanceStatus === 'ATTENDED') {
+      if (participation.attendanceSlotId === slot1Id) {
+        s1Att = 'JOINED';
+        s2Att = 'DIDNT_JOIN';
+      } else if (participation.attendanceSlotId === slot2Id) {
+        s1Att = 'DIDNT_JOIN';
+        s2Att = 'JOINED';
+      } else {
+        s1Att = 'JOINED';
+      }
+    } else if (participation.attendanceStatus === 'ABSENT') {
+      s1Att = 'DIDNT_JOIN';
+      s2Att = 'DIDNT_JOIN';
+    }
+
+    records.push({
+      id: `att-${pair.slot1.legacyId}-${participation.memberId}`,
+      eventId: pair.slot1.legacyId,
+      memberId: participation.memberId,
+      voteStatus: s1Vote,
+      attendanceStatus: s1Att,
+      updatedAt: now,
+    });
+
+    records.push({
+      id: `att-${pair.slot2.legacyId}-${participation.memberId}`,
+      eventId: pair.slot2.legacyId,
+      memberId: participation.memberId,
+      voteStatus: s2Vote,
+      attendanceStatus: s2Att,
+      updatedAt: now,
+    });
+  } else {
+    // Single / extra event
+    const voteStatus: 'YES' | 'NO RESPONSE' = participation.voteStatus === 'VOTED' ? 'YES' : 'NO RESPONSE';
+    const attendanceStatus: 'JOINED' | 'DIDNT_JOIN' | 'NOT_APPLICABLE' =
+      participation.attendanceStatus === 'ATTENDED'
+        ? 'JOINED'
+        : participation.attendanceStatus === 'ABSENT'
+        ? 'DIDNT_JOIN'
+        : 'NOT_APPLICABLE';
+
+    records.push({
+      id: `att-${participation.eventId}-${participation.memberId}`,
+      eventId: participation.eventId,
+      memberId: participation.memberId,
+      voteStatus,
+      attendanceStatus,
+      updatedAt: now,
+    });
+  }
+
+  return records;
+}

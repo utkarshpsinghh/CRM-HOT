@@ -29,7 +29,7 @@ import { initialMembers } from '../services/mockData';
 import { sounds } from '../utils/sound';
 import { formatCurrentUtcTime, getComputedEventStatus, parseDateAsUtc } from '../utils/date';
 import { useAuth } from './AuthContext';
-import { migrateHistoricalEvents } from '../services/eventMigration';
+import { migrateHistoricalEvents, mapParticipationToLegacyAttendanceRows } from '../services/eventMigration';
 import { getDefaultSlotsForEventType } from '../utils/eventCalculations';
 import { syncAndAutoScheduleBearTraps } from '../services/bearTrapScheduler';
 
@@ -374,6 +374,47 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             processedEvents = scheduledBundle.events;
             processedSlots = scheduledBundle.slots;
             processedParticipations = scheduledBundle.participations;
+
+            // Reconcile and preserve any locally marked attendance/votes so refresh never wipes user changes
+            const localStoredParts = storageService.getEventParticipations();
+            if (localStoredParts.length > 0) {
+              const localMap = new Map(localStoredParts.map(p => [`${p.eventId}_${p.memberId}`, p]));
+              let hasLocalSyncDifferences = false;
+              processedParticipations = processedParticipations.map(p => {
+                const local = localMap.get(`${p.eventId}_${p.memberId}`);
+                if (local) {
+                  const localHasAttendance = local.attendanceStatus !== 'NOT_MARKED';
+                  const remoteHasAttendance = p.attendanceStatus !== 'NOT_MARKED';
+                  const localHasVote = local.voteStatus !== 'NO_VOTE';
+                  const remoteHasVote = p.voteStatus !== 'NO_VOTE';
+                  const localNewer = new Date(local.updatedAt).getTime() > new Date(p.updatedAt).getTime();
+
+                  if ((localHasAttendance && !remoteHasAttendance) || (localHasVote && !remoteHasVote) || localNewer) {
+                    hasLocalSyncDifferences = true;
+                    return local;
+                  }
+                }
+                return p;
+              });
+
+              // If there were local edits that remote didn't have yet, queue a quiet background sync
+              if (hasLocalSyncDifferences) {
+                const updatedDifferences = processedParticipations.filter(p => {
+                  const local = localMap.get(`${p.eventId}_${p.memberId}`);
+                  return local && (local.attendanceStatus !== 'NOT_MARKED' || local.voteStatus !== 'NO_VOTE');
+                });
+                if (updatedDifferences.length > 0) {
+                  (async () => {
+                    for (const diff of updatedDifferences) {
+                      await apiService.updateParticipationAttendance(diff.eventId, diff.memberId, diff.attendanceSlotId, diff.attendanceStatus, currentSettings).catch(() => {});
+                      if (diff.voteStatus === 'VOTED' && diff.selectedSlotId) {
+                        await apiService.updateParticipationVote(diff.eventId, diff.memberId, diff.selectedSlotId, diff.voteStatus, currentSettings).catch(() => {});
+                      }
+                    }
+                  })().catch(() => {});
+                }
+              }
+            }
 
             if (scheduledBundle.prunedEventIds.length > 0) {
               apiService.deleteEventsByIds(scheduledBundle.prunedEventIds, allData.settings || settings).catch(err => {
@@ -1557,6 +1598,32 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return next;
     });
 
+    // Keep legacy attendance state in sync
+    const currentPart = eventParticipations.find(p => p.eventId === eventId && p.memberId === memberId);
+    const updatedPartRecord: EventParticipation = {
+      id: currentPart?.id || `part-${eventId}-${memberId}`,
+      eventId,
+      memberId,
+      selectedSlotId: voteStatus === 'VOTED' ? slotId : null,
+      voteStatus,
+      attendanceStatus: currentPart?.attendanceStatus || 'NOT_MARKED',
+      attendanceSlotId: currentPart?.attendanceSlotId || null,
+      penaltyStatus: currentPart?.penaltyStatus || 'NONE',
+      penaltyNote: currentPart?.penaltyNote || null,
+      createdAt: currentPart?.createdAt || now,
+      updatedAt: now,
+    };
+    const legRowsVote = mapParticipationToLegacyAttendanceRows(updatedPartRecord);
+    setAttendance(prev => {
+      const legMap = new Map(legRowsVote.map(r => [r.id, r]));
+      const nextAtt = prev.map(a => legMap.has(a.id) ? legMap.get(a.id)! : a);
+      legRowsVote.forEach(r => {
+        if (!prev.some(a => a.id === r.id)) nextAtt.push(r);
+      });
+      storageService.setAttendance(nextAtt);
+      return nextAtt;
+    });
+
     if (apiService.isSupabase(settings)) {
       apiService.updateParticipationVote(eventId, memberId, slotId, voteStatus, settings).catch(err =>
         console.warn('Background participation vote sync error:', err)
@@ -1609,6 +1676,32 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
       storageService.setEventParticipations(next);
       return next;
+    });
+
+    // Keep legacy attendance state in sync
+    const currentPart = eventParticipations.find(p => p.eventId === eventId && p.memberId === memberId);
+    const updatedPartRecord: EventParticipation = {
+      id: currentPart?.id || `part-${eventId}-${memberId}`,
+      eventId,
+      memberId,
+      selectedSlotId: currentPart?.selectedSlotId || null,
+      voteStatus: currentPart?.voteStatus || 'NO_VOTE',
+      attendanceStatus,
+      attendanceSlotId: attendanceStatus === 'ATTENDED' ? slotId : null,
+      penaltyStatus: currentPart?.penaltyStatus || 'NONE',
+      penaltyNote: currentPart?.penaltyNote || null,
+      createdAt: currentPart?.createdAt || now,
+      updatedAt: now,
+    };
+    const legRowsAtt = mapParticipationToLegacyAttendanceRows(updatedPartRecord);
+    setAttendance(prev => {
+      const legMap = new Map(legRowsAtt.map(r => [r.id, r]));
+      const nextAtt = prev.map(a => legMap.has(a.id) ? legMap.get(a.id)! : a);
+      legRowsAtt.forEach(r => {
+        if (!prev.some(a => a.id === r.id)) nextAtt.push(r);
+      });
+      storageService.setAttendance(nextAtt);
+      return nextAtt;
     });
 
     if (apiService.isSupabase(settings)) {
@@ -1675,6 +1768,18 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       });
       storageService.setEventParticipations(next);
       return next;
+    });
+
+    // Keep legacy attendance state in sync for bulk updates
+    const allLegRows = updates.flatMap(u => mapParticipationToLegacyAttendanceRows(u));
+    setAttendance(prev => {
+      const legMap = new Map(allLegRows.map(r => [r.id, r]));
+      const nextAtt = prev.map(a => legMap.has(a.id) ? legMap.get(a.id)! : a);
+      allLegRows.forEach(r => {
+        if (!prev.some(a => a.id === r.id)) nextAtt.push(r);
+      });
+      storageService.setAttendance(nextAtt);
+      return nextAtt;
     });
 
     if (apiService.isSupabase(settings)) {

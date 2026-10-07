@@ -20,6 +20,7 @@ import {
 } from '../types/crm';
 import { storageService } from './storage';
 import { supabaseService } from './supabase';
+import { mapParticipationToLegacyAttendanceRows } from './eventMigration';
 import { getLoginAttemptState, recordFailedAttempt, resetLoginAttempts } from '../utils/security';
 
 export const apiService = {
@@ -400,10 +401,30 @@ export const apiService = {
     }
 
     storageService.setEventParticipations(updated);
+    if (updatedRecord) {
+      this.syncLegacyAttendanceStorage([updatedRecord]);
+    }
     if (this.isSupabase(settings) && updatedRecord) {
       return await supabaseService.updateParticipation(updatedRecord, settings);
     }
     return true;
+  },
+
+  syncLegacyAttendanceStorage(participations: EventParticipation[]) {
+    try {
+      const currentAtt = storageService.getAttendance();
+      const legacyRows = participations.flatMap(p => mapParticipationToLegacyAttendanceRows(p));
+      const legMap = new Map(legacyRows.map(r => [r.id, r]));
+      const nextAtt = currentAtt.map(a => legMap.has(a.id) ? legMap.get(a.id)! : a);
+      legacyRows.forEach(r => {
+        if (!currentAtt.some(a => a.id === r.id)) {
+          nextAtt.push(r);
+        }
+      });
+      storageService.setAttendance(nextAtt);
+    } catch (err) {
+      console.warn('syncLegacyAttendanceStorage error:', err);
+    }
   },
 
   async updateParticipationAttendance(
@@ -450,6 +471,9 @@ export const apiService = {
     }
 
     storageService.setEventParticipations(updated);
+    if (updatedRecord) {
+      this.syncLegacyAttendanceStorage([updatedRecord]);
+    }
     if (this.isSupabase(settings) && updatedRecord) {
       return await supabaseService.updateParticipation(updatedRecord, settings);
     }
@@ -502,6 +526,9 @@ export const apiService = {
       return p;
     });
     storageService.setEventParticipations(updated);
+    if (updates.length > 0) {
+      this.syncLegacyAttendanceStorage(updates);
+    }
     if (this.isSupabase(settings)) {
       return await supabaseService.bulkUpdateParticipations(eventId, updates, settings);
     }

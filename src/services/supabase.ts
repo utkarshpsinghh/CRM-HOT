@@ -19,7 +19,8 @@ import {
 } from '../types/crm';
 import { hashPasswordSha256 } from '../utils/security';
 import { getComputedEventStatus } from '../utils/date';
-import { deduplicateMembers } from './storage';
+import { deduplicateMembers, storageService } from './storage';
+import { mapParticipationToLegacyAttendanceRows } from './eventMigration';
 
 // Helper to strip any trailing slashes or /rest/v1 paths from Supabase Project URL
 export function normalizeSupabaseUrl(url: string): string {
@@ -166,9 +167,11 @@ export const supabaseService = {
       if (eventsRes.error) throw eventsRes.error;
 
       let remoteSettings: Partial<AllianceSettings> | undefined;
+      let settingsRows: any[] = [];
       try {
         const { data: settingsData } = await client.from('settings').select('*');
         if (Array.isArray(settingsData)) {
+          settingsRows = settingsData;
           const underDevRow = settingsData.find(r => r.key === 'underDevelopment');
           if (underDevRow) {
             remoteSettings = { underDevelopment: underDevRow.value === 'true' };
@@ -185,14 +188,36 @@ export const supabaseService = {
           client.from('event_slots').select('*'),
           client.from('event_participations').select('*'),
         ]);
-        if (slotsRes.data && !slotsRes.error) {
+        if (slotsRes.data && !slotsRes.error && slotsRes.data.length > 0) {
           remoteSlots = slotsRes.data.map(this.mapEventSlotFromRow);
         }
-        if (partRes.data && !partRes.error) {
+        if (partRes.data && !partRes.error && partRes.data.length > 0) {
           remoteParticipations = partRes.data.map(this.mapEventParticipationFromRow);
         }
       } catch {
         // new tables not yet present in supabase schema cache
+      }
+
+      // If remoteParticipations is empty, check settings shadow cache in Supabase
+      if (remoteParticipations.length === 0 && Array.isArray(settingsRows) && settingsRows.length > 0) {
+        const partCacheRow = settingsRows.find(r => r.key === 'crm_event_participations_cache');
+        if (partCacheRow && partCacheRow.value) {
+          try {
+            const parsed = JSON.parse(partCacheRow.value);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              remoteParticipations = parsed;
+            }
+          } catch {}
+        }
+        const slotCacheRow = settingsRows.find(r => r.key === 'crm_event_slots_cache');
+        if (slotCacheRow && slotCacheRow.value) {
+          try {
+            const parsed = JSON.parse(slotCacheRow.value);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              remoteSlots = parsed;
+            }
+          } catch {}
+        }
       }
 
         return {
@@ -652,18 +677,37 @@ export const supabaseService = {
   ): Promise<boolean> {
     const client = this.getClient(settings);
     if (!client) return false;
+    let anySuccess = false;
+
+    // 1. Try to upsert into new 'event_participations' table
     try {
       const row = this.mapEventParticipationToRow(participation);
       const { error } = await client.from('event_participations').upsert(row, { onConflict: 'id' });
-      if (error) {
-        console.warn('updateParticipation warning:', error.message);
-        return false;
+      if (!error) anySuccess = true;
+    } catch {}
+
+    // 2. Dual-write to legacy 'attendance' table in Supabase
+    try {
+      const legacyRows = mapParticipationToLegacyAttendanceRows(participation);
+      for (const legRow of legacyRows) {
+        const { error } = await client.from('attendance').upsert({
+          id: legRow.id,
+          event_id: legRow.eventId,
+          member_id: legRow.memberId,
+          vote_status: legRow.voteStatus,
+          attendance_status: legRow.attendanceStatus,
+          updated_at: legRow.updatedAt,
+        }, { onConflict: 'id' });
+        if (!error) anySuccess = true;
       }
-      return true;
     } catch (err) {
-      console.warn('updateParticipation exception:', err);
-      return false;
+      console.warn('Dual-write to Supabase attendance warning:', err);
     }
+
+    // 3. Shadow-sync to Supabase settings cache
+    this.saveParticipationsCache(client).catch(() => {});
+
+    return anySuccess;
   },
 
   async bulkUpdateParticipations(
@@ -673,19 +717,61 @@ export const supabaseService = {
   ): Promise<boolean> {
     const client = this.getClient(settings);
     if (!client) return false;
+    let anySuccess = false;
+
+    // 1. Try to upsert chunks into event_participations table
     try {
       const rows = updates.map(this.mapEventParticipationToRow);
       for (let i = 0; i < rows.length; i += 100) {
         const chunk = rows.slice(i, i + 100);
         const { error } = await client.from('event_participations').upsert(chunk, { onConflict: 'id' });
-        if (error) {
-          console.warn('bulkUpdateParticipations warning:', error.message);
-        }
+        if (!error) anySuccess = true;
       }
-      return true;
+    } catch {}
+
+    // 2. Dual-write to legacy attendance table in Supabase
+    try {
+      const allLegacyRows = updates.flatMap(p => mapParticipationToLegacyAttendanceRows(p));
+      for (let i = 0; i < allLegacyRows.length; i += 100) {
+        const chunk = allLegacyRows.slice(i, i + 100).map(r => ({
+          id: r.id,
+          event_id: r.eventId,
+          member_id: r.memberId,
+          vote_status: r.voteStatus,
+          attendance_status: r.attendanceStatus,
+          updated_at: r.updatedAt,
+        }));
+        const { error } = await client.from('attendance').upsert(chunk, { onConflict: 'id' });
+        if (!error) anySuccess = true;
+      }
     } catch (err) {
-      console.warn('bulkUpdateParticipations exception:', err);
-      return false;
+      console.warn('bulkUpdateParticipations legacy attendance sync error:', err);
+    }
+
+    // 3. Shadow-sync to Supabase settings cache
+    this.saveParticipationsCache(client).catch(() => {});
+
+    return anySuccess;
+  },
+
+  async saveParticipationsCache(client: any): Promise<void> {
+    try {
+      const participations = storageService.getEventParticipations();
+      if (participations.length > 0) {
+        await client.from('settings').upsert({
+          key: 'crm_event_participations_cache',
+          value: JSON.stringify(participations),
+        }, { onConflict: 'key' });
+      }
+      const slots = storageService.getEventSlots();
+      if (slots.length > 0) {
+        await client.from('settings').upsert({
+          key: 'crm_event_slots_cache',
+          value: JSON.stringify(slots),
+        }, { onConflict: 'key' });
+      }
+    } catch (err) {
+      console.warn('saveParticipationsCache error:', err);
     }
   },
 
