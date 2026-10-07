@@ -1,4 +1,4 @@
-import { Member, AllianceEvent, AttendanceRecord, StrikeRecord, CommunicationRecord, AllianceSettings, AdminAccount, OfficerContribution, EventSlot, EventParticipation } from '../types/crm';
+import { Member, AllianceEvent, AttendanceRecord, StrikeRecord, CommunicationRecord, AllianceSettings, AdminAccount, OfficerContribution, EventSlot, EventParticipation, ApiKeyItem } from '../types/crm';
 import { initialMembers, initialEvents, generateInitialAttendance, initialStrikes, initialCommunications, initialSettings, initialAdmins, initialContributions } from './mockData';
 import { DEFAULT_SUPABASE_URL, DEFAULT_SUPABASE_ANON_KEY } from '../config';
 import { getComputedEventStatus } from '../utils/date';
@@ -15,6 +15,7 @@ const STORAGE_KEYS = {
   STRIKES: 'crm_hot_strikes_v1',
   COMMUNICATION: 'crm_hot_comms_v1',
   SETTINGS: 'crm_hot_settings_v1',
+  API_KEYS: 'crm_hot_api_keys_v1',
   SUPABASE_ANON_KEY: 'crm_hot_supabase_anon_key_v2',
   SUPABASE_URL: 'crm_hot_supabase_url_v2',
   UNDER_DEVELOPMENT: 'crm_hot_under_dev_v2',
@@ -471,6 +472,19 @@ export const storageService = {
     const supaKey = (parsed.supabaseAnonKey || dedicatedKey || initialSettings.supabaseAnonKey || DEFAULT_SUPABASE_ANON_KEY).trim();
     const supaUrl = (parsed.supabaseUrl || dedicatedUrl || initialSettings.supabaseUrl || DEFAULT_SUPABASE_URL).trim();
 
+    // Determine API keys
+    let apiKeys: ApiKeyItem[] = [];
+    if (Array.isArray(parsed.apiKeys)) {
+      apiKeys = parsed.apiKeys;
+    } else {
+      const rawApiKeys = localStorage.getItem(STORAGE_KEYS.API_KEYS);
+      if (rawApiKeys) {
+        try {
+          apiKeys = JSON.parse(rawApiKeys);
+        } catch {}
+      }
+    }
+
     return {
       ...initialSettings,
       ...parsed,
@@ -479,6 +493,7 @@ export const storageService = {
       supabaseUrl: supaUrl,
       dbProvider: 'supabase',
       demoMode: false,
+      apiKeys,
     };
   },
 
@@ -500,6 +515,58 @@ export const storageService = {
     if (typeof settings.underDevelopment === 'boolean') {
       localStorage.setItem(STORAGE_KEYS.UNDER_DEVELOPMENT, String(settings.underDevelopment));
     }
+    if (Array.isArray(settings.apiKeys)) {
+      localStorage.setItem(STORAGE_KEYS.API_KEYS, JSON.stringify(settings.apiKeys));
+    }
+  },
+
+  getApiKeys(): ApiKeyItem[] {
+    const s = this.getSettings();
+    if (Array.isArray(s.apiKeys)) return s.apiKeys;
+    const raw = localStorage.getItem(STORAGE_KEYS.API_KEYS);
+    if (raw) {
+      try {
+        return JSON.parse(raw);
+      } catch {}
+    }
+    return [];
+  },
+
+  setApiKeys(keys: ApiKeyItem[]) {
+    localStorage.setItem(STORAGE_KEYS.API_KEYS, JSON.stringify(keys));
+    const current = this.getSettings();
+    this.setSettings({
+      ...current,
+      apiKeys: keys,
+    });
+  },
+
+  generateApiKey(
+    name: string,
+    permissions: ('members' | 'leaderboard' | 'events' | 'attendance')[] = ['members', 'leaderboard', 'events', 'attendance']
+  ): ApiKeyItem {
+    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    let randomPart = '';
+    for (let i = 0; i < 32; i++) {
+      randomPart += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    const newKey: ApiKeyItem = {
+      id: `key-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      name: name.trim() || 'External Integration Key',
+      key: `hot_crm_${randomPart}`,
+      createdAt: new Date().toISOString(),
+      permissions,
+    };
+    const current = this.getApiKeys();
+    const updated = [newKey, ...current];
+    this.setApiKeys(updated);
+    return newKey;
+  },
+
+  deleteApiKey(id: string) {
+    const current = this.getApiKeys();
+    const updated = current.filter(k => k.id !== id);
+    this.setApiKeys(updated);
   },
 
   saveSupabaseCredentials(url: string, key: string) {

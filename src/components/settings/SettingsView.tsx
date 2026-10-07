@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useCRM } from '../../context/CRMContext';
 import { GameButton } from '../common/GameButton';
 import { ConfirmModal } from '../common/ConfirmModal';
-import { AdminAccount, AllianceSettings } from '../../types/crm';
+import { AdminAccount, AllianceSettings, ApiKeyItem } from '../../types/crm';
 import { normalizeSupabaseUrl } from '../../services/supabase';
 import { storageService } from '../../services/storage';
 import {
@@ -36,6 +36,10 @@ import {
   Info,
   Eye,
   EyeOff,
+  Globe,
+  Code2,
+  Terminal,
+  Plus,
 } from 'lucide-react';
 
 export const SettingsView: React.FC = () => {
@@ -57,6 +61,9 @@ export const SettingsView: React.FC = () => {
     admins,
     createAdminUser,
     deleteAdminUser,
+    apiKeys,
+    generateApiKey,
+    deleteApiKey,
   } = useCRM();
 
   const [supaUrl, setSupaUrl] = useState(settings.supabaseUrl || '');
@@ -86,6 +93,56 @@ export const SettingsView: React.FC = () => {
   const [newAdminPassword, setNewAdminPassword] = useState('');
   const [isCreatingAdmin, setIsCreatingAdmin] = useState(false);
   const [adminToDelete, setAdminToDelete] = useState<AdminAccount | null>(null);
+
+  // External API Keys state
+  const [showGenerateKeyModal, setShowGenerateKeyModal] = useState(false);
+  const [newKeyLabel, setNewKeyLabel] = useState('');
+  const [newKeyPermissions, setNewKeyPermissions] = useState<('members' | 'leaderboard' | 'events' | 'attendance')[]>([
+    'members', 'leaderboard', 'events', 'attendance'
+  ]);
+  const [isSubmittingKey, setIsSubmittingKey] = useState(false);
+  const [justCreatedKey, setJustCreatedKey] = useState<ApiKeyItem | null>(null);
+  const [copiedKeyText, setCopiedKeyText] = useState<string | null>(null);
+  const [keyToDelete, setKeyToDelete] = useState<ApiKeyItem | null>(null);
+  const [activeSnippetLang, setActiveSnippetLang] = useState<'curl' | 'js' | 'python'>('js');
+  const [activeEndpointTab, setActiveEndpointTab] = useState<'members' | 'leaderboard' | 'events' | 'attendance'>('members');
+
+  const togglePermission = (perm: 'members' | 'leaderboard' | 'events' | 'attendance') => {
+    setNewKeyPermissions(prev =>
+      prev.includes(perm) ? prev.filter(p => p !== perm) : [...prev, perm]
+    );
+  };
+
+  const handleGenerateKeySubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newKeyLabel.trim()) return;
+    setIsSubmittingKey(true);
+    try {
+      const created = await generateApiKey(newKeyLabel.trim(), newKeyPermissions);
+      setJustCreatedKey(created);
+      setNewKeyLabel('');
+      setShowGenerateKeyModal(false);
+    } finally {
+      setIsSubmittingKey(false);
+    }
+  };
+
+  const handleCopyText = (text: string, id: string) => {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text);
+    }
+    setCopiedKeyText(id);
+    setTimeout(() => setCopiedKeyText(null), 2500);
+  };
+
+  const handleConfirmDeleteKey = async () => {
+    if (!keyToDelete) return;
+    await deleteApiKey(keyToDelete.id);
+    if (justCreatedKey?.id === keyToDelete.id) {
+      setJustCreatedKey(null);
+    }
+    setKeyToDelete(null);
+  };
 
   const handleSaveSettings = async (e?: React.FormEvent) => {
     if (e && e.preventDefault) e.preventDefault();
@@ -613,6 +670,324 @@ export const SettingsView: React.FC = () => {
         </div>
       </form>
 
+      {/* SECTION 5: EXTERNAL API & INTEGRATIONS */}
+      <div className="p-4 sm:p-5 rounded-2xl bg-[#1a1410] border-2 border-[#3e2716] shadow-md space-y-5">
+        <div className="flex items-start justify-between gap-3 flex-wrap">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-[#ca8a04]/20 border border-[#ca8a04]/40 flex items-center justify-center text-[#fef08a] shrink-0">
+              <Globe className="w-5 h-5 text-[#ca8a04]" />
+            </div>
+            <div>
+              <h2 className="font-fantasy font-bold text-base text-[#fef08a]">
+                External API &amp; Website Integrations
+              </h2>
+              <p className="text-xs text-stone-400">
+                Provide secure real-time CRM feeds (Members Roster, Leaderboard, Events, Attendance) to external websites, Discord bots, and tools.
+              </p>
+            </div>
+          </div>
+          <GameButton
+            variant="gold"
+            size="sm"
+            onClick={() => setShowGenerateKeyModal(true)}
+            icon={<Plus className="w-4 h-4" />}
+          >
+            Generate API Key
+          </GameButton>
+        </div>
+
+        {/* Newly Created Key Alert Banner */}
+        {justCreatedKey && (
+          <div className="p-4 rounded-xl bg-amber-950/40 border-2 border-amber-600/60 text-amber-200 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Key className="w-4 h-4 text-amber-400" />
+                <span className="text-xs font-bold font-fantasy text-amber-300 uppercase tracking-wider">
+                  New API Key Created: {justCreatedKey.name}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setJustCreatedKey(null)}
+                className="text-xs text-stone-400 hover:text-stone-200 cursor-pointer"
+              >
+                Dismiss
+              </button>
+            </div>
+            <p className="text-xs text-amber-300/90">
+              Copy this API key now! For security reasons, the full key will not be displayed again.
+            </p>
+            <div className="flex items-center gap-2 bg-[#120c08] border border-amber-600/40 rounded-lg p-2 font-mono text-xs">
+              <span className="flex-1 select-all text-amber-200 truncate">{justCreatedKey.key}</span>
+              <button
+                type="button"
+                onClick={() => handleCopyText(justCreatedKey.key, justCreatedKey.id)}
+                className="px-2.5 py-1 rounded bg-[#ca8a04]/30 hover:bg-[#ca8a04]/50 border border-amber-500/50 text-amber-200 text-xs font-sans font-bold flex items-center gap-1.5 transition-colors cursor-pointer shrink-0"
+              >
+                {copiedKeyText === justCreatedKey.id ? (
+                  <>
+                    <Check className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Copied!</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-3.5 h-3.5" />
+                    <span>Copy Key</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Active API Keys List */}
+        <div className="space-y-2.5">
+          <div className="text-xs font-fantasy font-bold text-stone-300 uppercase flex items-center justify-between">
+            <span>Active Integration Keys ({apiKeys.length})</span>
+            <span className="text-[11px] text-stone-500 font-sans normal-case">
+              Requires <code className="text-amber-400 font-mono">x-api-key</code> header or <code className="text-amber-400 font-mono">?api_key=</code> param
+            </span>
+          </div>
+
+          {apiKeys.length === 0 ? (
+            <div className="p-4 rounded-xl bg-[#120c08] border border-[#3e2716] text-center text-xs text-stone-500">
+              No API keys generated yet. Click "Generate API Key" to grant external websites access to your CRM data.
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-2.5">
+              {apiKeys.map(k => (
+                <div
+                  key={k.id}
+                  className="p-3.5 rounded-xl bg-[#120c08] border border-[#3e2716] flex items-center justify-between gap-3 flex-wrap sm:flex-nowrap"
+                >
+                  <div className="min-w-0 space-y-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-xs font-bold text-[#fffbeb]">{k.name}</span>
+                      <span className="text-[10px] text-stone-500 font-mono">
+                        Created {new Date(k.createdAt).toLocaleDateString()}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <code className="text-xs font-mono text-amber-300/80 bg-stone-900/80 px-2 py-0.5 rounded border border-stone-800">
+                        {k.key.substring(0, 12)}••••••••••••••••{k.key.slice(-4)}
+                      </code>
+                      <button
+                        type="button"
+                        onClick={() => handleCopyText(k.key, k.id)}
+                        className="p-1 rounded text-stone-400 hover:text-amber-300 transition-colors cursor-pointer"
+                        title="Copy Key"
+                      >
+                        {copiedKeyText === k.id ? (
+                          <Check className="w-3.5 h-3.5 text-emerald-400" />
+                        ) : (
+                          <Copy className="w-3.5 h-3.5" />
+                        )}
+                      </button>
+                    </div>
+                    {/* Permissions Badges */}
+                    <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
+                      {(k.permissions || ['members', 'leaderboard', 'events', 'attendance']).map(perm => (
+                        <span
+                          key={perm}
+                          className="text-[9px] px-1.5 py-0.2 rounded bg-amber-950/40 border border-amber-600/30 text-amber-300 uppercase font-mono font-bold"
+                        >
+                          {perm}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setKeyToDelete(k)}
+                    className="p-2 rounded-lg text-stone-400 hover:text-red-400 hover:bg-red-950/40 transition-colors cursor-pointer shrink-0 self-start sm:self-center"
+                    title="Revoke API Key"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Endpoints & Live Code Documentation */}
+        <div className="space-y-3 pt-2 border-t border-[#3e2716]">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div className="text-xs font-fantasy font-bold text-stone-300 uppercase flex items-center gap-1.5">
+              <Code2 className="w-4 h-4 text-[#ca8a04]" />
+              <span>Available Endpoints &amp; Integration Guide</span>
+            </div>
+            <span className="text-[11px] text-stone-400 font-mono">
+              Base: <span className="text-amber-300 font-bold">https://crm.1391.online/api/v1</span>
+            </span>
+          </div>
+
+          {/* Endpoint selection tabs */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 bg-[#120c08] p-1 rounded-xl border border-[#3e2716]">
+            {[
+              { id: 'members' as const, label: 'Members', path: '/members' },
+              { id: 'leaderboard' as const, label: 'Leaderboard', path: '/leaderboard' },
+              { id: 'events' as const, label: 'Events', path: '/events' },
+              { id: 'attendance' as const, label: 'Attendance', path: '/attendance' },
+            ].map(tab => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveEndpointTab(tab.id)}
+                className={`py-1.5 px-2.5 rounded-lg text-xs font-bold transition-all text-center cursor-pointer ${
+                  activeEndpointTab === tab.id
+                    ? 'bg-[#ca8a04]/30 text-amber-200 border border-amber-500/50 shadow-sm'
+                    : 'text-stone-400 hover:text-stone-200 hover:bg-stone-900/50'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Selected Endpoint Details */}
+          <div className="p-3.5 rounded-xl bg-[#120c08] border border-[#3e2716] space-y-3">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <div className="flex items-center gap-2">
+                <span className="px-2 py-0.5 rounded bg-emerald-950/80 border border-emerald-600/50 text-emerald-300 font-mono font-bold text-xs">
+                  GET
+                </span>
+                <code className="text-xs font-mono text-amber-200 font-bold">
+                  https://crm.1391.online/api/v1/{activeEndpointTab}
+                </code>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleCopyText(`https://crm.1391.online/api/v1/${activeEndpointTab}`, `url-${activeEndpointTab}`)}
+                className="text-xs text-stone-400 hover:text-amber-300 flex items-center gap-1 cursor-pointer"
+              >
+                {copiedKeyText === `url-${activeEndpointTab}` ? (
+                  <>
+                    <Check className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Copied URL</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-3.5 h-3.5" />
+                    <span>Copy URL</span>
+                  </>
+                )}
+              </button>
+            </div>
+
+            <p className="text-xs text-stone-300">
+              {activeEndpointTab === 'members' && 'Returns public alliance member profiles: Name, Game ID, Rank (R1-R5), Status (Active/Inactive), Power, and strikes count.'}
+              {activeEndpointTab === 'leaderboard' && 'Returns computed leaderboard ranked by attendance percentage, total events attended, and reliability rating.'}
+              {activeEndpointTab === 'events' && 'Returns alliance battle events (Bear Trap, Swordsland, Tri Alliance), slot times (BT1/BT2), status, and turnout stats.'}
+              {activeEndpointTab === 'attendance' && 'Returns event attendance records detailing member participation, votes, and attended battle slots.'}
+            </p>
+
+            {/* Query parameters table */}
+            <div className="space-y-1.5">
+              <div className="text-[10px] font-bold text-stone-400 uppercase tracking-wider font-mono">
+                Optional Query Parameters
+              </div>
+              <div className="text-xs font-mono text-stone-400 bg-black/40 p-2.5 rounded-lg border border-stone-800/80 space-y-1">
+                {activeEndpointTab === 'members' && (
+                  <>
+                    <div><span className="text-amber-300">?rank=R4</span> &mdash; Filter by rank (R1, R2, R3, R4, R5)</div>
+                    <div><span className="text-amber-300">?status=Active</span> &mdash; Filter by status (Active, Inactive, Visitor, Archived)</div>
+                    <div><span className="text-amber-300">?search=Ares</span> &mdash; Search by player name or gameId</div>
+                    <div><span className="text-amber-300">?limit=100&amp;offset=0</span> &mdash; Pagination (default 200, max 1000)</div>
+                  </>
+                )}
+                {activeEndpointTab === 'leaderboard' && (
+                  <>
+                    <div><span className="text-amber-300">?limit=50</span> &mdash; Top N members (default 100)</div>
+                    <div><span className="text-amber-300">?sortBy=attendanceRate</span> &mdash; Sort by 'attendanceRate', 'attended', or 'name'</div>
+                    <div><span className="text-amber-300">?status=Active</span> &mdash; Filter active members</div>
+                  </>
+                )}
+                {activeEndpointTab === 'events' && (
+                  <>
+                    <div><span className="text-amber-300">?status=Completed</span> &mdash; Filter by status (Completed, Scheduled, Live)</div>
+                    <div><span className="text-amber-300">?type=Bear+Trap</span> &mdash; Filter by event type</div>
+                    <div><span className="text-amber-300">?limit=25</span> &mdash; Maximum records returned (default 50)</div>
+                  </>
+                )}
+                {activeEndpointTab === 'attendance' && (
+                  <>
+                    <div><span className="text-amber-300">?eventId=evt-123</span> &mdash; Filter records for a specific event</div>
+                    <div><span className="text-amber-300">?memberId=mem-456</span> &mdash; Filter attendance history for a member</div>
+                    <div><span className="text-amber-300">?status=ATTENDED</span> &mdash; Filter by 'ATTENDED' or 'ABSENT'</div>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* Code Snippet */}
+            <div className="space-y-1.5 pt-1">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 text-[10px] font-bold text-stone-400 uppercase tracking-wider font-mono">
+                  <Terminal className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Code Snippet</span>
+                </div>
+                {/* Language switcher */}
+                <div className="flex items-center gap-1 text-[11px] font-mono">
+                  {(['js', 'curl', 'python'] as const).map(lang => (
+                    <button
+                      key={lang}
+                      type="button"
+                      onClick={() => setActiveSnippetLang(lang)}
+                      className={`px-2 py-0.5 rounded cursor-pointer ${
+                        activeSnippetLang === lang
+                          ? 'bg-[#ca8a04]/40 text-amber-200 border border-amber-500/40 font-bold'
+                          : 'text-stone-500 hover:text-stone-300'
+                      }`}
+                    >
+                      {lang === 'js' ? 'JavaScript' : lang === 'curl' ? 'cURL' : 'Python'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Snippet box */}
+              {(() => {
+                const effectiveKey = justCreatedKey?.key || (apiKeys.length > 0 ? apiKeys[0].key : 'YOUR_API_KEY');
+                const url = `https://crm.1391.online/api/v1/${activeEndpointTab}`;
+                let snippet = '';
+                if (activeSnippetLang === 'curl') {
+                  snippet = `curl -X GET "${url}" \\\n  -H "x-api-key: ${effectiveKey}" \\\n  -H "Accept: application/json"`;
+                } else if (activeSnippetLang === 'js') {
+                  snippet = `// Browser Fetch or Node.js\nconst response = await fetch("${url}", {\n  headers: {\n    "x-api-key": "${effectiveKey}"\n  }\n});\nconst result = await response.json();\nconsole.log(result.data);`;
+                } else {
+                  snippet = `# Python\nimport requests\n\nresponse = requests.get(\n    "${url}",\n    headers={"x-api-key": "${effectiveKey}"}\n)\ndata = response.json()\nprint(data["data"])`;
+                }
+
+                return (
+                  <div className="relative group bg-black/60 rounded-xl p-3 border border-stone-800 font-mono text-xs text-emerald-300/90 overflow-x-auto">
+                    <pre className="whitespace-pre">{snippet}</pre>
+                    <button
+                      type="button"
+                      onClick={() => handleCopyText(snippet, 'snippet')}
+                      className="absolute top-2 right-2 px-2 py-1 rounded bg-stone-900/90 hover:bg-stone-800 border border-stone-700 text-stone-300 text-[11px] flex items-center gap-1 cursor-pointer transition-colors"
+                    >
+                      {copiedKeyText === 'snippet' ? (
+                        <>
+                          <Check className="w-3 h-3 text-emerald-400" />
+                          <span>Copied</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3 h-3" />
+                          <span>Copy</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                );
+              })()}
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* SECTION 6: BACKUP & RECOVERY */}
       <div className="p-4 sm:p-5 rounded-2xl bg-[#1a1410] border-2 border-[#3e2716] shadow-md space-y-4">
         <div>
@@ -659,6 +1034,87 @@ export const SettingsView: React.FC = () => {
         </div>
       </div>
 
+      {/* Generate API Key Modal */}
+      {showGenerateKeyModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+          <div className="w-full max-w-md bg-[#1a1410] border-2 border-[#ca8a04]/50 rounded-2xl p-5 shadow-2xl space-y-4">
+            <div className="flex items-center gap-2">
+              <Key className="w-5 h-5 text-amber-400" />
+              <h3 className="font-fantasy font-bold text-lg text-amber-200">
+                Generate External API Key
+              </h3>
+            </div>
+            <p className="text-xs text-stone-400">
+              Create a secured key to allow external alliance websites, tools, or bots to fetch read-only CRM data.
+            </p>
+
+            <form onSubmit={handleGenerateKeySubmit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-fantasy font-bold text-stone-300 uppercase mb-1">
+                  Key Label / Application Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Alliance Web Portal, Discord Bot"
+                  value={newKeyLabel}
+                  onChange={e => setNewKeyLabel(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl bg-[#120c08] border border-[#522d14] text-xs text-stone-200 placeholder:text-stone-600 focus:outline-none focus:border-[#ca8a04]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-fantasy font-bold text-stone-300 uppercase mb-2">
+                  Permissions Granted
+                </label>
+                <div className="space-y-2">
+                  {[
+                    { id: 'members' as const, label: 'Members Roster', desc: 'Roster names, ranks, status, and stats' },
+                    { id: 'leaderboard' as const, label: 'Leaderboard', desc: 'Attendance rankings and reliability scores' },
+                    { id: 'events' as const, label: 'Alliance Events', desc: 'Battle events, schedules, and turnout counts' },
+                    { id: 'attendance' as const, label: 'Attendance Ledger', desc: 'Detailed attendance records per event' },
+                  ].map(p => (
+                    <label
+                      key={p.id}
+                      className="flex items-start gap-2.5 p-2 rounded-xl bg-[#120c08] border border-[#3e2716] cursor-pointer hover:border-[#522d14]"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={newKeyPermissions.includes(p.id)}
+                        onChange={() => togglePermission(p.id)}
+                        className="mt-0.5 accent-[#ca8a04]"
+                      />
+                      <div className="text-xs">
+                        <div className="font-bold text-stone-200">{p.label}</div>
+                        <div className="text-stone-500 text-[11px]">{p.desc}</div>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#3e2716]">
+                <button
+                  type="button"
+                  onClick={() => setShowGenerateKeyModal(false)}
+                  className="px-4 py-2 rounded-xl text-xs font-bold text-stone-400 hover:text-stone-200 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <GameButton
+                  variant="gold"
+                  size="md"
+                  type="submit"
+                  disabled={isSubmittingKey || !newKeyLabel.trim()}
+                >
+                  {isSubmittingKey ? 'Generating...' : 'Generate Key'}
+                </GameButton>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* Reset Confirmation Dialog */}
       <ConfirmModal
         isOpen={showResetConfirm}
@@ -678,6 +1134,17 @@ export const SettingsView: React.FC = () => {
         title="⚠️ Revoke R4 Officer Access"
         message={`Are you sure you want to remove the R4 officer account for "${adminToDelete?.username}" (${adminToDelete?.name || 'Officer'})? They will no longer be able to log in.`}
         confirmLabel="Revoke Access"
+        variant="crimson"
+      />
+
+      {/* Revoke API Key Confirmation Dialog */}
+      <ConfirmModal
+        isOpen={Boolean(keyToDelete)}
+        onClose={() => setKeyToDelete(null)}
+        onConfirm={handleConfirmDeleteKey}
+        title="⚠️ Revoke API Key"
+        message={`Are you sure you want to permanently revoke the API key "${keyToDelete?.name}"? Any external website or script using this key will immediately be denied access.`}
+        confirmLabel="Revoke Key"
         variant="crimson"
       />
     </div>

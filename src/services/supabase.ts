@@ -16,6 +16,7 @@ import {
   PenaltyStatus,
   ParticipationVoteStatus,
   ParticipationAttendanceStatus,
+  ApiKeyItem,
 } from '../types/crm';
 import { hashPasswordSha256 } from '../utils/security';
 import { getComputedEventStatus } from '../utils/date';
@@ -173,8 +174,19 @@ export const supabaseService = {
         if (Array.isArray(settingsData)) {
           settingsRows = settingsData;
           const underDevRow = settingsData.find(r => r.key === 'underDevelopment');
-          if (underDevRow) {
-            remoteSettings = { underDevelopment: underDevRow.value === 'true' };
+          const apiKeysRow = settingsData.find(r => r.key === 'api_keys');
+          let remoteApiKeys: ApiKeyItem[] | undefined;
+          if (apiKeysRow && apiKeysRow.value) {
+            try {
+              const parsed = JSON.parse(apiKeysRow.value);
+              if (Array.isArray(parsed)) remoteApiKeys = parsed;
+            } catch {}
+          }
+          if (underDevRow || remoteApiKeys) {
+            remoteSettings = {
+              ...(underDevRow ? { underDevelopment: underDevRow.value === 'true' } : {}),
+              ...(remoteApiKeys ? { apiKeys: remoteApiKeys } : {}),
+            };
           }
         }
       } catch {
@@ -252,12 +264,16 @@ export const supabaseService = {
       const client = this.getClient(settings);
       if (!client) return false;
       try {
-        await client.from('settings').upsert([
+        const rows: Array<{ key: string; value: string }> = [
           { key: 'underDevelopment', value: String(Boolean(settings.underDevelopment)) },
           { key: 'inactivityWarningDays', value: String(settings.inactivityWarningDays || 3) },
           { key: 'inactivityInactiveDays', value: String(settings.inactivityInactiveDays || 7) },
           { key: 'inactivityCriticalDays', value: String(settings.inactivityCriticalDays || 14) },
-        ], { onConflict: 'key' });
+        ];
+        if (Array.isArray(settings.apiKeys)) {
+          rows.push({ key: 'api_keys', value: JSON.stringify(settings.apiKeys) });
+        }
+        await client.from('settings').upsert(rows, { onConflict: 'key' });
         return true;
       } catch (err) {
         console.warn('saveSettings to Supabase warning:', err);

@@ -16,6 +16,7 @@ export const initialSettings: AllianceSettings = {
   autoSyncRoster: true,
   autoSyncIntervalMinutes: 30,
   googleSheetUrl: 'https://docs.google.com/spreadsheets/d/1z_oPJgwZ2TE05MNe6DFa7-XBw9o1N-3eaLWEoDFCt8c/edit?gid=875082368#gid=875082368',
+  apiKeys: [],
 };
 
 // Official Kingdom #1391 [HOT] Alliance Roster (94 Members)

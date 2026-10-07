@@ -19,6 +19,7 @@ import {
   ParticipationVoteStatus,
   ParticipationAttendanceStatus,
   MainEventType,
+  ApiKeyItem,
 } from '../types/crm';
 import { storageService, deduplicateMembers } from '../services/storage';
 import { apiService } from '../services/api';
@@ -121,6 +122,9 @@ interface CRMContextType {
   importDatabase: (json: string) => boolean;
   addToast: (toast: Omit<ToastNotice, 'id'>) => void;
   removeToast: (id: string) => void;
+  apiKeys: ApiKeyItem[];
+  generateApiKey: (name: string, permissions?: ('members' | 'leaderboard' | 'events' | 'attendance')[]) => Promise<ApiKeyItem>;
+  deleteApiKey: (keyId: string) => Promise<boolean>;
 }
 
 const CRMContext = createContext<CRMContextType | undefined>(undefined);
@@ -149,6 +153,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [admins, setAdmins] = useState<AdminAccount[]>(() => storageService.getAdminAccounts());
   const [contributions, setContributions] = useState<OfficerContribution[]>(() => storageService.getContributions());
   const [settings, setSettings] = useState<AllianceSettings>(() => storageService.getSettings());
+  const apiKeys = useMemo(() => settings.apiKeys || [], [settings.apiKeys]);
   const [syncStatus, setSyncStatus] = useState<'connected' | 'demo' | 'syncing' | 'error'>('demo');
   const [syncMessage, setSyncMessage] = useState<string>('Local Demo Mode');
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -507,9 +512,18 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             }
             if (Array.isArray(allData.contributions)) setContributions(allData.contributions);
 
-            if (allData.settings && typeof allData.settings.underDevelopment === 'boolean') {
-              storageService.setUnderDevelopment(allData.settings.underDevelopment);
-              setSettings(prev => ({ ...prev, underDevelopment: allData.settings.underDevelopment }));
+            if (allData.settings) {
+              if (typeof allData.settings.underDevelopment === 'boolean') {
+                storageService.setUnderDevelopment(allData.settings.underDevelopment);
+              }
+              if (Array.isArray(allData.settings.apiKeys)) {
+                storageService.setApiKeys(allData.settings.apiKeys);
+              }
+              setSettings(prev => ({
+                ...prev,
+                ...(typeof allData.settings?.underDevelopment === 'boolean' ? { underDevelopment: allData.settings.underDevelopment } : {}),
+                ...(Array.isArray(allData.settings?.apiKeys) ? { apiKeys: allData.settings.apiKeys } : {}),
+              }));
             }
 
             setSyncStatus('connected');
@@ -2017,6 +2031,59 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return true;
   };
 
+  const generateApiKey = async (
+    name: string,
+    permissions?: ('members' | 'leaderboard' | 'events' | 'attendance')[]
+  ): Promise<ApiKeyItem> => {
+    const newKey = storageService.generateApiKey(name, permissions);
+    const updatedKeys = storageService.getApiKeys();
+    const newSettings: AllianceSettings = {
+      ...settings,
+      apiKeys: updatedKeys,
+    };
+    storageService.setSettings(newSettings);
+    setSettings(newSettings);
+    if (apiService.isSupabase(newSettings)) {
+      try {
+        await supabaseService.saveSettings(newSettings);
+      } catch (err) {
+        console.warn('Supabase saveSettings warning:', err);
+      }
+    }
+    sounds.playSuccess();
+    addToast({
+      type: 'success',
+      title: 'API Key Created',
+      message: `Generated "${newKey.name}". Keep your key safe!`,
+    });
+    return newKey;
+  };
+
+  const deleteApiKey = async (keyId: string): Promise<boolean> => {
+    storageService.deleteApiKey(keyId);
+    const updatedKeys = storageService.getApiKeys();
+    const newSettings: AllianceSettings = {
+      ...settings,
+      apiKeys: updatedKeys,
+    };
+    storageService.setSettings(newSettings);
+    setSettings(newSettings);
+    if (apiService.isSupabase(newSettings)) {
+      try {
+        await supabaseService.saveSettings(newSettings);
+      } catch (err) {
+        console.warn('Supabase saveSettings warning:', err);
+      }
+    }
+    sounds.playClick();
+    addToast({
+      type: 'info',
+      title: 'API Key Revoked',
+      message: 'API Key revoked. External access blocked immediately.',
+    });
+    return true;
+  };
+
   const connectSupabase = async (url: string, key: string): Promise<{ success: boolean; message: string }> => {
     const cleanUrl = (url || '').trim();
     const cleanKey = (key || '').trim();
@@ -2412,6 +2479,9 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         importDatabase,
         addToast,
         removeToast,
+        apiKeys,
+        generateApiKey,
+        deleteApiKey,
       }}
     >
       {children}

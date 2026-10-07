@@ -170,6 +170,16 @@ export interface AllianceSettings {
   demoMode: boolean;
   underDevelopment?: boolean;      // Under Development mode toggle
   googleSheetUrl?: string;         // Alliance Google Sheet URL
+  apiKeys?: ApiKeyItem[];          // External API integration keys
+}
+
+export interface ApiKeyItem {
+  id: string;
+  name: string;
+  key: string;
+  createdAt: string;
+  lastUsedAt?: string;
+  permissions?: ('members' | 'leaderboard' | 'events' | 'attendance')[];
 }
 
 export interface EventAttendanceSummary {
