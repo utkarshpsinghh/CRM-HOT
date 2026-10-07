@@ -86,12 +86,18 @@ export const MemberProfileModal: React.FC<MemberProfileModalProps> = ({
       .sort((a, b) => new Date(b.event!.date).getTime() - new Date(a.event!.date).getTime());
   }, [member, events, eventSlots, eventParticipations]);
 
-  // Overall attendance rate across completed parent events
+  // Overall attendance, vote, and reliability rates across completed parent events
   const overallStats = useMemo(() => {
     const totalEvents = events.length;
     const attendedCount = memberParticipationsList.filter(item => item.participation.attendanceStatus === 'ATTENDED').length;
+    const votedCount = memberParticipationsList.filter(item => item.participation.voteStatus === 'VOTED').length;
+    const attendedWhenVoted = memberParticipationsList.filter(item => item.participation.voteStatus === 'VOTED' && item.participation.attendanceStatus === 'ATTENDED').length;
+
     const rate = totalEvents > 0 ? (attendedCount / totalEvents) * 100 : 0;
-    return { totalEvents, attendedCount, rate };
+    const voteRate = totalEvents > 0 ? (votedCount / totalEvents) * 100 : 0;
+    const reliabilityRate = votedCount > 0 ? (attendedWhenVoted / votedCount) * 100 : 100;
+
+    return { totalEvents, attendedCount, rate, votedCount, voteRate, reliabilityRate };
   }, [events, memberParticipationsList]);
 
   if (!member) return null;
@@ -183,13 +189,34 @@ export const MemberProfileModal: React.FC<MemberProfileModalProps> = ({
           </div>
         </div>
 
-        {/* Clean Attendance Bar */}
-        <div className="p-3.5 rounded-xl bg-slate-900/80 border border-slate-800 space-y-1.5">
-          <div className="flex items-center justify-between text-xs">
-            <span className="font-semibold text-slate-300">Overall Event Attendance</span>
-            <span className="font-mono font-bold text-amber-400">
-              {overallStats.rate.toFixed(0)}% ({overallStats.attendedCount} of {overallStats.totalEvents} events)
-            </span>
+        {/* Clean Attendance, Vote, and Reliability Stats Bar */}
+        <div className="p-3.5 rounded-xl bg-slate-900/80 border border-slate-800 space-y-2.5">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+              <span className="text-[11px] text-slate-400 block font-medium">Turnout Attendance:</span>
+              <span className="font-mono font-bold text-sm text-amber-400">
+                {overallStats.rate.toFixed(0)}%
+                <span className="text-xs text-slate-400 font-normal ml-1">({overallStats.attendedCount}/{overallStats.totalEvents})</span>
+              </span>
+            </div>
+
+            <div className="sm:border-l sm:border-slate-800 sm:pl-3">
+              <span className="text-[11px] text-slate-400 block font-medium">Poll Voting Rate:</span>
+              <span className="font-mono font-bold text-sm text-purple-300">
+                {overallStats.voteRate.toFixed(0)}%
+                <span className="text-xs text-slate-400 font-normal ml-1">({overallStats.votedCount}/{overallStats.totalEvents})</span>
+              </span>
+            </div>
+
+            <div className="sm:border-l sm:border-slate-800 sm:pl-3">
+              <span className="text-[11px] text-slate-400 block font-medium">Vote Reliability:</span>
+              <span className={`font-mono font-bold text-sm ${overallStats.reliabilityRate >= 80 ? 'text-emerald-400' : 'text-amber-400'}`}>
+                {overallStats.votedCount > 0 ? `${overallStats.reliabilityRate.toFixed(0)}%` : '—'}
+                <span className="text-xs text-slate-400 font-normal ml-1">
+                  {overallStats.votedCount > 0 ? `(${overallStats.attendedCount > 0 ? Math.min(overallStats.attendedCount, overallStats.votedCount) : 0}/${overallStats.votedCount} followed)` : '(no votes)'}
+                </span>
+              </span>
+            </div>
           </div>
           <ProgressBar
             percentage={overallStats.rate}

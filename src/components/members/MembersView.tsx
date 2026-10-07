@@ -543,24 +543,59 @@ export const MembersView: React.FC<MembersViewProps> = ({
                       <RankBadge rank={member.currentRank} size="sm" />
                     </td>
 
-                    {/* Attendance % */}
+                    {/* Attendance & Vote Rates */}
                     <td className="py-3 px-4">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <span
-                            className={`font-mono font-bold text-xs ${
-                              activePct >= 75
-                                ? 'text-emerald-400'
-                                : activePct >= 50
-                                ? 'text-amber-400'
-                                : 'text-rose-400'
-                            }`}
-                          >
-                            {activePct.toFixed(0)}%
-                          </span>
-                          <span className="text-[11px] text-slate-400 font-mono">
-                            ({activeRatio})
-                          </span>
+                      <div className="space-y-1.5">
+                        <div className="flex items-center gap-2.5 flex-wrap">
+                          {/* Turnout % */}
+                          <div className="flex items-center gap-1">
+                            <span className="text-[10px] text-slate-400 font-medium">Turnout:</span>
+                            <span
+                              className={`font-mono font-bold text-xs ${
+                                activePct >= 75
+                                  ? 'text-emerald-400'
+                                  : activePct >= 50
+                                  ? 'text-amber-400'
+                                  : 'text-rose-400'
+                              }`}
+                            >
+                              {activePct.toFixed(0)}%
+                            </span>
+                            <span className="text-[10px] text-slate-500 font-mono">
+                              ({activeRatio})
+                            </span>
+                          </div>
+
+                          <div className="h-3 w-px bg-slate-800" />
+
+                          {/* Vote % */}
+                          <div className="flex items-center gap-1" title="Poll Voting Participation Rate">
+                            <span className="text-[10px] text-slate-400 font-medium">Vote:</span>
+                            <span className="font-mono font-bold text-xs text-purple-300">
+                              {partStats?.votePercentage.toFixed(0) || 0}%
+                            </span>
+                            <span className="text-[10px] text-slate-500 font-mono">
+                              ({partStats?.votedCount || 0}/{partStats?.totalEvents || 0})
+                            </span>
+                          </div>
+
+                          <div className="h-3 w-px bg-slate-800" />
+
+                          {/* Vote Reliability */}
+                          <div className="flex items-center gap-1" title="Vote Reliability: Attended events after voting">
+                            <span className="text-[10px] text-slate-400 font-medium">Reliability:</span>
+                            <span
+                              className={`font-mono font-bold text-xs ${
+                                (partStats?.voteReliability || 100) >= 80
+                                  ? 'text-emerald-400'
+                                  : (partStats?.voteReliability || 100) >= 50
+                                  ? 'text-amber-400'
+                                  : 'text-rose-400'
+                              }`}
+                            >
+                              {partStats?.votedCount ? `${partStats.voteReliability.toFixed(0)}%` : '—'}
+                            </span>
+                          </div>
                         </div>
 
                         {/* Mini per-event breakdown pills */}

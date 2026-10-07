@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useCRM } from '../../context/CRMContext';
 import { useAuth } from '../../context/AuthContext';
 import { StatCard } from './StatCard';
@@ -19,6 +19,7 @@ import {
   Plus,
 } from 'lucide-react';
 import { sounds } from '../../utils/sound';
+import { getComputedEventStatus, parseDateAsUtc } from '../../utils/date';
 
 interface DashboardViewProps {
   onOpenCreateEvent: () => void;
@@ -29,8 +30,42 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onOpenCreateEvent,
   onOpenAddMember,
 }) => {
-  const { stats, events, setActiveTab, setMemberFilter } = useCRM();
+  const { stats, events, eventSlots, setActiveTab, setMemberFilter } = useCRM();
   const { isMainAdmin } = useAuth();
+
+  // Prioritize upcoming events first, then recent events in descending order
+  const dashboardEvents = useMemo(() => {
+    if (!events.length) return [];
+
+    const getStatus = (e: (typeof events)[0]) => {
+      const slot2 = eventSlots.find(s => s.eventId === e.id && s.slotNumber === 2);
+      return getComputedEventStatus(e.date, slot2?.startTime);
+    };
+
+    const upcoming = events
+      .filter(e => {
+        const s = getStatus(e);
+        return s === 'Upcoming' || e.status === 'Scheduled' || e.status === 'Live';
+      })
+      .sort((a, b) => {
+        const tA = parseDateAsUtc(a.date)?.getTime() || 0;
+        const tB = parseDateAsUtc(b.date)?.getTime() || 0;
+        return tA - tB; // Soonest upcoming first
+      });
+
+    const completed = events
+      .filter(e => {
+        const s = getStatus(e);
+        return s !== 'Upcoming' && e.status !== 'Scheduled' && e.status !== 'Live';
+      })
+      .sort((a, b) => {
+        const tA = parseDateAsUtc(a.date)?.getTime() || 0;
+        const tB = parseDateAsUtc(b.date)?.getTime() || 0;
+        return tB - tA; // Newest completed first
+      });
+
+    return [...upcoming, ...completed].slice(0, 6);
+  }, [events, eventSlots]);
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -212,7 +247,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {events.slice(0, 6).map(evt => (
+          {dashboardEvents.map(evt => (
             <EventOverviewCard key={evt.id} event={evt} />
           ))}
         </div>

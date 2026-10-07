@@ -6,8 +6,12 @@ export interface MemberParticipationStats {
   totalEvents: number;
   joinedCount: number;
   votedCount: number;
+  attendedWhenVotedCount: number;
+  followedVoteCount: number;
   percentage: number;
   votePercentage: number;
+  voteReliability: number;
+  followedVoteRate: number;
   perEvent: Array<{
     eventId: string;
     eventType: string;
@@ -44,6 +48,8 @@ export function calculateMemberParticipation(
 
   let joinedCount = 0;
   let votedCount = 0;
+  let attendedWhenVotedCount = 0;
+  let followedVoteCount = 0;
   const perEvent: MemberParticipationStats['perEvent'] = [];
   const perType: Record<string, { total: number; joined: number; percentage: number }> = {};
 
@@ -124,7 +130,17 @@ export function calculateMemberParticipation(
     }
 
     if (isJoined) joinedCount++;
-    if (isVoted) votedCount++;
+    if (isVoted) {
+      votedCount++;
+      if (isJoined) {
+        attendedWhenVotedCount++;
+        if (modernPart && modernPart.selectedSlotId && modernPart.attendanceSlotId && modernPart.selectedSlotId === modernPart.attendanceSlotId) {
+          followedVoteCount++;
+        } else if (!modernPart) {
+          followedVoteCount++;
+        }
+      }
+    }
 
     perEvent.push({
       eventId: evt.id,
@@ -182,14 +198,20 @@ export function calculateMemberParticipation(
 
   const percentage = totalEvents > 0 ? (joinedCount / totalEvents) * 100 : 0;
   const votePercentage = totalEvents > 0 ? (votedCount / totalEvents) * 100 : 0;
+  const voteReliability = votedCount > 0 ? (attendedWhenVotedCount / votedCount) * 100 : 100;
+  const followedVoteRate = votedCount > 0 ? (followedVoteCount / votedCount) * 100 : 100;
 
   return {
     memberId,
     totalEvents,
     joinedCount,
     votedCount,
+    attendedWhenVotedCount,
+    followedVoteCount,
     percentage,
     votePercentage,
+    voteReliability,
+    followedVoteRate,
     perEvent,
     perType,
   };

@@ -90,20 +90,29 @@ export function formatCurrentUtcTime(): string {
 
 /**
  * Automatically computes whether an event is 'Upcoming' or 'Completed' based on its date & time in UTC.
+ * If slot2DateInput is provided (e.g. Bear Trap Slot 2 next day at 00:30 UTC),
+ * the event remains 'Upcoming' (active) until its final slot concludes (+ 1 hour duration buffer).
  */
 export function getComputedEventStatus(
-  dateInput: string | number | Date | undefined | null
+  dateInput: string | number | Date | undefined | null,
+  slot2DateInput?: string | number | Date | undefined | null
 ): 'Upcoming' | 'Completed' {
-  const d = parseDateAsUtc(dateInput);
-  if (!d) return 'Completed';
-  return d.getTime() > Date.now() ? 'Upcoming' : 'Completed';
+  const d1 = parseDateAsUtc(dateInput);
+  const d2 = slot2DateInput ? parseDateAsUtc(slot2DateInput) : null;
+
+  const ONE_HOUR_MS = 60 * 60 * 1000;
+  const latestStartMs = Math.max(d1 ? d1.getTime() : 0, d2 ? d2.getTime() : 0);
+  if (!latestStartMs) return 'Completed';
+
+  return (latestStartMs + ONE_HOUR_MS) > Date.now() ? 'Upcoming' : 'Completed';
 }
 
 /**
  * Returns a human-friendly relative time label (e.g. "Starts in 2h 30m", "In 3 days", "Yesterday")
  */
 export function getEventRelativeTime(
-  dateInput: string | number | Date | undefined | null
+  dateInput: string | number | Date | undefined | null,
+  prefix?: string
 ): string {
   const d = parseDateAsUtc(dateInput);
   if (!d) return '';
@@ -116,15 +125,17 @@ export function getEventRelativeTime(
   const absHours = Math.floor(absMin / 60);
   const absDays = Math.floor(absHours / 24);
 
+  const pfx = prefix ? `${prefix} ` : '';
+
   if (isFuture) {
-    if (absMin < 1) return 'Starting shortly';
-    if (absMin < 60) return `Starts in ${absMin}m`;
+    if (absMin < 1) return `${pfx}Starting shortly`;
+    if (absMin < 60) return `${pfx}Starts in ${absMin}m`;
     if (absHours < 24) {
       const remainingMin = absMin % 60;
-      return `Starts in ${absHours}h${remainingMin > 0 ? ` ${remainingMin}m` : ''}`;
+      return `${pfx}Starts in ${absHours}h${remainingMin > 0 ? ` ${remainingMin}m` : ''}`;
     }
-    if (absDays === 1) return 'Tomorrow';
-    return `In ${absDays} days`;
+    if (absDays === 1) return `${pfx}Tomorrow`;
+    return `${pfx}In ${absDays} days`;
   } else {
     if (absHours < 1) return 'Ended just now';
     if (absHours < 24) return `Ended ${absHours}h ago`;

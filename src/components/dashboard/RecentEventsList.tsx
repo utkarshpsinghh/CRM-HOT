@@ -5,7 +5,7 @@ import { sounds } from '../../utils/sound';
 import { safeFormatDate, getComputedEventStatus } from '../../utils/date';
 
 export const RecentEventsList: React.FC = () => {
-  const { events, attendance, eventParticipations, members, setSelectedEventIdForAttendance, setActiveTab } = useCRM();
+  const { events, eventSlots, attendance, eventParticipations, members, setSelectedEventIdForAttendance, setActiveTab } = useCRM();
 
   // Reverse events to show most recent first
   const sorted = [...events].reverse();
@@ -53,7 +53,8 @@ export const RecentEventsList: React.FC = () => {
             day: 'numeric',
           });
 
-          const computedStatus = getComputedEventStatus(evt.date);
+          const slot2 = eventSlots.find(s => s.eventId === evt.id && s.slotNumber === 2);
+          const computedStatus = getComputedEventStatus(evt.date, slot2?.startTime);
 
           return (
             <div

@@ -29,6 +29,8 @@ interface MemberLeaderboardEntry {
   attendanceRate: number;
   eventsVoted: number;
   voteRate: number;
+  attendedWhenVoted: number;
+  voteReliability: number;
   missedAfterYes: number;
 }
 
@@ -84,6 +86,9 @@ export const LeaderboardView: React.FC = () => {
 
       const modernJoined = modernParts.filter(p => p.attendanceStatus === 'ATTENDED').length;
       const modernVoted = modernParts.filter(p => p.voteStatus === 'VOTED').length;
+      const modernAttendedWhenVoted = modernParts.filter(
+        p => p.voteStatus === 'VOTED' && p.attendanceStatus === 'ATTENDED'
+      ).length;
       const modernMissed = modernParts.filter(
         p => p.voteStatus === 'VOTED' && p.attendanceStatus === 'ABSENT'
       ).length;
@@ -92,16 +97,21 @@ export const LeaderboardView: React.FC = () => {
       const legacyVoted = memberRecords.filter(
         r => r.voteStatus === 'YES' || r.voteStatus === 'NO'
       ).length;
+      const legacyAttendedWhenVoted = memberRecords.filter(
+        r => (r.voteStatus === 'YES' || r.voteStatus === 'NO') && r.attendanceStatus === 'JOINED'
+      ).length;
       const legacyMissed = memberRecords.filter(
         r => r.voteStatus === 'YES' && r.attendanceStatus === 'DIDNT_JOIN'
       ).length;
 
       const eventsJoined = modernParts.length > 0 ? modernJoined : legacyJoined;
       const eventsVoted = modernParts.length > 0 ? modernVoted : legacyVoted;
+      const attendedWhenVoted = modernParts.length > 0 ? modernAttendedWhenVoted : legacyAttendedWhenVoted;
       const missedAfterYes = modernParts.length > 0 ? modernMissed : legacyMissed;
 
       const attendanceRate = totalEventsCount > 0 ? (eventsJoined / totalEventsCount) * 100 : 0;
       const voteRate = totalEventsCount > 0 ? (eventsVoted / totalEventsCount) * 100 : 0;
+      const voteReliability = eventsVoted > 0 ? (attendedWhenVoted / eventsVoted) * 100 : 100;
 
       return {
         member,
@@ -110,6 +120,8 @@ export const LeaderboardView: React.FC = () => {
         attendanceRate,
         eventsVoted,
         voteRate,
+        attendedWhenVoted,
+        voteReliability,
         missedAfterYes,
       };
     });
@@ -309,8 +321,9 @@ export const LeaderboardView: React.FC = () => {
                 <div className="text-2xl font-bold font-mono text-slate-200">
                   {top2.attendanceRate.toFixed(0)}%
                 </div>
-                <div className="text-[11px] text-slate-400">
-                  Vote Reliability: {top2.voteRate.toFixed(0)}%
+                <div className="text-[11px] text-slate-400 space-y-0.5">
+                  <div>Vote: <span className="text-purple-300 font-mono font-semibold">{top2.voteRate.toFixed(0)}%</span></div>
+                  <div>Reliability: <span className="text-emerald-400 font-mono font-semibold">{top2.eventsVoted > 0 ? `${top2.voteReliability.toFixed(0)}%` : '—'}</span></div>
                 </div>
               </div>
             )}
@@ -340,8 +353,11 @@ export const LeaderboardView: React.FC = () => {
                 <div className="text-3xl font-bold font-mono text-amber-400">
                   {top1.attendanceRate.toFixed(0)}%
                 </div>
-                <div className="text-xs text-slate-300">
-                  {top1.member.strikes === 0 ? 'Clean Record (0 Strikes)' : `${top1.member.strikes} Strikes`}
+                <div className="text-xs text-slate-300 space-y-0.5">
+                  <div className="text-[11px] text-slate-400">
+                    Vote: <span className="text-purple-300 font-mono font-semibold">{top1.voteRate.toFixed(0)}%</span> • Reliability: <span className="text-emerald-400 font-mono font-semibold">{top1.eventsVoted > 0 ? `${top1.voteReliability.toFixed(0)}%` : '—'}</span>
+                  </div>
+                  <div>{top1.member.strikes === 0 ? 'Clean Record (0 Strikes)' : `${top1.member.strikes} Strikes`}</div>
                 </div>
               </div>
             )}
@@ -370,8 +386,9 @@ export const LeaderboardView: React.FC = () => {
                 <div className="text-2xl font-bold font-mono text-orange-400">
                   {top3.attendanceRate.toFixed(0)}%
                 </div>
-                <div className="text-[11px] text-slate-400">
-                  Vote Reliability: {top3.voteRate.toFixed(0)}%
+                <div className="text-[11px] text-slate-400 space-y-0.5">
+                  <div>Vote: <span className="text-purple-300 font-mono font-semibold">{top3.voteRate.toFixed(0)}%</span></div>
+                  <div>Reliability: <span className="text-emerald-400 font-mono font-semibold">{top3.eventsVoted > 0 ? `${top3.voteReliability.toFixed(0)}%` : '—'}</span></div>
                 </div>
               </div>
             )}
@@ -446,6 +463,7 @@ export const LeaderboardView: React.FC = () => {
                   <th className="py-3 px-3 text-center">Rank</th>
                   <th className="py-3 px-3">Turnout Rate</th>
                   <th className="py-3 px-3 text-center">Events Joined</th>
+                  <th className="py-3 px-3 text-center">Vote %</th>
                   <th className="py-3 px-3 text-center">Vote Reliability</th>
                   <th className="py-3 px-3 text-center">Strikes</th>
                   <th className="py-3 px-3 text-center">Status</th>
@@ -536,8 +554,28 @@ export const LeaderboardView: React.FC = () => {
                       </td>
 
                       {/* Vote Rate */}
-                      <td className="py-3 px-3 text-center font-mono text-slate-400">
+                      <td className="py-3 px-3 text-center font-mono text-purple-300 font-semibold">
                         {entry.voteRate.toFixed(0)}%
+                        <span className="text-[10px] text-slate-500 font-normal ml-1">({entry.eventsVoted}/{entry.totalEligibleEvents})</span>
+                      </td>
+
+                      {/* Vote Reliability */}
+                      <td className="py-3 px-3 text-center font-mono">
+                        {entry.eventsVoted > 0 ? (
+                          <span
+                            className={`font-semibold ${
+                              entry.voteReliability >= 80
+                                ? 'text-emerald-400'
+                                : entry.voteReliability >= 50
+                                ? 'text-amber-400'
+                                : 'text-rose-400'
+                            }`}
+                          >
+                            {entry.voteReliability.toFixed(0)}%
+                          </span>
+                        ) : (
+                          <span className="text-slate-500">—</span>
+                        )}
                       </td>
 
                       {/* Strikes */}

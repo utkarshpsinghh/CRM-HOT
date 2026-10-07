@@ -4,7 +4,7 @@ import { useCRM } from '../../context/CRMContext';
 import { ProgressBar } from '../common/ProgressBar';
 import { ChevronRight, Clock, CheckCircle2, Layers, Users } from 'lucide-react';
 import { sounds } from '../../utils/sound';
-import { safeFormatDate, getComputedEventStatus, getEventRelativeTime } from '../../utils/date';
+import { safeFormatDate, getComputedEventStatus, getEventRelativeTime, parseDateAsUtc } from '../../utils/date';
 import { calculateEventHealthMetrics } from '../../utils/eventCalculations';
 
 interface EventOverviewCardProps {
@@ -24,8 +24,15 @@ export const EventOverviewCard: React.FC<EventOverviewCardProps> = ({ event }) =
   const slot1Metrics = metrics.slots.find(s => s.slotNumber === 1);
   const slot2Metrics = metrics.slots.find(s => s.slotNumber === 2);
 
-  const computedStatus = getComputedEventStatus(event.date);
-  const relativeTime = getEventRelativeTime(event.date);
+  const computedStatus = getComputedEventStatus(event.date, slot2?.startTime);
+
+  // If slot 1 has started/passed but slot 2 is upcoming:
+  const slot1Passed = parseDateAsUtc(event.date) ? parseDateAsUtc(event.date)!.getTime() <= Date.now() : false;
+  const slot2Future = slot2?.startTime && parseDateAsUtc(slot2.startTime) ? parseDateAsUtc(slot2.startTime)!.getTime() > Date.now() : false;
+
+  const targetDateForRelative = slot1Passed && slot2Future && slot2?.startTime ? slot2.startTime : event.date;
+  const relativePrefix = slot1Passed && slot2Future ? `${slot2?.slotName || 'Slot 2'}:` : '';
+  const relativeTime = getEventRelativeTime(targetDateForRelative, relativePrefix);
 
   const handleOpenAttendance = () => {
     sounds.playClick();
@@ -80,7 +87,7 @@ export const EventOverviewCard: React.FC<EventOverviewCardProps> = ({ event }) =
           </div>
 
           <div className="text-right text-xs text-slate-400 font-mono">
-            <div className="font-semibold text-slate-200">{formattedDate} UTC</div>
+            <div className="font-semibold text-slate-200">{formattedDate}</div>
             {relativeTime && (
               <div className="text-[10px] text-amber-400 font-medium">{relativeTime}</div>
             )}
