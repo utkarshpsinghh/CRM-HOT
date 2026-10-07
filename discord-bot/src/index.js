@@ -13,6 +13,12 @@ import * as rosterCmd from './commands/roster.js';
 import * as mvpCmd from './commands/mvp.js';
 import * as inactivesCmd from './commands/inactives.js';
 import * as helpCmd from './commands/help.js';
+import * as rollcallCmd from './commands/rollcall.js';
+import * as checkinCmd from './commands/checkin.js';
+import * as streaksCmd from './commands/streaks.js';
+import * as saluteCmd from './commands/salute.js';
+import * as duelCmd from './commands/duel.js';
+import * as triviaCmd from './commands/trivia.js';
 
 validateConfig();
 
@@ -36,6 +42,12 @@ const commandModules = [
   mvpCmd,
   inactivesCmd,
   helpCmd,
+  rollcallCmd,
+  checkinCmd,
+  streaksCmd,
+  saluteCmd,
+  duelCmd,
+  triviaCmd,
 ];
 
 commandModules.forEach(mod => {

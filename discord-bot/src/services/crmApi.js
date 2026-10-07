@@ -344,6 +344,36 @@ class CrmApiClient {
   }
 
   /**
+   * Generic key-value store in Supabase settings table
+   */
+  async getSetting(key, defaultValue = null) {
+    try {
+      const { data } = await this.supabase
+        .from('settings')
+        .select('value')
+        .eq('key', key)
+        .single();
+      if (!data || !data.value) return defaultValue;
+      try { return JSON.parse(data.value); } catch { return data.value; }
+    } catch {
+      return defaultValue;
+    }
+  }
+
+  async setSetting(key, val) {
+    try {
+      const value = typeof val === 'string' ? val : JSON.stringify(val);
+      await this.supabase
+        .from('settings')
+        .upsert({ key, value }, { onConflict: 'key' });
+      return true;
+    } catch (err) {
+      console.error('[setSetting ERROR]:', err.message);
+      return false;
+    }
+  }
+
+  /**
    * Link Discord user ID to an Alliance Member
    */
   async linkDiscordUser(discordUserId, member) {

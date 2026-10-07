@@ -34,15 +34,28 @@ export async function execute(interaction) {
         name: '⚔️ Battle Coordination & Bear Trap',
         value: [
           '• `/beartrap` — Next battle countdown, dual slot times (`16:00 UTC` / `00:30 UTC`), and turnouts.',
+          '• `/rollcall [battle]` — Launch live interactive RSVP roll call buttons for upcoming battles.',
           '• `/events [status]` — Schedule for Bear Traps, Swordsland War, and Tri Alliance battles.',
           '• `/attendance <player>` — Detailed battle ledger showing voted & attended slots.',
         ].join('\n'),
         inline: false,
       },
       {
+        name: '🔥 Community Engagement & War Room Games',
+        value: [
+          '• `/checkin` — Daily war room roll call to build your consecutive attendance streak.',
+          '• `/streaks` — Top 10 longest active streak leaders.',
+          '• `/salute give <player>` — Commend a comrade for clutch rallies or great advice.',
+          '• `/salute leaderboard` — Most respected warriors honor roll.',
+          '• `/duel <opponent>` — Challenge an alliance brother or sister to a combat duel simulator!',
+          '• `/trivia play` — Rapid-fire Whiteout Survival & Kingdom trivia with live buttons.',
+        ].join('\n'),
+        inline: false,
+      },
+      {
         name: '🏰 Alliance Roster & Discipline',
         value: [
-          '• `/roster [rank]` — Alliance census summary & division lists (R5, R4, R3, R2, R1).',
+          '• `/roster [rank]` — Alliance census summary & division lists (All 80 members, R5, R4, R3, R2, R1).',
           '• `/inactives [filter]` — Spot inactive members or players with warning strikes.',
           '• `/strike <add|remove>` — *(Officers only)* Issue or waive disciplinary strikes.',
         ].join('\n'),

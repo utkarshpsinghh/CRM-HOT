@@ -13,6 +13,12 @@ import * as rosterCmd from './commands/roster.js';
 import * as mvpCmd from './commands/mvp.js';
 import * as inactivesCmd from './commands/inactives.js';
 import * as helpCmd from './commands/help.js';
+import * as rollcallCmd from './commands/rollcall.js';
+import * as checkinCmd from './commands/checkin.js';
+import * as streaksCmd from './commands/streaks.js';
+import * as saluteCmd from './commands/salute.js';
+import * as duelCmd from './commands/duel.js';
+import * as triviaCmd from './commands/trivia.js';
 
 validateConfig();
 
@@ -30,6 +36,12 @@ const commands = [
   mvpCmd.data.toJSON(),
   inactivesCmd.data.toJSON(),
   helpCmd.data.toJSON(),
+  rollcallCmd.data.toJSON(),
+  checkinCmd.data.toJSON(),
+  streaksCmd.data.toJSON(),
+  saluteCmd.data.toJSON(),
+  duelCmd.data.toJSON(),
+  triviaCmd.data.toJSON(),
 ];
 
 const rest = new REST({ version: '10' }).setToken(config.discordToken);
@@ -39,7 +51,6 @@ async function deploy() {
     console.log(`[DEPLOY] Started refreshing ${commands.length} application (/) commands...`);
 
     if (config.guildId) {
-      // Instant guild deployment for testing server
       console.log(`[DEPLOY] Registering commands to Guild: ${config.guildId}`);
       await rest.put(
         Routes.applicationGuildCommands(config.clientId, config.guildId),
@@ -47,7 +58,6 @@ async function deploy() {
       );
       console.log(`[DEPLOY] Successfully registered ${commands.length} commands to Guild: ${config.guildId}`);
     } else {
-      // Global deployment
       console.log(`[DEPLOY] Registering commands globally...`);
       await rest.put(
         Routes.applicationCommands(config.clientId),
