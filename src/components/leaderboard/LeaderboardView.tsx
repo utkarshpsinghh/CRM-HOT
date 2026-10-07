@@ -454,8 +454,109 @@ export const LeaderboardView: React.FC = () => {
             No alliance members match the current search filter.
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs text-slate-300">
+          <>
+            {/* Mobile Leaderboard Cards (< md) */}
+            <div className="block md:hidden divide-y divide-slate-800/80">
+              {filteredEntries.map((entry, index) => {
+                const rankNumber = index + 1;
+                const isTop1 = rankNumber === 1;
+                const isTop2 = rankNumber === 2;
+                const isTop3 = rankNumber === 3;
+
+                return (
+                  <div
+                    key={entry.member.id}
+                    onClick={() => handleMemberClick(entry.member)}
+                    className={`p-3.5 space-y-2.5 transition-colors cursor-pointer select-none active:bg-slate-800/60 ${
+                      isTop1 ? 'bg-amber-500/5' : isTop2 ? 'bg-slate-700/10' : isTop3 ? 'bg-orange-500/5' : ''
+                    }`}
+                  >
+                    {/* Top: Rank, Name, Rank Badge, Status */}
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        {/* Rank Badge */}
+                        <div className="shrink-0">
+                          {isTop1 ? (
+                            <span className="w-6 h-6 rounded-full bg-amber-400 text-slate-950 font-bold flex items-center justify-center text-xs shadow-sm">
+                              1
+                            </span>
+                          ) : isTop2 ? (
+                            <span className="w-6 h-6 rounded-full bg-slate-300 text-slate-950 font-bold flex items-center justify-center text-xs shadow-sm">
+                              2
+                            </span>
+                          ) : isTop3 ? (
+                            <span className="w-6 h-6 rounded-full bg-orange-400 text-slate-950 font-bold flex items-center justify-center text-xs shadow-sm">
+                              3
+                            </span>
+                          ) : (
+                            <span className="w-6 h-6 rounded-full bg-slate-800 text-slate-400 font-mono font-medium flex items-center justify-center text-xs">
+                              {rankNumber}
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="min-w-0">
+                          <div className="font-semibold text-sm text-slate-100 flex items-center gap-1.5 truncate">
+                            <span className="truncate">{entry.member.name}</span>
+                            {isTop1 && <Crown className="w-3.5 h-3.5 text-amber-400 shrink-0" />}
+                          </div>
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <RankBadge rank={entry.member.currentRank} size="sm" />
+                            <ActivityBadge status={entry.member.status} size="sm" />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Turnout % */}
+                      <div className="text-right shrink-0">
+                        <div className="text-base font-bold font-mono text-amber-400">
+                          {entry.attendanceRate.toFixed(0)}%
+                        </div>
+                        <div className="text-[10px] text-slate-400 font-mono">
+                          {entry.eventsJoined}/{entry.totalEligibleEvents} events
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Turnout Progress Bar */}
+                    <div className="w-full bg-slate-950 h-1.5 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full ${
+                          entry.attendanceRate >= 75 ? 'bg-emerald-500' : entry.attendanceRate >= 50 ? 'bg-amber-500' : 'bg-rose-500'
+                        }`}
+                        style={{ width: `${Math.min(100, entry.attendanceRate)}%` }}
+                      />
+                    </div>
+
+                    {/* Metrics Strip */}
+                    <div className="grid grid-cols-3 gap-1 pt-1 text-[11px] font-mono border-t border-slate-800/60 text-slate-400">
+                      <div>
+                        <span className="text-slate-500 font-sans text-[10px] block">Vote %</span>
+                        <span className="text-purple-300 font-bold">{entry.voteRate.toFixed(0)}%</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-500 font-sans text-[10px] block">Reliability</span>
+                        <span className={`font-bold ${
+                          (entry.voteReliability || 100) >= 80 ? 'text-emerald-400' : 'text-amber-400'
+                        }`}>
+                          {entry.eventsVoted > 0 ? `${entry.voteReliability.toFixed(0)}%` : '—'}
+                        </span>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-slate-500 font-sans text-[10px] block">Strikes</span>
+                        <span className={entry.member.strikes > 0 ? 'text-rose-400 font-bold' : 'text-slate-400 font-bold'}>
+                          {entry.member.strikes}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Desktop & Tablet Table (>= md) */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-left text-xs text-slate-300">
               <thead className="bg-slate-950/80 text-[11px] font-semibold uppercase text-slate-400 border-b border-slate-800">
                 <tr>
                   <th className="py-3 px-3.5 text-center w-12"># Rank</th>
@@ -604,6 +705,7 @@ export const LeaderboardView: React.FC = () => {
               </tbody>
             </table>
           </div>
+        </>
         )}
       </div>
     </div>

@@ -148,7 +148,7 @@ export const EventOverviewCard: React.FC<EventOverviewCardProps> = ({ event }) =
         </div>
 
         {/* Voting & Non-voter Stats */}
-        <div className="flex items-center justify-between text-[11px] px-2.5 py-1.5 rounded-lg bg-slate-950/40 border border-slate-800/50 mb-3 text-slate-400">
+        <div className="flex flex-wrap items-center justify-between gap-1.5 text-[11px] px-2.5 py-1.5 rounded-lg bg-slate-950/40 border border-slate-800/50 mb-3 text-slate-400">
           <div className="flex items-center gap-1">
             <Layers className="w-3 h-3 text-sky-400" />
             <span>Poll: <strong className="text-sky-300 font-mono">{metrics.totalVoters}</strong> ({metrics.votingRate}%)</span>

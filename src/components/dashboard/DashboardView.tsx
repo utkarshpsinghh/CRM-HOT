@@ -98,14 +98,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
 
         {/* Action Buttons */}
-        <div className="flex items-center gap-2.5 flex-wrap relative z-10 shrink-0">
+        <div className="flex items-center gap-2.5 flex-wrap relative z-10 shrink-0 w-full sm:w-auto">
           {isMainAdmin && (
             <button
               onClick={() => {
                 sounds.playClick();
                 onOpenCreateEvent();
               }}
-              className="btn-primary px-3.5 py-2 text-xs font-semibold flex items-center gap-1.5 cursor-pointer shadow-sm"
+              className="flex-1 sm:flex-initial btn-primary px-3.5 py-2 text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer shadow-sm"
             >
               <Plus className="w-4 h-4" />
               <span>Create Event</span>
@@ -117,7 +117,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               sounds.playClick();
               onOpenAddMember();
             }}
-            className="btn-secondary px-3.5 py-2 text-xs font-semibold flex items-center gap-1.5 cursor-pointer shadow-sm"
+            className="flex-1 sm:flex-initial btn-secondary px-3.5 py-2 text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer shadow-sm"
           >
             <UserPlus className="w-4 h-4 text-amber-400" />
             <span>Add Member</span>
@@ -126,7 +126,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       </div>
 
       {/* 5 Tactical Resource Stat Pods */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 sm:gap-3.5">
         <StatCard
           title="Total Members"
           value={stats.totalMembers}
@@ -182,7 +182,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           subtitle="All wars combined"
           icon={<BarChart3 className="w-4 h-4" />}
           variant="slate"
-          className="col-span-2 sm:col-span-1 lg:col-span-1"
+          className="col-span-2 sm:col-span-1 md:col-span-1"
           onClick={() => {
             setActiveTab('attendance');
           }}
@@ -217,7 +217,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             sounds.playClick();
             setActiveTab('leaderboard');
           }}
-          className="btn-primary px-4 py-2 text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer shadow-sm shrink-0 self-start sm:self-auto"
+          className="btn-primary px-4 py-2 text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer shadow-sm shrink-0 w-full sm:w-auto"
         >
           <Trophy className="w-4 h-4" />
           <span>View Rankings</span>

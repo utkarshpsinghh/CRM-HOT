@@ -41,12 +41,13 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
         </div>
 
         <div className="flex items-center justify-end gap-2.5 pt-2">
-          <GameButton variant="slate" size="md" onClick={onClose}>
+          <GameButton variant="slate" size="md" onClick={onClose} className="flex-1 sm:flex-initial">
             {cancelLabel}
           </GameButton>
           <GameButton
             variant={variant}
             size="md"
+            className="flex-1 sm:flex-initial"
             onClick={() => {
               onConfirm();
               onClose();

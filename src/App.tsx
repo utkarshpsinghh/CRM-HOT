@@ -162,7 +162,7 @@ const MainAppContent: React.FC = () => {
       <Footer />
 
       {/* TOAST SYSTEM */}
-      <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2 max-w-sm pointer-events-none">
+      <div className="fixed bottom-3 sm:bottom-4 left-3 right-3 sm:left-auto sm:right-4 z-50 flex flex-col gap-2 sm:max-w-sm pointer-events-none">
         {toasts.map(toast => {
           const config = {
             success: {

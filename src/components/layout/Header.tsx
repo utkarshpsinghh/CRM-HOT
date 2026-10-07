@@ -92,12 +92,12 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCreateEvent }) => {
               </span>
             </div>
             
-            <div className="text-[11px] text-slate-400 font-medium flex items-center gap-1.5 flex-wrap">
-              <span>HOT Alliance</span>
+            <div className="text-[11px] text-slate-400 font-medium flex items-center gap-1.5 flex-nowrap truncate">
+              <span className="truncate">HOT Alliance</span>
               <span className="text-slate-600">•</span>
-              <span className="text-amber-400/90 font-mono">K1391</span>
-              <span className="text-slate-600">•</span>
-              <span className="text-sky-300 font-mono text-[10px] px-1.5 py-0.2 rounded bg-sky-500/10 border border-sky-500/25">UTC Time</span>
+              <span className="text-amber-400/90 font-mono shrink-0">K1391</span>
+              <span className="text-slate-600 hidden sm:inline">•</span>
+              <span className="text-sky-300 font-mono text-[10px] px-1.5 py-0.2 rounded bg-sky-500/10 border border-sky-500/25 shrink-0 hidden sm:inline">UTC Time</span>
             </div>
           </div>
         </div>

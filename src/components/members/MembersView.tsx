@@ -334,6 +334,23 @@ export const MembersView: React.FC<MembersViewProps> = ({
                     </div>
                   </div>
 
+                  {/* Turnout, Vote %, and Reliability Metrics */}
+                  <div className="flex items-center justify-between text-[10px] text-slate-400 pt-1.5 border-t border-slate-800/80 font-mono">
+                    <div>
+                      <span className="text-slate-500 font-sans">Vote: </span>
+                      <span className="text-purple-300 font-bold">{partStats?.votePercentage.toFixed(0) || 0}%</span>
+                      <span className="text-slate-500 text-[9px] ml-0.5">({partStats?.votedCount || 0}/{partStats?.totalEvents || 0})</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-500 font-sans">Reliability: </span>
+                      <span className={`font-bold ${
+                        (partStats?.voteReliability || 100) >= 80 ? 'text-emerald-400' : 'text-amber-400'
+                      }`}>
+                        {partStats?.votedCount ? `${partStats.voteReliability.toFixed(0)}%` : '—'}
+                      </span>
+                    </div>
+                  </div>
+
                   {/* 6 Core Events All-Time Attendance % Mini-Grid */}
                   <div className="grid grid-cols-3 gap-1 pt-1.5 border-t border-slate-800/80 text-[10px]">
                     {(['BT1', 'BT2', 'Swordland L1', 'Swordland L2', 'Tri Alliance L1', 'Tri Alliance L2'] as const).map(eType => {
@@ -420,7 +437,7 @@ export const MembersView: React.FC<MembersViewProps> = ({
       </div>
 
       {/* Desktop Warrior Table */}
-      <div className="hidden md:block rounded-xl border border-slate-800 bg-slate-900/80 overflow-hidden shadow-lg">
+      <div className="hidden md:block rounded-xl border border-slate-800 bg-slate-900/80 overflow-x-auto shadow-lg">
         <table className="w-full text-left text-xs sm:text-sm">
           <thead className="bg-slate-950/80 text-slate-400 font-semibold uppercase tracking-wider text-xs border-b border-slate-800">
             <tr>

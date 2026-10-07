@@ -39,17 +39,18 @@ export const EventsView: React.FC<EventsViewProps> = ({ onOpenCreateEvent }) => 
 
   const mainEventTypes = ['Bear Trap', 'Swordsland', 'Tri Alliance'];
 
-  // Count upcoming vs completed based strictly on date/time
+  // Count upcoming vs completed based strictly on date/time (including Slot 2)
   const statusCounts = useMemo(() => {
     let upcoming = 0;
     let completed = 0;
     events.forEach(e => {
-      const s = getComputedEventStatus(e.date);
+      const slot2 = eventSlots.find(s => s.eventId === e.id && s.slotNumber === 2);
+      const s = getComputedEventStatus(e.date, slot2?.startTime);
       if (s === 'Upcoming') upcoming++;
       else completed++;
     });
     return { total: events.length, upcoming, completed };
-  }, [events]);
+  }, [events, eventSlots]);
 
   // Overall benchmark participation stats per main event type
   const typeAverages = useMemo(() => {
@@ -90,7 +91,8 @@ export const EventsView: React.FC<EventsViewProps> = ({ onOpenCreateEvent }) => 
   const processedEvents = useMemo(() => {
     return events
       .filter(e => {
-        const computedStatus = getComputedEventStatus(e.date);
+        const slot2 = eventSlots.find(s => s.eventId === e.id && s.slotNumber === 2);
+        const computedStatus = getComputedEventStatus(e.date, slot2?.startTime);
         if (statusFilter !== 'ALL' && computedStatus !== statusFilter) return false;
         if (typeFilter !== 'ALL' && e.eventType !== typeFilter) return false;
         return true;
@@ -100,7 +102,7 @@ export const EventsView: React.FC<EventsViewProps> = ({ onOpenCreateEvent }) => 
         const tB = parseDateAsUtc(b.date)?.getTime() || new Date(b.date).getTime() || 0;
         return sortOrder === 'earliest' ? tA - tB : tB - tA;
       });
-  }, [events, statusFilter, typeFilter, sortOrder]);
+  }, [events, eventSlots, statusFilter, typeFilter, sortOrder]);
 
   const handleOpenAttendance = (eventId: string) => {
     sounds.playClick();
@@ -188,7 +190,7 @@ export const EventsView: React.FC<EventsViewProps> = ({ onOpenCreateEvent }) => 
       {/* Filter and Control Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
         {/* Status Pills */}
-        <div className="flex items-center gap-1.5 p-1 rounded-lg bg-slate-900/80 border border-slate-800 w-fit">
+        <div className="flex items-center gap-1.5 p-1 rounded-lg bg-slate-900/80 border border-slate-800 w-full sm:w-fit overflow-x-auto scrollbar-none">
           <button
             onClick={() => {
               sounds.playClick();
@@ -280,7 +282,10 @@ export const EventsView: React.FC<EventsViewProps> = ({ onOpenCreateEvent }) => 
           {processedEvents.map(event => {
             const eligibleCount = members.filter(m => m.status !== 'Archived').length;
             const metrics = calculateEventHealthMetrics(event.id, eventSlots, eventParticipations, eligibleCount);
-            const computedStatus = getComputedEventStatus(event.date);
+            const slotsForEvent = eventSlots.filter(s => s.eventId === event.id);
+            const slot1 = slotsForEvent.find(s => s.slotNumber === 1);
+            const slot2 = slotsForEvent.find(s => s.slotNumber === 2);
+            const computedStatus = getComputedEventStatus(event.date, slot2?.startTime);
             const relativeTime = getEventRelativeTime(event.date);
 
             const formattedDate = safeFormatDate(event.date, {
@@ -289,10 +294,6 @@ export const EventsView: React.FC<EventsViewProps> = ({ onOpenCreateEvent }) => 
               hour: '2-digit',
               minute: '2-digit',
             });
-
-            const slotsForEvent = eventSlots.filter(s => s.eventId === event.id);
-            const slot1 = slotsForEvent.find(s => s.slotNumber === 1);
-            const slot2 = slotsForEvent.find(s => s.slotNumber === 2);
 
             const slot1Metrics = metrics.slots.find(s => s.slotNumber === 1);
             const slot2Metrics = metrics.slots.find(s => s.slotNumber === 2);

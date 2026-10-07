@@ -40,7 +40,7 @@ export const Navigation: React.FC = () => {
   ];
 
   return (
-    <div className="lg:hidden bg-slate-950/90 backdrop-blur-xl border-b border-slate-800 px-2 py-2 overflow-x-auto scrollbar-none sticky top-16 z-30">
+    <div className="lg:hidden bg-slate-950/95 backdrop-blur-xl border-b border-slate-800/90 px-2 py-2 overflow-x-auto scrollbar-none sticky top-16 z-30 overscroll-x-contain touch-pan-x">
       <div className="flex items-center gap-1.5 min-w-max px-1">
         {navItems.map(item => {
           const isActive = activeTab === item.id;

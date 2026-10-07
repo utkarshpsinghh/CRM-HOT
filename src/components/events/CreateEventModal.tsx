@@ -265,13 +265,13 @@ export const CreateEventModal: React.FC<CreateEventModalProps> = ({ isOpen, onCl
 
         {/* Actions */}
         <div className="flex items-center justify-end gap-3 pt-3 border-t border-[#3e2716]">
-          <GameButton variant="slate" size="md" onClick={onClose} type="button">
+          <GameButton variant="slate" size="md" onClick={onClose} type="button" className="flex-1 sm:flex-initial">
             Cancel
           </GameButton>
           <button
             type="submit"
             disabled={isSubmitting}
-            className="btn-kingshot-gold px-4 py-2 text-xs font-fantasy font-black uppercase flex items-center justify-center gap-1.5 cursor-pointer shadow-md"
+            className="flex-1 sm:flex-initial btn-kingshot-gold px-4 py-2 text-xs font-fantasy font-black uppercase flex items-center justify-center gap-1.5 cursor-pointer shadow-md"
           >
             <Swords className="w-4 h-4" />
             <span>{isSubmitting ? 'Creating...' : 'Create Event'}</span>

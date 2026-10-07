@@ -164,13 +164,13 @@ export const MemberProfileModal: React.FC<MemberProfileModalProps> = ({
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 w-full sm:w-auto">
             <button
               onClick={() => {
                 onClose();
                 onOpenEditMember(member);
               }}
-              className="btn-secondary px-3 py-1.5 text-xs font-semibold flex items-center gap-1 cursor-pointer"
+              className="flex-1 sm:flex-initial justify-center btn-secondary px-3 py-1.5 text-xs font-semibold flex items-center gap-1 cursor-pointer"
             >
               <Edit3 className="w-3.5 h-3.5 text-amber-400" />
               <span>Edit</span>
@@ -181,7 +181,7 @@ export const MemberProfileModal: React.FC<MemberProfileModalProps> = ({
                 onClose();
                 onOpenAddStrike(member);
               }}
-              className="px-3 py-1.5 rounded-lg bg-rose-500/10 border border-rose-500/20 text-xs font-semibold text-rose-300 hover:bg-rose-500/20 hover:text-white flex items-center gap-1 cursor-pointer transition-colors"
+              className="flex-1 sm:flex-initial justify-center px-3 py-1.5 rounded-lg bg-rose-500/10 border border-rose-500/20 text-xs font-semibold text-rose-300 hover:bg-rose-500/20 hover:text-white flex items-center gap-1 cursor-pointer transition-colors"
             >
               <Flame className="w-3.5 h-3.5 text-rose-400" />
               <span>Add Strike</span>
@@ -272,7 +272,7 @@ export const MemberProfileModal: React.FC<MemberProfileModalProps> = ({
                 <span>War Discipline by Event Type</span>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3">
                 {mainTypes.map(eType => {
                   const s = eventStats[eType] || {
                     eventType: eType,

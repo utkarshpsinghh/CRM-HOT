@@ -348,7 +348,7 @@ export const InactivityTrackerView: React.FC = () => {
       </div>
 
       {/* Desktop Members Table */}
-      <div className="hidden md:block rounded-xl bg-slate-900/80 border border-slate-800 overflow-hidden shadow-sm">
+      <div className="hidden md:block rounded-xl bg-slate-900/80 border border-slate-800 overflow-x-auto shadow-sm">
         <table className="w-full text-left text-xs sm:text-sm">
           <thead className="bg-slate-950 text-slate-400 font-semibold text-xs border-b border-slate-800">
             <tr>
