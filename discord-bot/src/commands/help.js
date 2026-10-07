@@ -34,6 +34,7 @@ export async function execute(interaction) {
         value: [
           '• `/start` — Interactive onboarding portal & quick action console.',
           '• `/link <player>` — Link your Discord account to your in-game Name or Player ID.',
+          '• `/unlink [user]` — Disconnect your linked in-game identity (or an officer unlinks a member).',
           '• `/me` — View your own combat dossier, attendance, and strikes instantly.',
           '• `/profile <player>` — Inspect any alliance member by Name or Player ID.',
         ].join('\n'),

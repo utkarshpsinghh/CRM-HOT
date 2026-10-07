@@ -15,6 +15,7 @@ import { createBaseEmbed, COLORS, formatRank } from './utils/embedBuilder.js';
 import * as startCmd from './commands/start.js';
 import * as profileCmd from './commands/profile.js';
 import * as linkCmd from './commands/link.js';
+import * as unlinkCmd from './commands/unlink.js';
 import * as meCmd from './commands/me.js';
 import * as leaderboardCmd from './commands/leaderboard.js';
 import * as attendanceCmd from './commands/attendance.js';
@@ -45,6 +46,7 @@ const commandModules = [
   startCmd,
   profileCmd,
   linkCmd,
+  unlinkCmd,
   meCmd,
   leaderboardCmd,
   attendanceCmd,

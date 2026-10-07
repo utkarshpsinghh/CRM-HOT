@@ -408,6 +408,44 @@ class CrmApiClient {
   }
 
   /**
+   * Unlink Discord user ID from an Alliance Member
+   */
+  async unlinkDiscordUser(discordUserId) {
+    try {
+      const { data } = await this.supabase
+        .from('settings')
+        .select('value')
+        .eq('key', 'discord_member_links')
+        .single();
+
+      if (!data || !data.value) return { success: false, message: 'No links found.' };
+
+      let links = {};
+      try { links = JSON.parse(data.value); } catch {}
+
+      const existing = links[discordUserId];
+      if (!existing) {
+        return { success: false, message: 'Account is not currently linked to any in-game profile.' };
+      }
+
+      delete links[discordUserId];
+
+      await this.supabase
+        .from('settings')
+        .upsert({ key: 'discord_member_links', value: JSON.stringify(links) }, { onConflict: 'key' });
+
+      return {
+        success: true,
+        memberName: existing.memberName || 'Warrior',
+        gameId: existing.gameId,
+      };
+    } catch (err) {
+      console.error('[unlinkDiscordUser ERROR]:', err.message);
+      return { success: false, message: err.message };
+    }
+  }
+
+  /**
    * Retrieve member linked to a Discord user ID
    */
   async getLinkedMember(discordUserId) {
