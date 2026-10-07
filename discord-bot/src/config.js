@@ -8,6 +8,8 @@ export const config = {
   crmBaseUrl: (process.env.CRM_API_BASE_URL || 'https://crm.1391.online/api/v1').replace(/\/$/, ''),
   crmApiKey: process.env.CRM_API_KEY || '',
   officerRoleName: process.env.OFFICER_ROLE_NAME || 'R4 Officer',
+  supabaseUrl: process.env.SUPABASE_URL || 'https://nlnrfoolpcdgvgwgpklx.supabase.co',
+  supabaseAnonKey: process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5sbnJmb29scGNkZ3Znd2dwa2x4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTEyMTc5ODIsImV4cCI6MjEwNjc5Mzk4Mn0.P-e79LnzxmNw9hZArKr4CdI57Ba8xnBqcfB0lkW7zpI',
 };
 
 // Validate critical configuration on startup
