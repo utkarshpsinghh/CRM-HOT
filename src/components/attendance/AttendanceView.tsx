@@ -876,7 +876,10 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
                       </button>
                       <button
                         type="button"
-                        onClick={() => openEditModal(record)}
+                        onClick={() => {
+                          sounds.playClick();
+                          setSelectedMemberForProfile(member);
+                        }}
                         className="w-full py-1.5 px-2 rounded-lg bg-slate-800/80 hover:bg-slate-800 border border-slate-700/60 text-slate-300 hover:text-white text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
                       >
                         <FileText className="w-3.5 h-3.5 text-amber-400 shrink-0" />
@@ -1188,8 +1191,11 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
                             </button>
                             <button
                               type="button"
-                              onClick={() => openEditModal(record)}
-                              title="View details"
+                              onClick={() => {
+                                sounds.playClick();
+                                setSelectedMemberForProfile(member);
+                              }}
+                              title="View member details & history"
                               className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] font-medium flex items-center gap-1 cursor-pointer transition-colors"
                             >
                               <FileText className="w-3 h-3 text-slate-400" />
@@ -1214,13 +1220,13 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
         <Modal
           isOpen={Boolean(editingParticipation)}
           onClose={() => setEditingParticipation(null)}
-          title={isMainAdmin ? "Member Attendance & Penalty" : "Member Record & Penalty"}
+          title={isMainAdmin ? "Member Attendance & Penalty" : "Manual Penalty Management"}
           subtitle={
             isMainAdmin
-              ? `Update slot, attendance, and manual penalties`
-              : `Review member attendance and manage manual penalties`
+              ? "Update slot, attendance, and manual penalties"
+              : `Review attendance & set penalty for this event`
           }
-          icon={isMainAdmin ? <Edit3 className="w-5 h-5 text-[#ca8a04]" /> : <ShieldAlert className="w-5 h-5 text-rose-400" />}
+          icon={isMainAdmin ? <Edit3 className="w-5 h-5 text-amber-400" /> : <ShieldAlert className="w-5 h-5 text-rose-400" />}
           maxWidth="md"
           position="top"
         >
@@ -1228,198 +1234,214 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
             const member = activeMembersMap.get(editingParticipation.memberId);
             if (!member) return null;
 
-            return (
-              <div className="space-y-4 text-xs sm:text-sm">
-                {!isMainAdmin && (
-                  <div className="p-2.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-300 text-[11px] flex items-center gap-2">
-                    <ShieldAlert className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                    <span>Attendance is view-only. You can apply manual penalties below.</span>
-                  </div>
-                )}
+            const votedSlot = currentSlots.find(s => s.id === editingParticipation.selectedSlotId);
+            const attendedSlot = currentSlots.find(s => s.id === editingParticipation.attendanceSlotId);
 
-                {/* Member Header */}
-                <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <RankBadge rank={member.currentRank} />
-                    <div>
-                      <div className="font-bold text-slate-200 text-sm">{member.name}</div>
+            return (
+              <div className="space-y-3.5 text-xs sm:text-sm">
+                {/* Member Header Card */}
+                <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <RankBadge rank={member.currentRank} size="sm" />
+                    <div className="min-w-0">
+                      <div className="font-bold text-slate-100 text-sm truncate">{member.name}</div>
                       {member.gameId && (
-                        <div className="text-[11px] text-slate-400 font-mono">Game ID: {member.gameId}</div>
+                        <div className="text-[10px] text-slate-400 font-mono truncate">ID: {member.gameId}</div>
                       )}
                     </div>
                   </div>
-                  <div className="text-right text-[11px] text-slate-400">
-                    <div>Strikes: <span className="text-rose-400 font-bold">{member.strikes}</span></div>
-                  </div>
-                </div>
-
-                {/* Slot Selection / In-Game Vote */}
-                <div>
-                  <label className="block text-xs font-fantasy font-bold text-[#fef08a] uppercase mb-1.5">
-                    {isBearTrap ? 'In-Game Vote (Pledged Slot)' : 'Selected Slot'}
-                  </label>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="flex items-center gap-2 shrink-0">
+                    <div className="text-right text-[11px] text-slate-400">
+                      <div>Strikes: <span className="text-rose-400 font-bold font-mono">{member.strikes}</span></div>
+                    </div>
                     <button
                       type="button"
-                      disabled={!isMainAdmin}
                       onClick={() => {
-                        if (!isMainAdmin) return;
-                        setEditVoteStatus('NO_VOTE');
-                        setEditVoteSlotId(null);
+                        sounds.playClick();
+                        setEditingParticipation(null);
+                        setSelectedMemberForProfile(member);
                       }}
-                      className={`px-3 py-2 rounded-xl border text-xs font-bold transition-all ${
-                        !isMainAdmin ? 'cursor-default opacity-80' : 'cursor-pointer'
-                      } ${
-                        editVoteStatus === 'NO_VOTE'
-                          ? 'bg-slate-700 text-white border-slate-500 shadow-sm'
-                          : 'bg-[#120c08] border-[#3e2716] text-stone-400 hover:border-slate-600'
-                      }`}
+                      className="px-2 py-1 rounded bg-slate-900 hover:bg-slate-800 border border-slate-800 text-amber-300 text-[10px] font-semibold transition-colors cursor-pointer"
+                      title="Open full member profile"
                     >
-                      {isBearTrap ? 'No Vote' : 'Not Selected'}
-                    </button>
-
-                    {slot1 && (
-                      <button
-                        type="button"
-                        disabled={!isMainAdmin}
-                        onClick={() => {
-                          if (!isMainAdmin) return;
-                          setEditVoteStatus('VOTED');
-                          setEditVoteSlotId(slot1.id);
-                        }}
-                        className={`px-3 py-2 rounded-xl border text-xs font-bold transition-all font-mono ${
-                          !isMainAdmin ? 'cursor-default opacity-80' : 'cursor-pointer'
-                        } ${
-                          editVoteStatus === 'VOTED' && editVoteSlotId === slot1.id
-                            ? 'bg-sky-500 text-slate-950 border-sky-300 font-black shadow-sm'
-                            : 'bg-[#120c08] border-[#3e2716] text-sky-400 hover:border-sky-500'
-                        }`}
-                      >
-                        {slot1.slotName}
-                      </button>
-                    )}
-
-                    {slot2 && (
-                      <button
-                        type="button"
-                        disabled={!isMainAdmin}
-                        onClick={() => {
-                          if (!isMainAdmin) return;
-                          setEditVoteStatus('VOTED');
-                          setEditVoteSlotId(slot2.id);
-                        }}
-                        className={`px-3 py-2 rounded-xl border text-xs font-bold transition-all font-mono ${
-                          !isMainAdmin ? 'cursor-default opacity-80' : 'cursor-pointer'
-                        } ${
-                          editVoteStatus === 'VOTED' && editVoteSlotId === slot2.id
-                            ? 'bg-sky-500 text-slate-950 border-sky-300 font-black shadow-sm'
-                            : 'bg-[#120c08] border-[#3e2716] text-sky-400 hover:border-sky-500'
-                        }`}
-                      >
-                        {slot2.slotName}
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                {/* Actual Attendance Status & Slot */}
-                <div>
-                  <label className="block text-xs font-fantasy font-bold text-[#fef08a] uppercase mb-1.5">
-                    {isBearTrap ? 'Actual Event Turnout' : 'Turnout (Joined / Absent)'}
-                  </label>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                    {/* Attended / Joined Slot 1 */}
-                    {slot1 && (
-                      <button
-                        type="button"
-                        disabled={!isMainAdmin}
-                        onClick={() => {
-                          if (!isMainAdmin) return;
-                          setEditAttendanceStatus('ATTENDED');
-                          setEditAttendanceSlotId(slot1.id);
-                        }}
-                        className={`px-3 py-2 rounded-xl border text-xs font-bold transition-all font-mono ${
-                          !isMainAdmin ? 'cursor-default opacity-80' : 'cursor-pointer'
-                        } ${
-                          editAttendanceStatus === 'ATTENDED' && editAttendanceSlotId === slot1.id
-                            ? 'bg-emerald-500 text-slate-950 border-emerald-300 font-black shadow-sm'
-                            : 'bg-[#120c08] border-[#3e2716] text-emerald-400 hover:border-emerald-500'
-                        }`}
-                      >
-                        {isBearTrap ? 'Attended' : 'Joined'} {slot1.slotName}
-                      </button>
-                    )}
-
-                    {/* Attended / Joined Slot 2 */}
-                    {slot2 && (
-                      <button
-                        type="button"
-                        disabled={!isMainAdmin}
-                        onClick={() => {
-                          if (!isMainAdmin) return;
-                          setEditAttendanceStatus('ATTENDED');
-                          setEditAttendanceSlotId(slot2.id);
-                        }}
-                        className={`px-3 py-2 rounded-xl border text-xs font-bold transition-all font-mono ${
-                          !isMainAdmin ? 'cursor-default opacity-80' : 'cursor-pointer'
-                        } ${
-                          editAttendanceStatus === 'ATTENDED' && editAttendanceSlotId === slot2.id
-                            ? 'bg-emerald-500 text-slate-950 border-emerald-300 font-black shadow-sm'
-                            : 'bg-[#120c08] border-[#3e2716] text-emerald-400 hover:border-emerald-500'
-                        }`}
-                      >
-                        {isBearTrap ? 'Attended' : 'Joined'} {slot2.slotName}
-                      </button>
-                    )}
-
-                    {/* Absent */}
-                    <button
-                      type="button"
-                      disabled={!isMainAdmin}
-                      onClick={() => {
-                        if (!isMainAdmin) return;
-                        setEditAttendanceStatus('ABSENT');
-                        setEditAttendanceSlotId(null);
-                      }}
-                      className={`px-3 py-2 rounded-xl border text-xs font-bold transition-all ${
-                        !isMainAdmin ? 'cursor-default opacity-80' : 'cursor-pointer'
-                      } ${
-                        editAttendanceStatus === 'ABSENT'
-                          ? 'bg-rose-500 text-white border-rose-300 font-black shadow-sm'
-                          : 'bg-[#120c08] border-[#3e2716] text-rose-400 hover:border-rose-500'
-                      }`}
-                    >
-                      Absent
-                    </button>
-
-                    {/* Not Marked */}
-                    <button
-                      type="button"
-                      disabled={!isMainAdmin}
-                      onClick={() => {
-                        if (!isMainAdmin) return;
-                        setEditAttendanceStatus('NOT_MARKED');
-                        setEditAttendanceSlotId(null);
-                      }}
-                      className={`px-3 py-2 rounded-xl border text-xs font-bold transition-all ${
-                        !isMainAdmin ? 'cursor-default opacity-80' : 'cursor-pointer'
-                      } ${
-                        editAttendanceStatus === 'NOT_MARKED'
-                          ? 'bg-slate-700 text-white border-slate-500 shadow-sm'
-                          : 'bg-[#120c08] border-[#3e2716] text-stone-400 hover:border-slate-600'
-                      }`}
-                    >
-                      Not Marked
+                      Profile →
                     </button>
                   </div>
                 </div>
+
+                {/* If Officer: Clean compact event status summary instead of disabled buttons */}
+                {!isMainAdmin ? (
+                  <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800 space-y-2">
+                    <div className="text-[10px] uppercase font-bold text-slate-400 tracking-wider flex items-center justify-between">
+                      <span>Event Record: {currentEvent.eventType}</span>
+                      <span className="text-slate-500 font-mono text-[9px]">View Only</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-xs font-mono">
+                      <div className="p-2 rounded-lg bg-slate-900 border border-slate-800/80">
+                        <span className="text-[10px] text-slate-400 block font-sans">
+                          {isBearTrap ? 'In-Game Vote:' : 'Selected Slot:'}
+                        </span>
+                        <span className="font-bold text-sky-300">
+                          {votedSlot ? votedSlot.slotName : editingParticipation.voteStatus === 'VOTED' ? (isBearTrap ? 'Voted' : 'Selected') : (isBearTrap ? 'No Vote' : 'Not Selected')}
+                        </span>
+                      </div>
+                      <div className="p-2 rounded-lg bg-slate-900 border border-slate-800/80">
+                        <span className="text-[10px] text-slate-400 block font-sans">Attendance:</span>
+                        <span className={`font-bold ${
+                          editingParticipation.attendanceStatus === 'ATTENDED'
+                            ? 'text-emerald-400'
+                            : editingParticipation.attendanceStatus === 'ABSENT'
+                            ? 'text-rose-400'
+                            : 'text-slate-400'
+                        }`}>
+                          {editingParticipation.attendanceStatus === 'ATTENDED'
+                            ? attendedSlot ? attendedSlot.slotName : 'Attended'
+                            : editingParticipation.attendanceStatus === 'ABSENT'
+                            ? 'Absent'
+                            : 'Not Marked'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    {/* Main Admin: Slot Selection / In-Game Vote */}
+                    <div>
+                      <label className="block text-xs font-fantasy font-bold text-amber-300 uppercase mb-1.5">
+                        {isBearTrap ? 'In-Game Vote (Pledged Slot)' : 'Selected Slot'}
+                      </label>
+                      <div className="grid grid-cols-3 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditVoteStatus('NO_VOTE');
+                            setEditVoteSlotId(null);
+                          }}
+                          className={`px-2 sm:px-3 py-2 rounded-xl border text-xs font-bold transition-all cursor-pointer truncate ${
+                            editVoteStatus === 'NO_VOTE'
+                              ? 'bg-slate-700 text-white border-slate-500 shadow-sm'
+                              : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700'
+                          }`}
+                        >
+                          {isBearTrap ? 'No Vote' : 'None'}
+                        </button>
+
+                        {slot1 && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditVoteStatus('VOTED');
+                              setEditVoteSlotId(slot1.id);
+                            }}
+                            className={`px-2 sm:px-3 py-2 rounded-xl border text-xs font-bold transition-all font-mono cursor-pointer truncate ${
+                              editVoteStatus === 'VOTED' && editVoteSlotId === slot1.id
+                                ? 'bg-sky-500 text-slate-950 border-sky-300 font-black shadow-sm'
+                                : 'bg-slate-950 border-slate-800 text-sky-400 hover:border-sky-500'
+                            }`}
+                          >
+                            {slot1.slotName}
+                          </button>
+                        )}
+
+                        {slot2 && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditVoteStatus('VOTED');
+                              setEditVoteSlotId(slot2.id);
+                            }}
+                            className={`px-2 sm:px-3 py-2 rounded-xl border text-xs font-bold transition-all font-mono cursor-pointer truncate ${
+                              editVoteStatus === 'VOTED' && editVoteSlotId === slot2.id
+                                ? 'bg-sky-500 text-slate-950 border-sky-300 font-black shadow-sm'
+                                : 'bg-slate-950 border-slate-800 text-sky-400 hover:border-sky-500'
+                            }`}
+                          >
+                            {slot2.slotName}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Main Admin: Actual Attendance Status & Slot */}
+                    <div>
+                      <label className="block text-xs font-fantasy font-bold text-amber-300 uppercase mb-1.5">
+                        {isBearTrap ? 'Actual Event Turnout' : 'Turnout (Joined / Absent)'}
+                      </label>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        {slot1 && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditAttendanceStatus('ATTENDED');
+                              setEditAttendanceSlotId(slot1.id);
+                            }}
+                            className={`px-2 sm:px-3 py-2 rounded-xl border text-xs font-bold transition-all font-mono cursor-pointer truncate ${
+                              editAttendanceStatus === 'ATTENDED' && editAttendanceSlotId === slot1.id
+                                ? 'bg-emerald-500 text-slate-950 border-emerald-300 font-black shadow-sm'
+                                : 'bg-slate-950 border-slate-800 text-emerald-400 hover:border-emerald-500'
+                            }`}
+                          >
+                            ✓ {slot1.slotName}
+                          </button>
+                        )}
+
+                        {slot2 && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditAttendanceStatus('ATTENDED');
+                              setEditAttendanceSlotId(slot2.id);
+                            }}
+                            className={`px-2 sm:px-3 py-2 rounded-xl border text-xs font-bold transition-all font-mono cursor-pointer truncate ${
+                              editAttendanceStatus === 'ATTENDED' && editAttendanceSlotId === slot2.id
+                                ? 'bg-emerald-500 text-slate-950 border-emerald-300 font-black shadow-sm'
+                                : 'bg-slate-950 border-slate-800 text-emerald-400 hover:border-emerald-500'
+                            }`}
+                          >
+                            ✓ {slot2.slotName}
+                          </button>
+                        )}
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditAttendanceStatus('ABSENT');
+                            setEditAttendanceSlotId(null);
+                          }}
+                          className={`px-2 sm:px-3 py-2 rounded-xl border text-xs font-bold transition-all cursor-pointer truncate ${
+                            editAttendanceStatus === 'ABSENT'
+                              ? 'bg-rose-500 text-white border-rose-300 font-black shadow-sm'
+                              : 'bg-slate-950 border-slate-800 text-rose-400 hover:border-rose-500'
+                          }`}
+                        >
+                          Absent
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditAttendanceStatus('NOT_MARKED');
+                            setEditAttendanceSlotId(null);
+                          }}
+                          className={`px-2 sm:px-3 py-2 rounded-xl border text-xs font-bold transition-all cursor-pointer truncate ${
+                            editAttendanceStatus === 'NOT_MARKED'
+                              ? 'bg-slate-700 text-white border-slate-500 shadow-sm'
+                              : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700'
+                          }`}
+                        >
+                          Not Marked
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
 
                 {/* Section: Manual Penalty Decision */}
-                <div className="p-3.5 rounded-xl bg-[#17100b] border border-[#452d19] space-y-3">
+                <div className="p-3 sm:p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-3">
                   <div className="flex items-center justify-between">
-                    <label className="text-xs font-fantasy font-bold text-[#fef08a] uppercase flex items-center gap-1.5">
+                    <label className="text-xs font-fantasy font-bold text-amber-300 uppercase flex items-center gap-1.5">
                       <ShieldAlert className="w-3.5 h-3.5 text-rose-400" />
-                      <span>Manual Penalty</span>
+                      <span>Manual Penalty Decision</span>
                     </label>
                   </div>
 
@@ -1427,10 +1449,10 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
                     <button
                       type="button"
                       onClick={() => setEditPenaltyStatus('NONE')}
-                      className={`px-3 py-2 rounded-lg border text-xs font-bold transition-all cursor-pointer ${
+                      className={`px-2 sm:px-3 py-2 rounded-lg border text-xs font-bold transition-all cursor-pointer text-center truncate ${
                         editPenaltyStatus === 'NONE'
-                          ? 'bg-slate-800 text-slate-200 border-slate-600'
-                          : 'bg-[#120c08] border-[#3e2716] text-stone-400 hover:border-slate-700'
+                          ? 'bg-slate-800 text-slate-100 border-slate-600 shadow-sm'
+                          : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700'
                       }`}
                     >
                       None
@@ -1442,10 +1464,10 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
                         setEditPenaltyStatus('ISSUED');
                         if (!editPenaltyNote) setEditPenaltyNote('Missed event without notice');
                       }}
-                      className={`px-3 py-2 rounded-lg border text-xs font-bold transition-all cursor-pointer ${
+                      className={`px-2 sm:px-3 py-2 rounded-lg border text-xs font-bold transition-all cursor-pointer text-center truncate ${
                         editPenaltyStatus === 'ISSUED'
                           ? 'bg-rose-500 text-white border-rose-300 font-black shadow-md'
-                          : 'bg-[#120c08] border-[#3e2716] text-rose-400 hover:border-rose-500'
+                          : 'bg-slate-900 border-slate-800 text-rose-400 hover:border-rose-500'
                       }`}
                     >
                       Issue Penalty
@@ -1457,10 +1479,10 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
                         setEditPenaltyStatus('WAIVED');
                         if (!editPenaltyNote) setEditPenaltyNote('Excused by R4');
                       }}
-                      className={`px-3 py-2 rounded-lg border text-xs font-bold transition-all cursor-pointer ${
+                      className={`px-2 sm:px-3 py-2 rounded-lg border text-xs font-bold transition-all cursor-pointer text-center truncate ${
                         editPenaltyStatus === 'WAIVED'
                           ? 'bg-emerald-500 text-slate-950 border-emerald-300 font-black shadow-md'
-                          : 'bg-[#120c08] border-[#3e2716] text-emerald-400 hover:border-emerald-500'
+                          : 'bg-slate-900 border-slate-800 text-emerald-400 hover:border-emerald-500'
                       }`}
                     >
                       Waive Penalty
@@ -1469,7 +1491,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
 
                   {/* Penalty Reason */}
                   <div>
-                    <label className="block text-[11px] text-amber-300/80 mb-1 font-semibold">
+                    <label className="block text-[11px] text-slate-300 mb-1 font-semibold">
                       Reason / Note:
                     </label>
                     <input
@@ -1477,18 +1499,18 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
                       value={editPenaltyNote}
                       onChange={e => setEditPenaltyNote(e.target.value)}
                       placeholder='e.g. "Missed event without notice" or "Excused by R4"'
-                      className="w-full px-3 py-2 rounded-lg bg-[#120c08] border border-[#3e2716] text-stone-200 text-xs focus:outline-none focus:border-[#ca8a04]"
+                      className="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-200 text-xs focus:outline-none focus:border-amber-500 placeholder:text-slate-500"
                     />
 
                     {/* Quick Presets */}
-                    <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
-                      <span className="text-[10px] text-stone-500">Presets:</span>
+                    <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+                      <span className="text-[10px] text-slate-500 font-medium">Presets:</span>
                       {['Missed event without notice', 'Excused by R4', 'Real life emergency', 'Work conflict'].map(preset => (
                         <button
                           type="button"
                           key={preset}
                           onClick={() => setEditPenaltyNote(preset)}
-                          className="px-2 py-0.5 rounded text-[10px] bg-slate-900 border border-slate-800 text-stone-400 hover:text-amber-300 cursor-pointer"
+                          className="px-2 py-0.5 rounded text-[10px] bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-amber-500/40 text-slate-300 hover:text-amber-300 cursor-pointer transition-colors"
                         >
                           {preset}
                         </button>
@@ -1498,27 +1520,28 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
                 </div>
 
                 {/* Actions */}
-                <div className="flex items-center justify-between pt-3 border-t border-[#3e2716]">
-                  {onOpenAddStrike && (
+                <div className="flex flex-col-reverse sm:flex-row sm:items-center justify-between gap-2.5 pt-3 border-t border-slate-800">
+                  {onOpenAddStrike ? (
                     <button
                       type="button"
                       onClick={() => {
                         setEditingParticipation(null);
                         onOpenAddStrike(member, `Missed ${currentEvent.eventType} on ${currentEvent.date.slice(0, 10)}`);
                       }}
-                      className="px-3 py-2 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 hover:bg-rose-500/20 text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
+                      className="w-full sm:w-auto px-3 py-2 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 hover:bg-rose-500/20 text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
                     >
                       <Flame className="w-3.5 h-3.5 text-rose-400" />
                       <span>Issue Strike</span>
                     </button>
-                  )}
+                  ) : <div />}
 
-                  <div className="flex items-center gap-2 ml-auto">
+                  <div className="grid grid-cols-2 sm:flex items-center gap-2 w-full sm:w-auto sm:ml-auto">
                     <GameButton
                       variant="slate"
                       size="md"
                       onClick={() => setEditingParticipation(null)}
                       type="button"
+                      className="w-full sm:w-auto justify-center"
                     >
                       Cancel
                     </GameButton>
@@ -1526,7 +1549,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
                       type="button"
                       onClick={handleSaveEdit}
                       disabled={isSavingEdit}
-                      className="btn-kingshot-gold px-4 py-2 text-xs font-fantasy font-black uppercase flex items-center gap-1.5 cursor-pointer shadow-md"
+                      className="w-full sm:w-auto justify-center btn-kingshot-gold px-4 py-2 text-xs font-fantasy font-black uppercase flex items-center gap-1.5 cursor-pointer shadow-md"
                     >
                       <Check className="w-4 h-4" />
                       <span>{isSavingEdit ? 'Saving...' : isMainAdmin ? 'Save Changes' : 'Save Penalty'}</span>

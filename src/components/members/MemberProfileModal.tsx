@@ -132,20 +132,21 @@ export const MemberProfileModal: React.FC<MemberProfileModalProps> = ({
       subtitle="Member Profile"
       icon={<Shield className="w-5 h-5 text-amber-400" />}
       maxWidth="lg"
+      position="top"
     >
       <div className="space-y-4 text-slate-200">
         {/* Header Summary */}
-        <div className="p-4 rounded-xl bg-slate-900/80 border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="space-y-1.5">
-            <div className="flex items-center gap-2.5 flex-wrap">
-              <span className="font-bold text-xl text-slate-100 font-fantasy">{member.name}</span>
+        <div className="p-3.5 sm:p-4 rounded-xl bg-slate-900/80 border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="space-y-1.5 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="font-bold text-lg sm:text-xl text-slate-100 font-fantasy">{member.name}</span>
               <RankBadge rank={member.currentRank} size="sm" />
               <ActivityBadge status={member.status} size="sm" />
               {member.gameId && (
                 <button
                   type="button"
                   onClick={handleCopyGameId}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-950 border border-slate-800 hover:border-amber-500/50 text-amber-300 font-mono text-xs cursor-pointer shadow-sm transition-colors"
+                  className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-slate-950 border border-slate-800 hover:border-amber-500/50 text-amber-300 font-mono text-xs cursor-pointer shadow-sm transition-colors"
                   title="Click to copy Game ID"
                 >
                   <span className="text-[10px] text-slate-400 uppercase font-sans font-semibold">Game ID:</span>
@@ -164,13 +165,13 @@ export const MemberProfileModal: React.FC<MemberProfileModalProps> = ({
             </div>
           </div>
 
-          <div className="flex items-center gap-2 w-full sm:w-auto">
+          <div className="grid grid-cols-2 sm:flex items-center gap-2 w-full sm:w-auto">
             <button
               onClick={() => {
                 onClose();
                 onOpenEditMember(member);
               }}
-              className="flex-1 sm:flex-initial justify-center btn-secondary px-3 py-1.5 text-xs font-semibold flex items-center gap-1 cursor-pointer"
+              className="w-full sm:w-auto justify-center btn-secondary px-3 py-1.5 text-xs font-semibold flex items-center gap-1 cursor-pointer"
             >
               <Edit3 className="w-3.5 h-3.5 text-amber-400" />
               <span>Edit</span>
@@ -181,7 +182,7 @@ export const MemberProfileModal: React.FC<MemberProfileModalProps> = ({
                 onClose();
                 onOpenAddStrike(member);
               }}
-              className="flex-1 sm:flex-initial justify-center px-3 py-1.5 rounded-lg bg-rose-500/10 border border-rose-500/20 text-xs font-semibold text-rose-300 hover:bg-rose-500/20 hover:text-white flex items-center gap-1 cursor-pointer transition-colors"
+              className="w-full sm:w-auto justify-center px-3 py-1.5 rounded-lg bg-rose-500/10 border border-rose-500/20 text-xs font-semibold text-rose-300 hover:bg-rose-500/20 hover:text-white flex items-center gap-1 cursor-pointer transition-colors"
             >
               <Flame className="w-3.5 h-3.5 text-rose-400" />
               <span>Add Strike</span>
@@ -190,31 +191,32 @@ export const MemberProfileModal: React.FC<MemberProfileModalProps> = ({
         </div>
 
         {/* Clean Attendance, Vote, and Reliability Stats Bar */}
-        <div className="p-3.5 rounded-xl bg-slate-900/80 border border-slate-800 space-y-2.5">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="p-3 sm:p-3.5 rounded-xl bg-slate-900/80 border border-slate-800 space-y-2.5">
+          <div className="grid grid-cols-3 gap-2 text-center sm:text-left">
             <div>
-              <span className="text-[11px] text-slate-400 block font-medium">Turnout Attendance:</span>
-              <span className="font-mono font-bold text-sm text-amber-400">
+              <span className="text-[10px] sm:text-[11px] text-slate-400 block font-medium">Turnout:</span>
+              <span className="font-mono font-bold text-xs sm:text-sm text-amber-400">
                 {overallStats.rate.toFixed(0)}%
-                <span className="text-xs text-slate-400 font-normal ml-1">({overallStats.attendedCount}/{overallStats.totalEvents})</span>
-              </span>
-            </div>
-
-            <div className="sm:border-l sm:border-slate-800 sm:pl-3">
-              <span className="text-[11px] text-slate-400 block font-medium">Poll Voting Rate:</span>
-              <span className="font-mono font-bold text-sm text-purple-300">
-                {overallStats.voteRate.toFixed(0)}%
-                <span className="text-xs text-slate-400 font-normal ml-1">({overallStats.votedCount}/{overallStats.totalEvents})</span>
-              </span>
-            </div>
-
-            <div className="sm:border-l sm:border-slate-800 sm:pl-3">
-              <span className="text-[11px] text-slate-400 block font-medium">Vote Reliability:</span>
-              <span className={`font-mono font-bold text-sm ${overallStats.reliabilityRate >= 80 ? 'text-emerald-400' : 'text-amber-400'}`}>
-                {overallStats.votedCount > 0 ? `${overallStats.reliabilityRate.toFixed(0)}%` : '—'}
-                <span className="text-xs text-slate-400 font-normal ml-1">
-                  {overallStats.votedCount > 0 ? `(${overallStats.attendedCount > 0 ? Math.min(overallStats.attendedCount, overallStats.votedCount) : 0}/${overallStats.votedCount} followed)` : '(no votes)'}
+                <span className="text-[10px] sm:text-xs text-slate-500 font-normal block sm:inline sm:ml-1">
+                  ({overallStats.attendedCount}/{overallStats.totalEvents})
                 </span>
+              </span>
+            </div>
+
+            <div className="border-l border-slate-800 pl-2 sm:pl-3">
+              <span className="text-[10px] sm:text-[11px] text-slate-400 block font-medium">Voting Rate:</span>
+              <span className="font-mono font-bold text-xs sm:text-sm text-purple-300">
+                {overallStats.voteRate.toFixed(0)}%
+                <span className="text-[10px] sm:text-xs text-slate-500 font-normal block sm:inline sm:ml-1">
+                  ({overallStats.votedCount}/{overallStats.totalEvents})
+                </span>
+              </span>
+            </div>
+
+            <div className="border-l border-slate-800 pl-2 sm:pl-3">
+              <span className="text-[10px] sm:text-[11px] text-slate-400 block font-medium">Reliability:</span>
+              <span className={`font-mono font-bold text-xs sm:text-sm ${overallStats.reliabilityRate >= 80 ? 'text-emerald-400' : 'text-amber-400'}`}>
+                {overallStats.votedCount > 0 ? `${overallStats.reliabilityRate.toFixed(0)}%` : '—'}
               </span>
             </div>
           </div>
@@ -227,21 +229,21 @@ export const MemberProfileModal: React.FC<MemberProfileModalProps> = ({
         </div>
 
         {/* 3 Tabs */}
-        <div className="flex items-center gap-2 border-b border-slate-800 pb-1">
+        <div className="grid grid-cols-3 gap-1 sm:flex sm:items-center sm:gap-2 border-b border-slate-800 pb-1.5">
           <button
             onClick={() => setActiveTab('events')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors ${
+            className={`px-2 sm:px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors text-center truncate ${
               activeTab === 'events'
                 ? 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
                 : 'text-slate-400 hover:text-slate-200'
             }`}
           >
-            Event History ({events.length})
+            Events ({events.length})
           </button>
 
           <button
             onClick={() => setActiveTab('strikes')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors ${
+            className={`px-2 sm:px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors text-center truncate ${
               activeTab === 'strikes'
                 ? 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
                 : 'text-slate-400 hover:text-slate-200'
@@ -252,7 +254,7 @@ export const MemberProfileModal: React.FC<MemberProfileModalProps> = ({
 
           <button
             onClick={() => setActiveTab('notes')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors ${
+            className={`px-2 sm:px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors text-center truncate ${
               activeTab === 'notes'
                 ? 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
                 : 'text-slate-400 hover:text-slate-200'
@@ -351,9 +353,9 @@ export const MemberProfileModal: React.FC<MemberProfileModalProps> = ({
                   memberParticipationsList.map(({ participation, event, votedSlot, attendedSlot }) => (
                     <div
                       key={participation.id}
-                      className="p-3 flex items-center justify-between text-xs hover:bg-slate-800/30 transition-colors gap-3"
+                      className="p-3 flex flex-col sm:flex-row sm:items-center justify-between text-xs hover:bg-slate-800/30 transition-colors gap-2"
                     >
-                      <div className="space-y-0.5 min-w-0">
+                      <div className="space-y-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="font-bold text-slate-200 font-fantasy">{event?.eventType}</span>
                           {event?.date && (
@@ -365,24 +367,24 @@ export const MemberProfileModal: React.FC<MemberProfileModalProps> = ({
                         </div>
                         <div className="text-[11px] text-slate-400 truncate">{event?.eventName}</div>
                         {participation.penaltyNote && (
-                          <div className="text-[10px] text-rose-300 italic mt-0.5">
+                          <div className="text-[10px] text-rose-300 italic">
                             Note: {participation.penaltyNote}
                           </div>
                         )}
                       </div>
 
-                      <div className="flex items-center gap-2 shrink-0 text-right">
+                      <div className="flex items-center justify-between sm:justify-end gap-3 pt-1.5 sm:pt-0 border-t sm:border-t-0 border-slate-800/60 shrink-0">
                         {/* Voted Slot */}
-                        <div className="text-[10px]">
-                          <span className="text-slate-500 block">Voted:</span>
+                        <div className="text-[10px] text-left sm:text-right">
+                          <span className="text-slate-500 block font-sans">Voted:</span>
                           <span className="font-mono font-semibold text-sky-300">
                             {votedSlot ? votedSlot.slotName : 'No Vote'}
                           </span>
                         </div>
 
                         {/* Attended Slot */}
-                        <div className="text-[10px]">
-                          <span className="text-slate-500 block">Attended:</span>
+                        <div className="text-[10px] text-left sm:text-right">
+                          <span className="text-slate-500 block font-sans">Attended:</span>
                           {participation.attendanceStatus === 'ATTENDED' && attendedSlot ? (
                             <span className="font-mono font-bold text-emerald-400">
                               {attendedSlot.slotName}
@@ -396,12 +398,12 @@ export const MemberProfileModal: React.FC<MemberProfileModalProps> = ({
 
                         {/* Penalty */}
                         {participation.penaltyStatus === 'ISSUED' && (
-                          <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-rose-500 text-slate-950">
+                          <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-rose-500 text-slate-950 shrink-0">
                             Penalty
                           </span>
                         )}
                         {participation.penaltyStatus === 'WAIVED' && (
-                          <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                          <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 shrink-0">
                             Waived
                           </span>
                         )}

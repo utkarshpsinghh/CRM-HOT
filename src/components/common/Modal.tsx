@@ -51,8 +51,8 @@ export const Modal: React.FC<ModalProps> = ({
   return (
     <div
       className={clsx(
-        'fixed inset-0 p-2.5 sm:p-4 overflow-y-auto animate-fade-in overscroll-contain z-[9999] flex justify-center',
-        isTop ? 'items-start pt-4 sm:pt-8 md:pt-10' : 'items-center'
+        'fixed inset-0 p-2 sm:p-4 overflow-y-auto animate-fade-in overscroll-contain z-[9999] flex justify-center',
+        isTop ? 'items-start pt-3 sm:pt-8 md:pt-10' : 'items-center'
       )}
     >
       {/* Backdrop */}
@@ -67,13 +67,13 @@ export const Modal: React.FC<ModalProps> = ({
       {/* Modal Dialog */}
       <div
         className={clsx(
-          'relative w-full rounded-2xl bg-slate-900 border border-slate-800 shadow-2xl shadow-black/80 z-10 overflow-hidden flex flex-col max-h-[92vh] sm:max-h-[88vh]',
-          isTop ? 'my-0 mb-8' : 'my-1 sm:my-8',
+          'relative w-full rounded-2xl bg-slate-900 border border-slate-800 shadow-2xl shadow-black/80 z-10 overflow-hidden flex flex-col max-h-[94vh] sm:max-h-[88vh]',
+          isTop ? 'my-0 mb-6 sm:mb-8' : 'my-1 sm:my-8',
           maxWidthClasses
         )}
       >
         {/* Header */}
-        <div className="px-3.5 sm:px-6 py-3.5 sm:py-4 bg-slate-950/80 border-b border-slate-800 flex items-center justify-between gap-3 shrink-0">
+        <div className="px-3.5 sm:px-6 py-3 sm:py-4 bg-slate-950/80 border-b border-slate-800 flex items-center justify-between gap-3 shrink-0">
           <div className="flex items-center gap-2.5 min-w-0">
             <div className="p-1.5 rounded-lg bg-amber-500/10 border border-amber-500/25 text-amber-400 shrink-0">
               {icon || <Shield className="w-5 h-5" />}
@@ -98,7 +98,7 @@ export const Modal: React.FC<ModalProps> = ({
         </div>
 
         {/* Content */}
-        <div className="p-3.5 sm:p-6 overflow-y-auto space-y-4 text-slate-200 overscroll-contain">
+        <div className="p-3 sm:p-6 overflow-y-auto space-y-4 text-slate-200 overscroll-contain">
           {children}
         </div>
       </div>
