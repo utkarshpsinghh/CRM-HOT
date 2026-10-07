@@ -1742,15 +1742,6 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     penaltyStatus: PenaltyStatus,
     penaltyNote?: string
   ) => {
-    if (admin && admin.role !== 'MainAdmin') {
-      sounds.playAlert();
-      addToast({
-        type: 'warning',
-        title: 'Action Restricted',
-        message: 'Only Main Admin can modify penalties.',
-      });
-      return;
-    }
     sounds.playSuccess();
     const now = new Date().toISOString();
 

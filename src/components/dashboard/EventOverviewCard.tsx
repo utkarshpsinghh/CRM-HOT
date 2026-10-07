@@ -181,7 +181,7 @@ export const EventOverviewCard: React.FC<EventOverviewCardProps> = ({ event }) =
           onClick={handleOpenAttendance}
           className="text-xs font-semibold text-amber-400 hover:text-amber-300 flex items-center gap-1 cursor-pointer transition-colors"
         >
-          <span>War Ledger</span>
+          <span>View Attendance</span>
           <ChevronRight className="w-3.5 h-3.5" />
         </button>
       </div>

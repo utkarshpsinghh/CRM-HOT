@@ -157,19 +157,19 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
   };
 
   const handleSaveEdit = async () => {
-    if (!isMainAdmin || !editingParticipation || !currentEvent) return;
+    if (!editingParticipation || !currentEvent) return;
     setIsSavingEdit(true);
 
     const memberId = editingParticipation.memberId;
     const eventId = currentEvent.id;
 
-    // Update vote / slot selection
-    await updateParticipationVote(eventId, memberId, editVoteSlotId, editVoteStatus);
+    // Only Main Admin can update vote and attendance
+    if (isMainAdmin) {
+      await updateParticipationVote(eventId, memberId, editVoteSlotId, editVoteStatus);
+      await updateParticipationAttendance(eventId, memberId, editAttendanceSlotId, editAttendanceStatus);
+    }
 
-    // Update attendance
-    await updateParticipationAttendance(eventId, memberId, editAttendanceSlotId, editAttendanceStatus);
-
-    // Update penalty
+    // Both Main Admin and R4 officers can update manual penalties
     await updateParticipationPenalty(eventId, memberId, editPenaltyStatus, editPenaltyNote.trim() || undefined);
 
     setIsSavingEdit(false);
@@ -319,6 +319,8 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
 
   const computedStatus = getComputedEventStatus(currentEvent.date, slot2?.startTime);
   const isBearTrap = currentEvent.eventType === 'Bear Trap';
+  const absentCount = currentParticipations.filter(p => p.attendanceStatus === 'ABSENT').length;
+  const unmarkedCount = currentParticipations.filter(p => p.attendanceStatus === 'NOT_MARKED').length;
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -378,253 +380,102 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
         </div>
       </div>
 
-      {/* Officer View-Only Notice Banner */}
+      {/* Officer View / Penalty Notice */}
       {!isMainAdmin && (
-        <div className="flex items-center justify-between p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/25 text-amber-300 text-xs">
-          <div className="flex items-center gap-2.5">
+        <div className="flex items-center justify-between p-3 rounded-xl bg-amber-500/10 border border-amber-500/25 text-amber-300 text-xs">
+          <div className="flex items-center gap-2">
             <ShieldAlert className="w-4 h-4 text-amber-400 shrink-0" />
             <span>
-              <strong>View-Only Mode:</strong> Officer / R4 accounts have view-only access to event attendance. Only the Main Admin can mark attendance, modify slot selections, and issue penalties.
+              Attendance is view-only. You can review attendance and manage manual penalties.
             </span>
           </div>
           <span className="px-2 py-0.5 rounded bg-amber-500/20 text-[10px] font-bold uppercase tracking-wider shrink-0 text-amber-200 border border-amber-500/30">
-            Read Only
+            Officer
           </span>
         </div>
       )}
 
-      {/* ========================================================================= */}
-      {/* SECTION 10: EVENT DASHBOARD UI                                            */}
-      {/* ========================================================================= */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
-        {/* Card 1: VOTING / SLOT SELECTION */}
-        <div className="p-4 rounded-xl bg-slate-900/80 border border-slate-800 flex flex-col justify-between">
-          <div className="flex items-center justify-between border-b border-slate-800 pb-2 mb-2.5">
-            <span className="text-xs font-bold text-sky-400 uppercase tracking-wider font-fantasy flex items-center gap-1.5">
-              <Layers className="w-3.5 h-3.5" />
-              <span>{isBearTrap ? 'Voting' : 'Slot Selection'}</span>
-            </span>
-            <span className="text-xs font-mono font-bold text-sky-300 bg-sky-500/10 px-2 py-0.5 rounded border border-sky-500/20">
-              {metrics.votingRate}% {isBearTrap ? 'Rate' : 'Selected'}
-            </span>
-          </div>
-          <div className="space-y-1.5 text-xs">
-            <div className="flex justify-between items-center">
-              <span className="text-slate-400">{slot1?.slotName || 'Slot 1'} {isBearTrap ? 'Votes:' : 'Selected:'}</span>
-              <span className="font-mono font-bold text-slate-200">{slot1Metrics?.votedCount || 0}</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-slate-400">{slot2?.slotName || 'Slot 2'} {isBearTrap ? 'Votes:' : 'Selected:'}</span>
-              <span className="font-mono font-bold text-slate-200">{slot2Metrics?.votedCount || 0}</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-slate-400">{isBearTrap ? 'No Vote:' : 'Not Selected:'}</span>
-              <span className="font-mono font-semibold text-slate-400">{metrics.noVoteCount}</span>
-            </div>
-          </div>
-          <div className="mt-3 pt-2 border-t border-slate-800/80 text-[11px] text-slate-400 flex justify-between">
-            <span>{isBearTrap ? 'Total Voters:' : 'Total Selected:'}</span>
-            <span className="font-mono font-bold text-sky-300">{metrics.totalVoters} / {metrics.eligibleMembersCount}</span>
-          </div>
-        </div>
-
-        {/* Card 2: ACTUAL ATTENDANCE / TURNOUT */}
-        <div className="p-4 rounded-xl bg-slate-900/80 border border-slate-800 flex flex-col justify-between">
-          <div className="flex items-center justify-between border-b border-slate-800 pb-2 mb-2.5">
+      {/* Summary Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {/* Card 1: Turnout */}
+        <div className="p-3.5 rounded-xl bg-slate-900/80 border border-slate-800 space-y-1.5">
+          <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider font-fantasy flex items-center gap-1.5">
               <CheckCircle2 className="w-3.5 h-3.5" />
-              <span>{isBearTrap ? 'Actual Attendance' : 'Actual Turnout (Joined)'}</span>
+              <span>{isBearTrap ? 'Turnout' : 'Joined'}</span>
             </span>
-            <span className="text-xs font-mono font-bold text-emerald-300 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
-              {metrics.uniqueAttendees} {isBearTrap ? 'Attendees' : 'Joined'}
+            <span className="text-xs font-mono font-bold text-emerald-300 bg-emerald-500/10 px-1.5 py-0.5 rounded">
+              {metrics.overallParticipationRate}%
             </span>
           </div>
-          <div className="space-y-2 text-xs">
-            <div>
-              <div className="flex justify-between text-[11px] mb-0.5">
-                <span className="font-semibold text-slate-300">{slot1?.slotName || 'Slot 1'}:</span>
-                <span className="font-mono font-bold text-emerald-400">
-                  {slot1Metrics?.actualAttendees || 0} ({slot1Metrics?.participationRate || 0}%)
-                </span>
-              </div>
-              <div className="w-full bg-slate-950 h-1.5 rounded-full overflow-hidden">
-                <div
-                  className="bg-emerald-500 h-full rounded-full"
-                  style={{ width: `${Math.min(100, slot1Metrics?.participationRate || 0)}%` }}
-                />
-              </div>
-            </div>
-
-            <div>
-              <div className="flex justify-between text-[11px] mb-0.5">
-                <span className="font-semibold text-slate-300">{slot2?.slotName || 'Slot 2'}:</span>
-                <span className="font-mono font-bold text-emerald-400">
-                  {slot2Metrics?.actualAttendees || 0} ({slot2Metrics?.participationRate || 0}%)
-                </span>
-              </div>
-              <div className="w-full bg-slate-950 h-1.5 rounded-full overflow-hidden">
-                <div
-                  className="bg-emerald-500 h-full rounded-full"
-                  style={{ width: `${Math.min(100, slot2Metrics?.participationRate || 0)}%` }}
-                />
-              </div>
-            </div>
+          <div className="text-xl font-bold font-mono text-slate-100">
+            {metrics.uniqueAttendees} <span className="text-xs text-slate-400 font-normal">/ {metrics.eligibleMembersCount}</span>
           </div>
-          <div className="mt-2 pt-2 border-t border-slate-800/80 text-[10px] text-slate-400 italic">
-            Denominator = {metrics.eligibleMembersCount} total eligible members
+          <div className="text-[11px] text-slate-400 flex items-center justify-between pt-1 border-t border-slate-800/80">
+            <span>{slot1?.slotName || 'Slot 1'}: <strong className="text-slate-200 font-mono">{slot1Metrics?.actualAttendees || 0}</strong></span>
+            <span>{slot2?.slotName || 'Slot 2'}: <strong className="text-slate-200 font-mono">{slot2Metrics?.actualAttendees || 0}</strong></span>
           </div>
         </div>
 
-        {/* Card 3: EVENT HEALTH */}
-        <div className="p-4 rounded-xl bg-slate-900/80 border border-slate-800 flex flex-col justify-between">
-          <div className="flex items-center justify-between border-b border-slate-800 pb-2 mb-2.5">
-            <span className="text-xs font-bold text-amber-400 uppercase tracking-wider font-fantasy flex items-center gap-1.5">
-              <Users className="w-3.5 h-3.5" />
-              <span>Event Health</span>
+        {/* Card 2: Votes / Selected */}
+        <div className="p-3.5 rounded-xl bg-slate-900/80 border border-slate-800 space-y-1.5">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-sky-400 uppercase tracking-wider font-fantasy flex items-center gap-1.5">
+              <Layers className="w-3.5 h-3.5" />
+              <span>{isBearTrap ? 'Votes' : 'Selected'}</span>
             </span>
-            <span className="text-xs font-mono font-bold text-amber-300 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
-              {metrics.overallParticipationRate}% Turnout
+            <span className="text-xs font-mono font-bold text-sky-300 bg-sky-500/10 px-1.5 py-0.5 rounded">
+              {metrics.votingRate}%
             </span>
           </div>
-          <div className="space-y-1.5 text-xs">
-            <div className="flex justify-between items-center">
-              <span className="text-slate-400">Unique Participants:</span>
-              <span className="font-mono font-bold text-amber-300">{metrics.uniqueAttendees}</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-slate-400">Overall Participation:</span>
-              <span className="font-mono font-bold text-amber-300">{metrics.overallParticipationRate}%</span>
-            </div>
-            <div className="flex justify-between items-center text-[11px]">
-              <span className="text-slate-400">{isBearTrap ? 'Non-voters who attended:' : 'Unselected who joined:'}</span>
-              <span className="font-mono text-emerald-400 font-semibold">{metrics.nonVotersAttendedCount}</span>
-            </div>
-            <div className="flex justify-between items-center text-[11px]">
-              <span className="text-slate-400">Changed Slot:</span>
-              <span className="font-mono text-purple-300 font-semibold">
-                {metrics.changedSlotCount.slot1ToSlot2 + metrics.changedSlotCount.slot2ToSlot1}
-              </span>
-            </div>
+          <div className="text-xl font-bold font-mono text-slate-100">
+            {metrics.totalVoters} <span className="text-xs text-slate-400 font-normal">/ {metrics.eligibleMembersCount}</span>
           </div>
-          <div className="mt-3 pt-2 border-t border-slate-800/80 text-[10px] text-slate-500">
-            Attendance counted accurately regardless of poll choice
+          <div className="text-[11px] text-slate-400 flex items-center justify-between pt-1 border-t border-slate-800/80">
+            <span>{slot1?.slotName || 'Slot 1'}: <strong className="text-slate-200 font-mono">{slot1Metrics?.votedCount || 0}</strong></span>
+            <span>{slot2?.slotName || 'Slot 2'}: <strong className="text-slate-200 font-mono">{slot2Metrics?.votedCount || 0}</strong></span>
           </div>
         </div>
 
-        {/* Card 4: VOTE / SLOT FULFILLMENT */}
-        <div className="p-4 rounded-xl bg-slate-900/80 border border-slate-800 flex flex-col justify-between">
-          <div className="flex items-center justify-between border-b border-slate-800 pb-2 mb-2.5">
-            <span className="text-xs font-bold text-purple-400 uppercase tracking-wider font-fantasy flex items-center gap-1.5">
-              <CheckCheck className="w-3.5 h-3.5" />
-              <span>{isBearTrap ? 'Vote Fulfillment' : 'Slot Fulfillment'}</span>
-            </span>
-            <span className="text-[10px] text-slate-400">{isBearTrap ? 'Followed Poll' : 'Followed Assignment'}</span>
-          </div>
-          <div className="space-y-2 text-xs">
-            {metrics.totalVoters === 0 ? (
-              <div className="p-2.5 rounded bg-slate-950/60 border border-slate-800/80 text-slate-400 text-xs leading-relaxed">
-                {isBearTrap ? 'No poll votes were recorded for this event. All ' : 'No slot assignments were recorded for this event. All '}
-                <strong className="text-emerald-400 font-bold">{metrics.uniqueAttendees} {isBearTrap ? 'attendees' : 'members'}</strong>{' '}
-                {isBearTrap ? 'participated as valid non-voters.' : 'joined as unselected participants.'}
-              </div>
-            ) : (
-              <>
-                <div className="p-2 rounded bg-slate-950/50 border border-slate-800/60">
-                  <div className="flex justify-between font-semibold text-slate-300 text-[11px]">
-                    <span>{slot1?.slotName || 'Slot 1'}:</span>
-                    <span className="font-mono text-purple-300 font-bold">
-                      {slot1Metrics?.fulfillmentRate || 0}% ({slot1Metrics?.followedVoteCount || 0}/{slot1Metrics?.votedCount || 0})
-                    </span>
-                  </div>
-                </div>
-
-                <div className="p-2 rounded bg-slate-950/50 border border-slate-800/60">
-                  <div className="flex justify-between font-semibold text-slate-300 text-[11px]">
-                    <span>{slot2?.slotName || 'Slot 2'}:</span>
-                    <span className="font-mono text-purple-300 font-bold">
-                      {slot2Metrics?.fulfillmentRate || 0}% ({slot2Metrics?.followedVoteCount || 0}/{slot2Metrics?.votedCount || 0})
-                    </span>
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
-          <div className="mt-2 text-[10px] text-slate-500">
-            {isBearTrap
-              ? 'Measures reliability of players following their voted slot'
-              : 'Measures reliability of players joining their selected slot'}
-          </div>
-        </div>
-
-        {/* Card 5: PENALTY REVIEW */}
-        <div className="p-4 rounded-xl bg-slate-900/80 border border-slate-800 flex flex-col justify-between">
-          <div className="flex items-center justify-between border-b border-slate-800 pb-2 mb-2.5">
+        {/* Card 3: Absent */}
+        <div className="p-3.5 rounded-xl bg-slate-900/80 border border-slate-800 space-y-1.5">
+          <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-rose-400 uppercase tracking-wider font-fantasy flex items-center gap-1.5">
-              <ShieldAlert className="w-3.5 h-3.5" />
-              <span>Penalty Review</span>
+              <X className="w-3.5 h-3.5" />
+              <span>Absent</span>
+            </span>
+            <span className="text-xs font-mono font-bold text-rose-300 bg-rose-500/10 px-1.5 py-0.5 rounded">
+              {absentCount}
+            </span>
+          </div>
+          <div className="text-xl font-bold font-mono text-rose-400">
+            {absentCount} <span className="text-xs text-slate-400 font-normal">members</span>
+          </div>
+          <div className="text-[11px] text-slate-400 flex items-center justify-between pt-1 border-t border-slate-800/80">
+            <span>Not Marked: <strong className="text-slate-200 font-mono">{unmarkedCount}</strong></span>
+            <span>{isBearTrap ? 'No Vote' : 'Unselected'}: <strong className="text-slate-200 font-mono">{metrics.noVoteCount}</strong></span>
+          </div>
+        </div>
+
+        {/* Card 4: Penalties */}
+        <div className="p-3.5 rounded-xl bg-slate-900/80 border border-slate-800 space-y-1.5">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-amber-400 uppercase tracking-wider font-fantasy flex items-center gap-1.5">
+              <ShieldAlert className="w-3.5 h-3.5 text-amber-400" />
+              <span>Penalties</span>
             </span>
             {metrics.potentialReviewsCount > 0 && (
-              <span className="text-xs font-mono font-bold text-rose-300 bg-rose-500/20 px-2 py-0.5 rounded animate-pulse">
-                {metrics.potentialReviewsCount} Need Review
+              <span className="text-[10px] font-mono font-bold text-rose-300 bg-rose-500/20 px-1.5 py-0.5 rounded">
+                {metrics.potentialReviewsCount} Review
               </span>
             )}
           </div>
-          <div className="space-y-1.5 text-xs">
-            <div className="flex justify-between items-center">
-              <span className="text-slate-400">Potential Reviews:</span>
-              <span className="font-mono font-bold text-amber-400">{metrics.potentialReviewsCount}</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-slate-400">Penalties Issued:</span>
-              <span className="font-mono font-bold text-rose-400">{metrics.penaltiesIssuedCount}</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-slate-400">Penalties Waived:</span>
-              <span className="font-mono font-bold text-emerald-400">{metrics.penaltiesWaivedCount}</span>
-            </div>
+          <div className="text-xl font-bold font-mono text-slate-100">
+            {metrics.penaltiesIssuedCount} <span className="text-xs text-slate-400 font-normal">Issued</span>
           </div>
-          <div className="mt-3 pt-2 border-t border-slate-800/80 text-[10px] text-stone-400">
-            Penalties are <strong className="text-rose-300">NEVER</strong> auto-issued; manual officer review required.
-          </div>
-        </div>
-
-        {/* Card 6: SLOT HEALTH VISUAL */}
-        <div className="p-4 rounded-xl bg-slate-900/80 border border-slate-800 flex flex-col justify-between">
-          <div className="flex items-center justify-between border-b border-slate-800 pb-2 mb-2.5">
-            <span className="text-xs font-bold text-amber-400 uppercase tracking-wider font-fantasy flex items-center gap-1.5">
-              <Layers className="w-3.5 h-3.5" />
-              <span>Slot Participation Health</span>
-            </span>
-          </div>
-          <div className="space-y-3 text-xs">
-            <div>
-              <div className="flex justify-between font-mono text-[11px] mb-1">
-                <span className="text-slate-300 font-bold">{slot1?.slotName || 'Slot 1'}</span>
-                <span className="text-amber-400 font-bold">{slot1Metrics?.participationRate || 0}%</span>
-              </div>
-              <div className="w-full bg-slate-950 h-2.5 rounded-full overflow-hidden p-0.5 border border-slate-800">
-                <div
-                  className="bg-gradient-to-r from-amber-600 to-amber-400 h-full rounded-full transition-all"
-                  style={{ width: `${Math.min(100, slot1Metrics?.participationRate || 0)}%` }}
-                />
-              </div>
-            </div>
-
-            <div>
-              <div className="flex justify-between font-mono text-[11px] mb-1">
-                <span className="text-slate-300 font-bold">{slot2?.slotName || 'Slot 2'}</span>
-                <span className="text-amber-400 font-bold">{slot2Metrics?.participationRate || 0}%</span>
-              </div>
-              <div className="w-full bg-slate-950 h-2.5 rounded-full overflow-hidden p-0.5 border border-slate-800">
-                <div
-                  className="bg-gradient-to-r from-amber-600 to-amber-400 h-full rounded-full transition-all"
-                  style={{ width: `${Math.min(100, slot2Metrics?.participationRate || 0)}%` }}
-                />
-              </div>
-            </div>
-          </div>
-          <div className="mt-2 text-[10px] text-slate-500">
-            Actual attendees per slot divided by {metrics.eligibleMembersCount} alliance members
+          <div className="text-[11px] text-slate-400 flex items-center justify-between pt-1 border-t border-slate-800/80">
+            <span>Waived: <strong className="text-emerald-400 font-mono">{metrics.penaltiesWaivedCount}</strong></span>
+            <span>Review: <strong className="text-amber-300 font-mono">{metrics.potentialReviewsCount}</strong></span>
           </div>
         </div>
       </div>
@@ -879,6 +730,18 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
                         </span>
                       )}
 
+                      {!isMainAdmin && (
+                        <button
+                          type="button"
+                          onClick={() => openEditModal(record)}
+                          title="Apply manual penalty"
+                          className="px-2 py-1 rounded bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-rose-300 text-[11px] font-semibold flex items-center gap-1 cursor-pointer transition-colors"
+                        >
+                          <ShieldAlert className="w-3 h-3 text-rose-400" />
+                          <span>Penalty</span>
+                        </button>
+                      )}
+
                       <button
                         type="button"
                         onClick={() => openEditModal(record)}
@@ -1066,12 +929,12 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
             <thead>
               <tr className="bg-slate-950/90 text-slate-400 border-b border-slate-800 font-fantasy uppercase text-[11px]">
                 <th className="py-2.5 px-3">Member</th>
-                <th className="py-2.5 px-3">{isBearTrap ? 'Selected Slot (Vote)' : 'Selected Slot'}</th>
-                <th className="py-2.5 px-3">{isBearTrap ? 'Attendance' : 'Attendance (Joined / Absent)'}</th>
-                <th className="py-2.5 px-3">Actual Slot</th>
+                <th className="py-2.5 px-3">{isBearTrap ? 'Vote' : 'Selected Slot'}</th>
+                <th className="py-2.5 px-3">Attendance</th>
+                <th className="py-2.5 px-3">Slot Joined</th>
                 <th className="py-2.5 px-3">Penalty</th>
                 <th className="py-2.5 px-3">Notes</th>
-                <th className="py-2.5 px-3 text-right">{isMainAdmin ? 'Actions' : 'Details'}</th>
+                <th className="py-2.5 px-3 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/60 bg-slate-900/40">
@@ -1323,12 +1186,21 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
                             </button>
                           </div>
                         ) : (
-                          <div className="flex items-center justify-end">
+                          <div className="flex items-center justify-end gap-1.5">
                             <button
                               type="button"
                               onClick={() => openEditModal(record)}
-                              title="View participation details"
-                              className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-[10px] font-medium flex items-center gap-1 cursor-pointer transition-colors"
+                              title="Manual Penalty"
+                              className="px-2 py-0.5 rounded bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-rose-300 text-[11px] font-semibold flex items-center gap-1 cursor-pointer transition-colors shadow-sm"
+                            >
+                              <ShieldAlert className="w-3 h-3 text-rose-400" />
+                              <span>Penalty</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => openEditModal(record)}
+                              title="View details"
+                              className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] font-medium flex items-center gap-1 cursor-pointer transition-colors"
                             >
                               <FileText className="w-3 h-3 text-slate-400" />
                               <span>View</span>
@@ -1352,13 +1224,13 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
         <Modal
           isOpen={Boolean(editingParticipation)}
           onClose={() => setEditingParticipation(null)}
-          title={isMainAdmin ? "Edit Member Participation" : "View Member Participation"}
+          title={isMainAdmin ? "Member Attendance & Penalty" : "Member Record & Penalty"}
           subtitle={
             isMainAdmin
-              ? `Review slot selection, turnout, and officer penalty decisions`
-              : `View-only record of slot selection, turnout, and penalties`
+              ? `Update slot, attendance, and manual penalties`
+              : `Review member attendance and manage manual penalties`
           }
-          icon={isMainAdmin ? <Edit3 className="w-5 h-5 text-[#ca8a04]" /> : <FileText className="w-5 h-5 text-sky-400" />}
+          icon={isMainAdmin ? <Edit3 className="w-5 h-5 text-[#ca8a04]" /> : <ShieldAlert className="w-5 h-5 text-rose-400" />}
           maxWidth="md"
         >
           {(() => {
@@ -1368,9 +1240,9 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
             return (
               <div className="space-y-4 text-xs sm:text-sm">
                 {!isMainAdmin && (
-                  <div className="p-2.5 rounded-lg bg-sky-950/30 border border-sky-800/40 text-sky-300 text-[11px] flex items-center gap-2">
-                    <ShieldAlert className="w-4 h-4 text-sky-400 shrink-0" />
-                    <span>View-only mode: Only the Main Admin can edit attendance, slots, and penalties.</span>
+                  <div className="p-2.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-300 text-[11px] flex items-center gap-2">
+                    <ShieldAlert className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                    <span>Attendance is view-only. You can apply manual penalties below.</span>
                   </div>
                 )}
 
@@ -1551,27 +1423,20 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
                   </div>
                 </div>
 
-                {/* Section 4: Officer Penalty Decision */}
+                {/* Section: Manual Penalty Decision */}
                 <div className="p-3.5 rounded-xl bg-[#17100b] border border-[#452d19] space-y-3">
                   <div className="flex items-center justify-between">
                     <label className="text-xs font-fantasy font-bold text-[#fef08a] uppercase flex items-center gap-1.5">
                       <ShieldAlert className="w-3.5 h-3.5 text-rose-400" />
-                      <span>Officer Penalty Decision (Manual)</span>
+                      <span>Manual Penalty</span>
                     </label>
-                    <span className="text-[10px] text-stone-400 italic">Never automatically assigned</span>
                   </div>
 
                   <div className="grid grid-cols-3 gap-2">
                     <button
                       type="button"
-                      disabled={!isMainAdmin}
-                      onClick={() => {
-                        if (!isMainAdmin) return;
-                        setEditPenaltyStatus('NONE');
-                      }}
-                      className={`px-3 py-2 rounded-lg border text-xs font-bold transition-all ${
-                        !isMainAdmin ? 'cursor-default opacity-80' : 'cursor-pointer'
-                      } ${
+                      onClick={() => setEditPenaltyStatus('NONE')}
+                      className={`px-3 py-2 rounded-lg border text-xs font-bold transition-all cursor-pointer ${
                         editPenaltyStatus === 'NONE'
                           ? 'bg-slate-800 text-slate-200 border-slate-600'
                           : 'bg-[#120c08] border-[#3e2716] text-stone-400 hover:border-slate-700'
@@ -1582,15 +1447,11 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
 
                     <button
                       type="button"
-                      disabled={!isMainAdmin}
                       onClick={() => {
-                        if (!isMainAdmin) return;
                         setEditPenaltyStatus('ISSUED');
-                        if (!editPenaltyNote) setEditPenaltyNote('Missed event without prior notice');
+                        if (!editPenaltyNote) setEditPenaltyNote('Missed event without notice');
                       }}
-                      className={`px-3 py-2 rounded-lg border text-xs font-bold transition-all ${
-                        !isMainAdmin ? 'cursor-default opacity-80' : 'cursor-pointer'
-                      } ${
+                      className={`px-3 py-2 rounded-lg border text-xs font-bold transition-all cursor-pointer ${
                         editPenaltyStatus === 'ISSUED'
                           ? 'bg-rose-500 text-white border-rose-300 font-black shadow-md'
                           : 'bg-[#120c08] border-[#3e2716] text-rose-400 hover:border-rose-500'
@@ -1601,15 +1462,11 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
 
                     <button
                       type="button"
-                      disabled={!isMainAdmin}
                       onClick={() => {
-                        if (!isMainAdmin) return;
                         setEditPenaltyStatus('WAIVED');
                         if (!editPenaltyNote) setEditPenaltyNote('Excused by R4');
                       }}
-                      className={`px-3 py-2 rounded-lg border text-xs font-bold transition-all ${
-                        !isMainAdmin ? 'cursor-default opacity-80' : 'cursor-pointer'
-                      } ${
+                      className={`px-3 py-2 rounded-lg border text-xs font-bold transition-all cursor-pointer ${
                         editPenaltyStatus === 'WAIVED'
                           ? 'bg-emerald-500 text-slate-950 border-emerald-300 font-black shadow-md'
                           : 'bg-[#120c08] border-[#3e2716] text-emerald-400 hover:border-emerald-500'
@@ -1619,44 +1476,39 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
                     </button>
                   </div>
 
-                  {/* Penalty Note */}
+                  {/* Penalty Reason */}
                   <div>
                     <label className="block text-[11px] text-amber-300/80 mb-1 font-semibold">
-                      Officer Penalty Note / Reason:
+                      Reason / Note:
                     </label>
                     <input
                       type="text"
-                      disabled={!isMainAdmin}
                       value={editPenaltyNote}
                       onChange={e => setEditPenaltyNote(e.target.value)}
-                      placeholder={isMainAdmin ? 'e.g. "Missed event without prior notice" or "Excused by R4"' : 'No penalty note'}
-                      className={`w-full px-3 py-2 rounded-lg bg-[#120c08] border border-[#3e2716] text-stone-200 text-xs focus:outline-none focus:border-[#ca8a04] ${
-                        !isMainAdmin ? 'cursor-not-allowed opacity-80' : ''
-                      }`}
+                      placeholder='e.g. "Missed event without notice" or "Excused by R4"'
+                      className="w-full px-3 py-2 rounded-lg bg-[#120c08] border border-[#3e2716] text-stone-200 text-xs focus:outline-none focus:border-[#ca8a04]"
                     />
 
                     {/* Quick Presets */}
-                    {isMainAdmin && (
-                      <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
-                        <span className="text-[10px] text-stone-500">Presets:</span>
-                        {['Missed event without prior notice', 'Excused by R4', 'Real life emergency', 'Work conflict'].map(preset => (
-                          <button
-                            type="button"
-                            key={preset}
-                            onClick={() => setEditPenaltyNote(preset)}
-                            className="px-2 py-0.5 rounded text-[10px] bg-slate-900 border border-slate-800 text-stone-400 hover:text-amber-300 cursor-pointer"
-                          >
-                            {preset}
-                          </button>
-                        ))}
-                      </div>
-                    )}
+                    <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                      <span className="text-[10px] text-stone-500">Presets:</span>
+                      {['Missed event without notice', 'Excused by R4', 'Real life emergency', 'Work conflict'].map(preset => (
+                        <button
+                          type="button"
+                          key={preset}
+                          onClick={() => setEditPenaltyNote(preset)}
+                          className="px-2 py-0.5 rounded text-[10px] bg-slate-900 border border-slate-800 text-stone-400 hover:text-amber-300 cursor-pointer"
+                        >
+                          {preset}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
 
                 {/* Actions */}
                 <div className="flex items-center justify-between pt-3 border-t border-[#3e2716]">
-                  {isMainAdmin && onOpenAddStrike && (
+                  {onOpenAddStrike && (
                     <button
                       type="button"
                       onClick={() => {
@@ -1666,7 +1518,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
                       className="px-3 py-2 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 hover:bg-rose-500/20 text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
                     >
                       <Flame className="w-3.5 h-3.5 text-rose-400" />
-                      <span>Issue Alliance Strike</span>
+                      <span>Issue Strike</span>
                     </button>
                   )}
 
@@ -1677,19 +1529,17 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
                       onClick={() => setEditingParticipation(null)}
                       type="button"
                     >
-                      {isMainAdmin ? 'Cancel' : 'Close'}
+                      Cancel
                     </GameButton>
-                    {isMainAdmin && (
-                      <button
-                        type="button"
-                        onClick={handleSaveEdit}
-                        disabled={isSavingEdit}
-                        className="btn-kingshot-gold px-4 py-2 text-xs font-fantasy font-black uppercase flex items-center gap-1.5 cursor-pointer shadow-md"
-                      >
-                        <Check className="w-4 h-4" />
-                        <span>{isSavingEdit ? 'Saving...' : 'Save Decision'}</span>
-                      </button>
-                    )}
+                    <button
+                      type="button"
+                      onClick={handleSaveEdit}
+                      disabled={isSavingEdit}
+                      className="btn-kingshot-gold px-4 py-2 text-xs font-fantasy font-black uppercase flex items-center gap-1.5 cursor-pointer shadow-md"
+                    >
+                      <Check className="w-4 h-4" />
+                      <span>{isSavingEdit ? 'Saving...' : isMainAdmin ? 'Save Changes' : 'Save Penalty'}</span>
+                    </button>
                   </div>
                 </div>
               </div>

@@ -316,7 +316,9 @@ export const MemberProfileModal: React.FC<MemberProfileModalProps> = ({
                       </div>
 
                       <div className="flex items-center justify-between text-[11px] pt-1 border-t border-slate-800/80">
-                        <span className="text-slate-400">Vote Fulfillment:</span>
+                        <span className="text-slate-400">
+                          {s.eventType === 'Bear Trap' ? 'Followed Vote:' : 'Followed Slot:'}
+                        </span>
                         <span className="font-mono font-bold text-purple-300">
                           {s.voteFulfillmentRate}%
                         </span>
