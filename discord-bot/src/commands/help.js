@@ -34,7 +34,7 @@ export async function execute(interaction) {
               '• 🔥 Daily War Room Attendance Streaks (`/checkin`)',
               '• 🏆 Global Alliance Leaderboards & MVP (`/leaderboard`, `/mvp`)',
               '• 🏰 Full 80-Member Roster & Census (`/roster`)',
-              '• ⚔️ Combat Duels & Whiteout Trivia (`/duel`, `/trivia`)',
+              '• ⚔️ Combat Duels & Kingshot Trivia (`/duel`, `/trivia`)',
             ].join('\n'),
             inline: false,
           }
@@ -94,7 +94,7 @@ export async function execute(interaction) {
             '• `/salute give <player>` — Commend a comrade for clutch rallies or great advice.',
             '• `/salute leaderboard` — Most respected warriors honor roll.',
             '• `/duel <opponent>` — Challenge an alliance brother or sister to a combat duel simulator!',
-            '• `/trivia play` — Rapid-fire Whiteout Survival & Kingdom trivia with live buttons.',
+            '• `/trivia play` — Rapid-fire Kingshot & Kingdom lore trivia with live buttons.',
           ].join('\n'),
           inline: false,
         },

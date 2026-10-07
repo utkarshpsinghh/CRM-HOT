@@ -76,7 +76,7 @@ export async function execute(interaction) {
             '• **/beartrap** — Check countdown & turnout for the next trap',
             '• **/me** — View your complete combat dossier & last 5 battles',
             '• **/duel <opponent>** — Challenge an alliance comrade to a duel',
-            '• **/trivia play** — Test your Whiteout Survival & kingdom knowledge',
+            '• **/trivia play** — Test your Kingshot & kingdom tactical knowledge',
           ].join('\n'),
           inline: false,
         }

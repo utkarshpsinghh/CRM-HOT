@@ -6,7 +6,7 @@ import { requireLinkedMember } from '../utils/authCheck.js';
 
 export const data = new SlashCommandBuilder()
   .setName('duel')
-  .setDescription('Challenge an alliance comrade to a simulated Whiteout Survival combat duel!')
+  .setDescription('Challenge an alliance comrade to a simulated Kingshot combat duel!')
   .addStringOption(opt =>
     opt
       .setName('opponent')
