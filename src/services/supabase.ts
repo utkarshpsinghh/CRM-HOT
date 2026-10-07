@@ -205,7 +205,16 @@ export const supabaseService = {
           try {
             const parsed = JSON.parse(partCacheRow.value);
             if (Array.isArray(parsed) && parsed.length > 0) {
-              remoteParticipations = parsed;
+              const filtered = parsed.filter((p: any) => !p.eventId?.startsWith('evt-parent-bt-'));
+              // Deduplicate by eventId_memberId
+              const dedupMap = new Map<string, EventParticipation>();
+              filtered.forEach((p: EventParticipation) => {
+                const k = `${p.eventId}_${p.memberId}`;
+                if (!dedupMap.has(k) || (p.attendanceStatus !== 'NOT_MARKED' || p.voteStatus !== 'NO_VOTE')) {
+                  dedupMap.set(k, p);
+                }
+              });
+              remoteParticipations = Array.from(dedupMap.values());
             }
           } catch {}
         }
@@ -214,7 +223,8 @@ export const supabaseService = {
           try {
             const parsed = JSON.parse(slotCacheRow.value);
             if (Array.isArray(parsed) && parsed.length > 0) {
-              remoteSlots = parsed;
+              const filtered = parsed.filter((s: any) => !s.eventId?.startsWith('evt-parent-bt-'));
+              remoteSlots = Array.from(new Map(filtered.map((s: EventSlot) => [s.id, s])).values());
             }
           } catch {}
         }
@@ -756,18 +766,26 @@ export const supabaseService = {
 
   async saveParticipationsCache(client: any): Promise<void> {
     try {
-      const participations = storageService.getEventParticipations();
+      const participations = storageService.getEventParticipations().filter(p => !p.eventId.startsWith('evt-parent-bt-'));
       if (participations.length > 0) {
+        const dedupMap = new Map<string, EventParticipation>();
+        participations.forEach(p => {
+          const k = `${p.eventId}_${p.memberId}`;
+          if (!dedupMap.has(k) || p.attendanceStatus !== 'NOT_MARKED' || p.voteStatus !== 'NO_VOTE') {
+            dedupMap.set(k, p);
+          }
+        });
         await client.from('settings').upsert({
           key: 'crm_event_participations_cache',
-          value: JSON.stringify(participations),
+          value: JSON.stringify(Array.from(dedupMap.values())),
         }, { onConflict: 'key' });
       }
-      const slots = storageService.getEventSlots();
+      const slots = storageService.getEventSlots().filter(s => !s.eventId.startsWith('evt-parent-bt-'));
       if (slots.length > 0) {
+        const uniqueSlots = Array.from(new Map(slots.map(s => [s.id, s])).values());
         await client.from('settings').upsert({
           key: 'crm_event_slots_cache',
-          value: JSON.stringify(slots),
+          value: JSON.stringify(uniqueSlots),
         }, { onConflict: 'key' });
       }
     } catch (err) {

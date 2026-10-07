@@ -61,14 +61,16 @@ export function syncAndAutoScheduleBearTraps(
   let updatedCount = 0;
   const prunedEventIds: string[] = [];
 
-  // 1. Prune any auto-generated Bear Trap events that are more than 24 hours away
+  // 1. Prune any auto-generated Bear Trap events that duplicate known historical dates or are >24 hours away
   // Auto-generated Bear Trap events have ID prefix 'evt-parent-bt-'
   const toRemoveIds = new Set<string>();
   updatedEvents.forEach(evt => {
     if (evt.eventType === 'Bear Trap' && evt.id.startsWith('evt-parent-bt-')) {
+      const evtDateStr = evt.date.split('T')[0];
+      const isHistoricalDuplicate = KNOWN_BEAR_TRAP_DATES.includes(evtDateStr);
       const eventTime = parseDateAsUtc(evt.date)?.getTime() ?? new Date(evt.date).getTime();
-      // If event start time is more than 24 hours in the future
-      if (eventTime - nowMs > TWENTY_FOUR_HOURS_MS) {
+      // If duplicates historical date or start time is more than 24 hours in the future
+      if (isHistoricalDuplicate || (eventTime - nowMs > TWENTY_FOUR_HOURS_MS)) {
         toRemoveIds.add(evt.id);
         prunedEventIds.push(evt.id);
         updatedCount++;
@@ -92,9 +94,11 @@ export function syncAndAutoScheduleBearTraps(
     if (idx < KNOWN_BEAR_TRAP_DATES.length) {
       dateStr = KNOWN_BEAR_TRAP_DATES[idx];
       const correctIso = `${dateStr}T16:00:00.000Z`;
+      const nextDayStr = getNextDayStr(dateStr);
+      const expectedSlot2Time = `${nextDayStr} 00:30 UTC`;
       if (evt.date !== correctIso) {
         evt.date = correctIso;
-        evt.status = getComputedEventStatus(correctIso) === 'Upcoming' ? 'Scheduled' : 'Completed';
+        evt.status = getComputedEventStatus(correctIso, expectedSlot2Time) === 'Upcoming' ? 'Scheduled' : 'Completed';
         updatedCount++;
       }
     }
@@ -140,6 +144,7 @@ export function syncAndAutoScheduleBearTraps(
     const dateStr = `${y}-${m}-${d}`;
     const futureIso = `${dateStr}T16:00:00.000Z`;
     const nextDayStr = getNextDayStr(dateStr);
+    const expectedSlot2Time = `${nextDayStr} 00:30 UTC`;
 
     // Check if event already exists for this date
     const exists = updatedEvents.some(
@@ -157,7 +162,7 @@ export function syncAndAutoScheduleBearTraps(
         eventType: 'Bear Trap',
         eventName: 'Bear Trap',
         date: futureIso,
-        status: getComputedEventStatus(futureIso) === 'Upcoming' ? 'Scheduled' : 'Completed',
+        status: getComputedEventStatus(futureIso, expectedSlot2Time) === 'Upcoming' ? 'Scheduled' : 'Completed',
         createdAt: nowIso,
         updatedAt: nowIso,
       };
@@ -176,23 +181,26 @@ export function syncAndAutoScheduleBearTraps(
         eventId: parentId,
         slotNumber: 2,
         slotName: 'BT2',
-        startTime: `${nextDayStr} 00:30 UTC`,
+        startTime: expectedSlot2Time,
         createdAt: nowIso,
       };
 
-      const newParts: EventParticipation[] = activeMembers.map(m => ({
-        id: `part-${parentId}-${m.id}`,
-        eventId: parentId,
-        memberId: m.id,
-        selectedSlotId: null,
-        voteStatus: 'NO_VOTE',
-        attendanceStatus: 'NOT_MARKED',
-        attendanceSlotId: null,
-        penaltyStatus: 'NONE',
-        penaltyNote: null,
-        createdAt: nowIso,
-        updatedAt: nowIso,
-      }));
+      const existingPartKeys = new Set(updatedParticipations.map(p => `${p.eventId}_${p.memberId}`));
+      const newParts: EventParticipation[] = activeMembers
+        .filter(m => !existingPartKeys.has(`${parentId}_${m.id}`))
+        .map(m => ({
+          id: `part-${parentId}-${m.id}`,
+          eventId: parentId,
+          memberId: m.id,
+          selectedSlotId: null,
+          voteStatus: 'NO_VOTE',
+          attendanceStatus: 'NOT_MARKED',
+          attendanceSlotId: null,
+          penaltyStatus: 'NONE',
+          penaltyNote: null,
+          createdAt: nowIso,
+          updatedAt: nowIso,
+        }));
 
       updatedEvents.push(newParentEvent);
       updatedSlots.push(slot1, slot2);

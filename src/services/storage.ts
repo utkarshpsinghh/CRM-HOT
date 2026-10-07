@@ -151,6 +151,35 @@ export const storageService = {
       if (currentAuth && currentAuth.username?.toLowerCase() === 'admin') {
         this.setAuth(null);
       }
+
+      // 8. Purge raw legacy events (BT1/BT2) and duplicate events from local storage
+      const rawEvents = localStorage.getItem(STORAGE_KEYS.EVENTS);
+      if (rawEvents) {
+        try {
+          const evts: AllianceEvent[] = JSON.parse(rawEvents);
+          const hasRawOrDuplicate = evts.some(
+            e => e.eventType === 'BT1' || e.eventType === 'BT2' || e.eventType.startsWith('Swordland') || e.eventType.startsWith('Tri Alliance L') || e.id.startsWith('evt-parent-bt-')
+          );
+          if (hasRawOrDuplicate) {
+            localStorage.removeItem(STORAGE_KEYS.EVENTS);
+            localStorage.removeItem(STORAGE_KEYS.EVENT_SLOTS);
+            localStorage.removeItem(STORAGE_KEYS.EVENT_PARTICIPATIONS);
+          }
+        } catch {}
+      }
+
+      const rawParts = localStorage.getItem(STORAGE_KEYS.EVENT_PARTICIPATIONS);
+      if (rawParts) {
+        try {
+          const parts = JSON.parse(rawParts);
+          const hasDuplicateBtParts = Array.isArray(parts) && parts.some((p: any) => p.eventId?.startsWith('evt-parent-bt-'));
+          if (hasDuplicateBtParts) {
+            localStorage.removeItem(STORAGE_KEYS.EVENT_PARTICIPATIONS);
+            localStorage.removeItem(STORAGE_KEYS.EVENT_SLOTS);
+            localStorage.removeItem(STORAGE_KEYS.EVENTS);
+          }
+        } catch {}
+      }
       resetLoginAttempts();
     } catch (err) {
       console.warn('Error purging mock junk:', err);
@@ -346,7 +375,7 @@ export const storageService = {
     if (storedParticipations.length > 0 && storedSlots.length > 0) {
       // Find parent events (events that have slots or are parent events)
       const parentEventIds = new Set(storedSlots.map(s => s.eventId));
-      const parentEvents = storedEvents.filter(e => parentEventIds.has(e.id));
+      const parentEvents = storedEvents.filter(e => parentEventIds.has(e.id) && e.eventType !== 'BT1' && e.eventType !== 'BT2' && !e.eventType.startsWith('Swordland') && !e.eventType.startsWith('Tri Alliance L') && !e.id.startsWith('evt-parent-bt-'));
       currentEvents = parentEvents.length > 0 ? parentEvents : storedEvents;
       currentSlots = storedSlots;
       currentParticipations = storedParticipations;
@@ -357,9 +386,12 @@ export const storageService = {
       if (bundle.participations.length > 0) {
         this.setEventSlots(bundle.slots);
         this.setEventParticipations(bundle.participations);
-        // Ensure parent events are present in stored events
+        // Ensure parent events are present in stored events (exclude legacy slot events)
         const mergedEvents = [...bundle.events];
         for (const e of storedEvents) {
+          if (e.eventType === 'BT1' || e.eventType === 'BT2' || e.eventType.startsWith('Swordland') || e.eventType.startsWith('Tri Alliance L') || e.id.startsWith('evt-parent-bt-')) {
+            continue;
+          }
           if (!mergedEvents.some(m => m.id === e.id)) {
             mergedEvents.push(e);
           }

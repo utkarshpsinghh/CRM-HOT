@@ -349,20 +349,14 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               kingshotApiService.syncMembersToDatabase(initialMembers, currentSettings, false).catch(console.warn);
             }
 
-            // Synthesize parent events, slots, and participations if needed
-            let processedEvents = allData.events || [];
-            let processedSlots: EventSlot[] = allData.slots || [];
-            let processedParticipations: EventParticipation[] = allData.participations || [];
+            // Synthesize canonical 2-slot parent events from raw Supabase events and attendance
+            const rawEvents = Array.isArray(allData.events) && allData.events.length > 0 ? allData.events : storageService.getEvents();
+            const rawAttendance = Array.isArray(allData.attendance) && allData.attendance.length > 0 ? allData.attendance : storageService.getAttendance();
 
-            if (processedSlots.length === 0 || processedParticipations.length === 0) {
-              const bundle = migrateHistoricalEvents(
-                Array.isArray(allData.events) && allData.events.length > 0 ? allData.events : storageService.getEvents(),
-                Array.isArray(allData.attendance) && allData.attendance.length > 0 ? allData.attendance : storageService.getAttendance()
-              );
-              processedEvents = bundle.events;
-              processedSlots = bundle.slots;
-              processedParticipations = bundle.participations;
-            }
+            const bundle = migrateHistoricalEvents(rawEvents, rawAttendance);
+            let processedEvents = bundle.events;
+            let processedSlots = bundle.slots;
+            let processedParticipations = bundle.participations;
 
             // Enforce strict 48-hour Bear Trap cadence and auto-schedule upcoming Bear Traps (only 24h before event)
             const scheduledBundle = syncAndAutoScheduleBearTraps(

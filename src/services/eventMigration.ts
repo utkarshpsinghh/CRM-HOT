@@ -122,6 +122,8 @@ export function migrateHistoricalEvents(
     handledLegacyEventIds.add(pair.slot2.legacyId);
 
     const parentId = `evt-parent-${idx + 1}-${pair.type.toLowerCase().replace(/\s+/g, '-')}-${pair.date.slice(0, 10)}`;
+    handledLegacyEventIds.add(parentId);
+    handledLegacyEventIds.add(`evt-parent-bt-${pair.date.slice(0, 10)}`);
     const slot1Id = `slot-${parentId}-1`;
     const slot2Id = `slot-${parentId}-2`;
 
@@ -232,8 +234,18 @@ export function migrateHistoricalEvents(
   // 2. Process any other remaining legacy events that weren't in HISTORICAL_PAIRS
   const remainingEvents = legacyEvents.filter(e => !handledLegacyEventIds.has(e.id));
   remainingEvents.forEach((oldEvt, rIdx) => {
+    // If already in newEvents, skip
+    if (newEvents.some(e => e.id === oldEvt.id)) {
+      return;
+    }
+    // If it matches a historical pair date and type, skip
+    const evtDateStr = (oldEvt.date || '').slice(0, 10);
+    if (HISTORICAL_PAIRS.some(p => p.date.slice(0, 10) === evtDateStr && (p.type === oldEvt.eventType || oldEvt.eventType === 'BT1' || oldEvt.eventType === 'BT2'))) {
+      return;
+    }
+
     // If it's already a new parent event, keep it
-    if (oldEvt.id.startsWith('evt-parent-')) {
+    if (oldEvt.id.startsWith('evt-parent-') || oldEvt.eventType === 'Bear Trap' || oldEvt.eventType === 'Swordsland' || oldEvt.eventType === 'Tri Alliance') {
       newEvents.push(oldEvt);
       return;
     }
@@ -324,11 +336,31 @@ export function migrateHistoricalEvents(
     });
   });
 
+  // Strict deduplication across events, slots, and participations
+  const uniqueEvents = Array.from(new Map(newEvents.map(e => [e.id, e])).values());
+  const uniqueSlots = Array.from(new Map(newSlots.map(s => [s.id, s])).values());
+
+  const partMap = new Map<string, EventParticipation>();
+  newParticipations.forEach(p => {
+    const key = `${p.eventId}_${p.memberId}`;
+    if (!partMap.has(key)) {
+      partMap.set(key, p);
+    } else {
+      const existing = partMap.get(key)!;
+      if (existing.attendanceStatus === 'NOT_MARKED' && p.attendanceStatus !== 'NOT_MARKED') {
+        partMap.set(key, p);
+      } else if (existing.voteStatus === 'NO_VOTE' && p.voteStatus !== 'NO_VOTE') {
+        partMap.set(key, p);
+      }
+    }
+  });
+  const uniqueParticipations = Array.from(partMap.values());
+
   const report: MigrationReport = {
     oldEventRecordsCount: legacyEvents.length,
-    newParentEventsCount: newEvents.length,
-    newEventSlotsCount: newSlots.length,
-    participationRecordsMigratedCount: newParticipations.length,
+    newParentEventsCount: uniqueEvents.length,
+    newEventSlotsCount: uniqueSlots.length,
+    participationRecordsMigratedCount: uniqueParticipations.length,
     votesMigratedCount,
     attendanceRecordsMigratedCount,
     penaltyRecordsMigratedCount: 0,
@@ -336,9 +368,9 @@ export function migrateHistoricalEvents(
   };
 
   return {
-    events: newEvents,
-    slots: newSlots,
-    participations: newParticipations,
+    events: uniqueEvents,
+    slots: uniqueSlots,
+    participations: uniqueParticipations,
     report,
   };
 }
