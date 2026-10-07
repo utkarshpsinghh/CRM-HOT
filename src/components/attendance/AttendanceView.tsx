@@ -1232,6 +1232,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
           }
           icon={isMainAdmin ? <Edit3 className="w-5 h-5 text-[#ca8a04]" /> : <ShieldAlert className="w-5 h-5 text-rose-400" />}
           maxWidth="md"
+          position="top"
         >
           {(() => {
             const member = activeMembersMap.get(editingParticipation.memberId);

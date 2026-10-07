@@ -22,7 +22,7 @@ export const Modal: React.FC<ModalProps> = ({
   icon,
   children,
   maxWidth = 'md',
-  position = 'center',
+  position = 'top',
 }) => {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -51,8 +51,8 @@ export const Modal: React.FC<ModalProps> = ({
   return (
     <div
       className={clsx(
-        'fixed inset-0 p-2.5 sm:p-4 overflow-y-auto animate-fade-in overscroll-contain',
-        isTop ? 'z-[9999] flex items-start justify-center pt-6 sm:pt-16' : 'z-50 flex items-center justify-center'
+        'fixed inset-0 p-2.5 sm:p-4 overflow-y-auto animate-fade-in overscroll-contain z-[9999] flex justify-center',
+        isTop ? 'items-start pt-4 sm:pt-8 md:pt-10' : 'items-center'
       )}
     >
       {/* Backdrop */}
@@ -68,7 +68,7 @@ export const Modal: React.FC<ModalProps> = ({
       <div
         className={clsx(
           'relative w-full rounded-2xl bg-slate-900 border border-slate-800 shadow-2xl shadow-black/80 z-10 overflow-hidden flex flex-col max-h-[92vh] sm:max-h-[88vh]',
-          isTop ? 'my-0' : 'my-1 sm:my-8',
+          isTop ? 'my-0 mb-8' : 'my-1 sm:my-8',
           maxWidthClasses
         )}
       >
