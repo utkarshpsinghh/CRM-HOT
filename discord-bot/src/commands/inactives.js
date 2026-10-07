@@ -61,11 +61,9 @@ export async function execute(interaction) {
         lines.join('\n\n')
       );
 
-    if (filtered.length > 20) {
       embed.setFooter({
-        text: `Showing first 20 of ${filtered.length} members • Kingdom #1391 HOT CRM`,
+        text: `Showing first 20 of ${filtered.length} members • Kingdom #1391 [HOT] Alliance`,
       });
-    }
 
     await interaction.editReply({ embeds: [embed] });
   } catch (err) {

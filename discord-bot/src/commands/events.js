@@ -61,11 +61,6 @@ export async function execute(interaction) {
       });
     });
 
-    embed.addFields({
-      name: '🔗 Manage Attendance',
-      value: '[Open HOT Event Command Center](https://crm.1391.online/)',
-    });
-
     await interaction.editReply({ embeds: [embed] });
   } catch (err) {
     console.error('Execute /events error:', err);

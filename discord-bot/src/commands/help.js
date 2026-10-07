@@ -8,8 +8,7 @@ export const data = new SlashCommandBuilder()
 export async function execute(interaction) {
   const embed = createBaseEmbed('🛡️ [HOT] Alliance Bot — Command Guide', COLORS.GOLD)
     .setDescription(
-      'Welcome to the official **Kingdom #1391 [HOT] Alliance CRM Bot**! ' +
-      'This bot connects directly to our live alliance command center at [crm.1391.online](https://crm.1391.online).\n\n' +
+      'Welcome to the official **Kingdom #1391 [HOT] Alliance Bot**!\n\n' +
       'Here are the commands you can use:'
     )
     .addFields(
@@ -43,11 +42,6 @@ export async function execute(interaction) {
         name: '⚠️ Inactives & Discipline',
         value:
           '`/inactives [filter]` — Check list of inactive players or members with active strikes.',
-        inline: false,
-      },
-      {
-        name: '🔗 Official CRM Portal',
-        value: '[crm.1391.online](https://crm.1391.online/) — Access the full Command Center.',
         inline: false,
       }
     );

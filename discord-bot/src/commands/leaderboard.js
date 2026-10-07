@@ -59,11 +59,7 @@ export async function execute(interaction) {
         `Top **${leaders.length}** Warriors in Kingdom #1391 sorted by **${sortBy === 'attended' ? 'Total Battles Attended' : 'Attendance Rate'}**\n` +
         `Total Completed Battles: **${totalCompleted}**\n\n` +
         leaderLines.join('\n\n')
-      )
-      .addFields({
-        name: '🌐 Full Roster Rankings',
-        value: '[View Complete Leaderboard on HOT CRM](https://crm.1391.online/)',
-      });
+      );
 
     await interaction.editReply({ embeds: [embed] });
   } catch (err) {

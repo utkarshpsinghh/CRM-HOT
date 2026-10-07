@@ -43,6 +43,5 @@ export function createBaseEmbed(title = '', color = COLORS.GOLD) {
     .setTimestamp()
     .setFooter({
       text: 'Kingdom #1391 • HOT Alliance Command Center',
-      iconURL: 'https://crm.1391.online/vite.svg',
     });
 }

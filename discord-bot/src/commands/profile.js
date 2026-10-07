@@ -103,12 +103,6 @@ export async function execute(interaction) {
       });
     }
 
-    embed.addFields({
-      name: '🔗 CRM Direct Link',
-      value: `[Open in HOT Command Center](https://crm.1391.online/)`,
-      inline: false,
-    });
-
     await interaction.editReply({ embeds: [embed] });
   } catch (err) {
     console.error('Execute /profile error:', err);
