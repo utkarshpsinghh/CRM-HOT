@@ -321,6 +321,8 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
   const isBearTrap = currentEvent.eventType === 'Bear Trap';
   const absentCount = currentParticipations.filter(p => p.attendanceStatus === 'ABSENT').length;
   const unmarkedCount = currentParticipations.filter(p => p.attendanceStatus === 'NOT_MARKED').length;
+  const slot1VotePct = metrics.eligibleMembersCount > 0 ? Math.round(((slot1Metrics?.votedCount || 0) / metrics.eligibleMembersCount) * 100) : 0;
+  const slot2VotePct = metrics.eligibleMembersCount > 0 ? Math.round(((slot2Metrics?.votedCount || 0) / metrics.eligibleMembersCount) * 100) : 0;
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -395,87 +397,243 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
         </div>
       )}
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        {/* Card 1: Turnout */}
-        <div className="p-3.5 rounded-xl bg-slate-900/80 border border-slate-800 space-y-1.5">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider font-fantasy flex items-center gap-1.5">
-              <CheckCircle2 className="w-3.5 h-3.5" />
-              <span>{isBearTrap ? 'Turnout' : 'Joined'}</span>
-            </span>
-            <span className="text-xs font-mono font-bold text-emerald-300 bg-emerald-500/10 px-1.5 py-0.5 rounded">
-              {metrics.overallParticipationRate}%
-            </span>
-          </div>
-          <div className="text-xl font-bold font-mono text-slate-100">
-            {metrics.uniqueAttendees} <span className="text-xs text-slate-400 font-normal">/ {metrics.eligibleMembersCount}</span>
-          </div>
-          <div className="text-[10px] sm:text-[11px] text-slate-400 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-0.5 sm:gap-1 pt-1.5 border-t border-slate-800/80">
-            <span>{slot1?.slotName || 'Slot 1'}: <strong className="text-slate-200 font-mono">{slot1Metrics?.actualAttendees || 0}</strong></span>
-            <span>{slot2?.slotName || 'Slot 2'}: <strong className="text-slate-200 font-mono">{slot2Metrics?.actualAttendees || 0}</strong></span>
-          </div>
-        </div>
-
-        {/* Card 2: Votes / Selected */}
-        <div className="p-3.5 rounded-xl bg-slate-900/80 border border-slate-800 space-y-1.5">
-          <div className="flex items-center justify-between">
+      {/* ========================================================================= */}
+      {/* SECTION 10: EVENT DASHBOARD UI                                            */}
+      {/* ========================================================================= */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+        {/* Card 1: VOTING / SLOT SELECTION */}
+        <div className="p-4 rounded-xl bg-slate-900/80 border border-slate-800 flex flex-col justify-between">
+          <div className="flex items-center justify-between border-b border-slate-800 pb-2 mb-2.5">
             <span className="text-xs font-bold text-sky-400 uppercase tracking-wider font-fantasy flex items-center gap-1.5">
               <Layers className="w-3.5 h-3.5" />
-              <span>{isBearTrap ? 'Votes' : 'Selected'}</span>
+              <span>{isBearTrap ? 'Voting' : 'Slot Selection'}</span>
             </span>
-            <span className="text-xs font-mono font-bold text-sky-300 bg-sky-500/10 px-1.5 py-0.5 rounded">
-              {metrics.votingRate}%
+            <span className="text-xs font-mono font-bold text-sky-300 bg-sky-500/10 px-2 py-0.5 rounded border border-sky-500/20">
+              {metrics.votingRate}% {isBearTrap ? 'Rate' : 'Selected'}
             </span>
           </div>
-          <div className="text-xl font-bold font-mono text-slate-100">
-            {metrics.totalVoters} <span className="text-xs text-slate-400 font-normal">/ {metrics.eligibleMembersCount}</span>
+          <div className="space-y-1.5 text-xs">
+            <div className="flex justify-between items-center">
+              <span className="text-slate-400">{slot1?.slotName || 'Slot 1'} {isBearTrap ? 'Votes:' : 'Selected:'}</span>
+              <span className="font-mono font-bold text-slate-200">
+                {slot1Metrics?.votedCount || 0} <span className="text-sky-400 text-[11px]">({slot1VotePct}%)</span>
+              </span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-slate-400">{slot2?.slotName || 'Slot 2'} {isBearTrap ? 'Votes:' : 'Selected:'}</span>
+              <span className="font-mono font-bold text-slate-200">
+                {slot2Metrics?.votedCount || 0} <span className="text-sky-400 text-[11px]">({slot2VotePct}%)</span>
+              </span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-slate-400">{isBearTrap ? 'No Vote:' : 'Not Selected:'}</span>
+              <span className="font-mono font-semibold text-slate-400">{metrics.noVoteCount}</span>
+            </div>
           </div>
-          <div className="text-[10px] sm:text-[11px] text-slate-400 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-0.5 sm:gap-1 pt-1.5 border-t border-slate-800/80">
-            <span>{slot1?.slotName || 'Slot 1'}: <strong className="text-slate-200 font-mono">{slot1Metrics?.votedCount || 0}</strong></span>
-            <span>{slot2?.slotName || 'Slot 2'}: <strong className="text-slate-200 font-mono">{slot2Metrics?.votedCount || 0}</strong></span>
+          <div className="mt-3 pt-2 border-t border-slate-800/80 text-[11px] text-slate-400 flex justify-between">
+            <span>{isBearTrap ? 'Total Voters:' : 'Total Selected:'}</span>
+            <span className="font-mono font-bold text-sky-300">{metrics.totalVoters} / {metrics.eligibleMembersCount}</span>
           </div>
         </div>
 
-        {/* Card 3: Absent */}
-        <div className="p-3.5 rounded-xl bg-slate-900/80 border border-slate-800 space-y-1.5">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-rose-400 uppercase tracking-wider font-fantasy flex items-center gap-1.5">
-              <X className="w-3.5 h-3.5" />
-              <span>Absent</span>
+        {/* Card 2: ACTUAL ATTENDANCE / TURNOUT */}
+        <div className="p-4 rounded-xl bg-slate-900/80 border border-slate-800 flex flex-col justify-between">
+          <div className="flex items-center justify-between border-b border-slate-800 pb-2 mb-2.5">
+            <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider font-fantasy flex items-center gap-1.5">
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              <span>{isBearTrap ? 'Actual Attendance' : 'Actual Turnout (Joined)'}</span>
             </span>
-            <span className="text-xs font-mono font-bold text-rose-300 bg-rose-500/10 px-1.5 py-0.5 rounded">
-              {absentCount}
+            <span className="text-xs font-mono font-bold text-emerald-300 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+              {metrics.overallParticipationRate}% Turnout
             </span>
           </div>
-          <div className="text-xl font-bold font-mono text-rose-400">
-            {absentCount} <span className="text-xs text-slate-400 font-normal">members</span>
+          <div className="space-y-2 text-xs">
+            <div>
+              <div className="flex justify-between text-[11px] mb-0.5">
+                <span className="font-semibold text-slate-300">{slot1?.slotName || 'Slot 1'}:</span>
+                <span className="font-mono font-bold text-emerald-400">
+                  {slot1Metrics?.actualAttendees || 0} ({slot1Metrics?.participationRate || 0}%)
+                </span>
+              </div>
+              <div className="w-full bg-slate-950 h-1.5 rounded-full overflow-hidden">
+                <div
+                  className="bg-emerald-500 h-full rounded-full transition-all"
+                  style={{ width: `${Math.min(100, slot1Metrics?.participationRate || 0)}%` }}
+                />
+              </div>
+            </div>
+
+            <div>
+              <div className="flex justify-between text-[11px] mb-0.5">
+                <span className="font-semibold text-slate-300">{slot2?.slotName || 'Slot 2'}:</span>
+                <span className="font-mono font-bold text-emerald-400">
+                  {slot2Metrics?.actualAttendees || 0} ({slot2Metrics?.participationRate || 0}%)
+                </span>
+              </div>
+              <div className="w-full bg-slate-950 h-1.5 rounded-full overflow-hidden">
+                <div
+                  className="bg-emerald-500 h-full rounded-full transition-all"
+                  style={{ width: `${Math.min(100, slot2Metrics?.participationRate || 0)}%` }}
+                />
+              </div>
+            </div>
           </div>
-          <div className="text-[10px] sm:text-[11px] text-slate-400 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-0.5 sm:gap-1 pt-1.5 border-t border-slate-800/80">
-            <span>Not Marked: <strong className="text-slate-200 font-mono">{unmarkedCount}</strong></span>
-            <span>{isBearTrap ? 'No Vote' : 'Unselected'}: <strong className="text-slate-200 font-mono">{metrics.noVoteCount}</strong></span>
+          <div className="mt-2 pt-2 border-t border-slate-800/80 text-[10px] text-slate-400 flex justify-between">
+            <span>Total Attendees: <strong className="text-slate-200 font-mono">{metrics.uniqueAttendees}</strong></span>
+            <span>Denominator: <strong className="text-slate-200 font-mono">{metrics.eligibleMembersCount}</strong></span>
           </div>
         </div>
 
-        {/* Card 4: Penalties */}
-        <div className="p-3.5 rounded-xl bg-slate-900/80 border border-slate-800 space-y-1.5">
-          <div className="flex items-center justify-between">
+        {/* Card 3: EVENT HEALTH */}
+        <div className="p-4 rounded-xl bg-slate-900/80 border border-slate-800 flex flex-col justify-between">
+          <div className="flex items-center justify-between border-b border-slate-800 pb-2 mb-2.5">
             <span className="text-xs font-bold text-amber-400 uppercase tracking-wider font-fantasy flex items-center gap-1.5">
-              <ShieldAlert className="w-3.5 h-3.5 text-amber-400" />
-              <span>Penalties</span>
+              <Users className="w-3.5 h-3.5" />
+              <span>Event Health</span>
+            </span>
+            <span className="text-xs font-mono font-bold text-amber-300 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
+              {metrics.overallParticipationRate}% Total
+            </span>
+          </div>
+          <div className="space-y-1.5 text-xs">
+            <div className="flex justify-between items-center">
+              <span className="text-slate-400">Unique Participants:</span>
+              <span className="font-mono font-bold text-amber-300">{metrics.uniqueAttendees} / {metrics.eligibleMembersCount}</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-slate-400">Overall Participation:</span>
+              <span className="font-mono font-bold text-amber-300">{metrics.overallParticipationRate}%</span>
+            </div>
+            <div className="flex justify-between items-center text-[11px]">
+              <span className="text-slate-400">{isBearTrap ? 'Non-voters who attended:' : 'Unselected who joined:'}</span>
+              <span className="font-mono text-emerald-400 font-semibold">{metrics.nonVotersAttendedCount}</span>
+            </div>
+            <div className="flex justify-between items-center text-[11px]">
+              <span className="text-slate-400">Changed Slot:</span>
+              <span className="font-mono text-purple-300 font-semibold">
+                {metrics.changedSlotCount.slot1ToSlot2 + metrics.changedSlotCount.slot2ToSlot1}
+              </span>
+            </div>
+          </div>
+          <div className="mt-3 pt-2 border-t border-slate-800/80 text-[10px] text-slate-500">
+            Attendance counted accurately regardless of poll choice
+          </div>
+        </div>
+
+        {/* Card 4: VOTE / SLOT FULFILLMENT */}
+        <div className="p-4 rounded-xl bg-slate-900/80 border border-slate-800 flex flex-col justify-between">
+          <div className="flex items-center justify-between border-b border-slate-800 pb-2 mb-2.5">
+            <span className="text-xs font-bold text-purple-400 uppercase tracking-wider font-fantasy flex items-center gap-1.5">
+              <CheckCheck className="w-3.5 h-3.5" />
+              <span>{isBearTrap ? 'Vote Fulfillment' : 'Slot Fulfillment'}</span>
+            </span>
+            <span className="text-[10px] text-slate-400">{isBearTrap ? 'Followed Poll' : 'Followed Assignment'}</span>
+          </div>
+          <div className="space-y-2 text-xs">
+            {metrics.totalVoters === 0 ? (
+              <div className="p-2.5 rounded bg-slate-950/60 border border-slate-800/80 text-slate-400 text-xs leading-relaxed">
+                {isBearTrap ? 'No poll votes were recorded for this event. All ' : 'No slot assignments were recorded for this event. All '}
+                <strong className="text-emerald-400 font-bold">{metrics.uniqueAttendees} {isBearTrap ? 'attendees' : 'members'}</strong>{' '}
+                {isBearTrap ? 'participated as valid non-voters.' : 'joined as unselected participants.'}
+              </div>
+            ) : (
+              <>
+                <div className="p-2 rounded bg-slate-950/50 border border-slate-800/60">
+                  <div className="flex justify-between font-semibold text-slate-300 text-[11px]">
+                    <span>{slot1?.slotName || 'Slot 1'}:</span>
+                    <span className="font-mono text-purple-300 font-bold">
+                      {slot1Metrics?.fulfillmentRate || 0}% ({slot1Metrics?.followedVoteCount || 0}/{slot1Metrics?.votedCount || 0})
+                    </span>
+                  </div>
+                </div>
+
+                <div className="p-2 rounded bg-slate-950/50 border border-slate-800/60">
+                  <div className="flex justify-between font-semibold text-slate-300 text-[11px]">
+                    <span>{slot2?.slotName || 'Slot 2'}:</span>
+                    <span className="font-mono text-purple-300 font-bold">
+                      {slot2Metrics?.fulfillmentRate || 0}% ({slot2Metrics?.followedVoteCount || 0}/{slot2Metrics?.votedCount || 0})
+                    </span>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+          <div className="mt-2 text-[10px] text-slate-500">
+            {isBearTrap
+              ? 'Measures reliability of players following their voted slot'
+              : 'Measures reliability of players joining their selected slot'}
+          </div>
+        </div>
+
+        {/* Card 5: PENALTY REVIEW */}
+        <div className="p-4 rounded-xl bg-slate-900/80 border border-slate-800 flex flex-col justify-between">
+          <div className="flex items-center justify-between border-b border-slate-800 pb-2 mb-2.5">
+            <span className="text-xs font-bold text-rose-400 uppercase tracking-wider font-fantasy flex items-center gap-1.5">
+              <ShieldAlert className="w-3.5 h-3.5" />
+              <span>Penalty Review</span>
             </span>
             {metrics.potentialReviewsCount > 0 && (
-              <span className="text-[10px] font-mono font-bold text-rose-300 bg-rose-500/20 px-1.5 py-0.5 rounded">
-                {metrics.potentialReviewsCount} Review
+              <span className="text-xs font-mono font-bold text-rose-300 bg-rose-500/20 px-2 py-0.5 rounded animate-pulse">
+                {metrics.potentialReviewsCount} Need Review
               </span>
             )}
           </div>
-          <div className="text-xl font-bold font-mono text-slate-100">
-            {metrics.penaltiesIssuedCount} <span className="text-xs text-slate-400 font-normal">Issued</span>
+          <div className="space-y-1.5 text-xs">
+            <div className="flex justify-between items-center">
+              <span className="text-slate-400">Potential Reviews:</span>
+              <span className="font-mono font-bold text-amber-400">{metrics.potentialReviewsCount}</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-slate-400">Penalties Issued:</span>
+              <span className="font-mono font-bold text-rose-400">{metrics.penaltiesIssuedCount}</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-slate-400">Penalties Waived:</span>
+              <span className="font-mono font-bold text-emerald-400">{metrics.penaltiesWaivedCount}</span>
+            </div>
           </div>
-          <div className="text-[10px] sm:text-[11px] text-slate-400 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-0.5 sm:gap-1 pt-1.5 border-t border-slate-800/80">
-            <span>Waived: <strong className="text-emerald-400 font-mono">{metrics.penaltiesWaivedCount}</strong></span>
-            <span>Review: <strong className="text-amber-300 font-mono">{metrics.potentialReviewsCount}</strong></span>
+          <div className="mt-3 pt-2 border-t border-slate-800/80 text-[10px] text-stone-400">
+            Penalties are <strong className="text-rose-300">NEVER</strong> auto-issued; manual officer review required.
+          </div>
+        </div>
+
+        {/* Card 6: SLOT HEALTH VISUAL */}
+        <div className="p-4 rounded-xl bg-slate-900/80 border border-slate-800 flex flex-col justify-between">
+          <div className="flex items-center justify-between border-b border-slate-800 pb-2 mb-2.5">
+            <span className="text-xs font-bold text-amber-400 uppercase tracking-wider font-fantasy flex items-center gap-1.5">
+              <Layers className="w-3.5 h-3.5" />
+              <span>Slot Participation Health</span>
+            </span>
+          </div>
+          <div className="space-y-3 text-xs">
+            <div>
+              <div className="flex justify-between font-mono text-[11px] mb-1">
+                <span className="text-slate-300 font-bold">{slot1?.slotName || 'Slot 1'}</span>
+                <span className="text-amber-400 font-bold">{slot1Metrics?.participationRate || 0}%</span>
+              </div>
+              <div className="w-full bg-slate-950 h-2.5 rounded-full overflow-hidden p-0.5 border border-slate-800">
+                <div
+                  className="bg-gradient-to-r from-amber-600 to-amber-400 h-full rounded-full transition-all"
+                  style={{ width: `${Math.min(100, slot1Metrics?.participationRate || 0)}%` }}
+                />
+              </div>
+            </div>
+
+            <div>
+              <div className="flex justify-between font-mono text-[11px] mb-1">
+                <span className="text-slate-300 font-bold">{slot2?.slotName || 'Slot 2'}</span>
+                <span className="text-amber-400 font-bold">{slot2Metrics?.participationRate || 0}%</span>
+              </div>
+              <div className="w-full bg-slate-950 h-2.5 rounded-full overflow-hidden p-0.5 border border-slate-800">
+                <div
+                  className="bg-gradient-to-r from-amber-600 to-amber-400 h-full rounded-full transition-all"
+                  style={{ width: `${Math.min(100, slot2Metrics?.participationRate || 0)}%` }}
+                />
+              </div>
+            </div>
+          </div>
+          <div className="mt-2 text-[10px] text-slate-500">
+            Actual attendees per slot divided by {metrics.eligibleMembersCount} alliance members
           </div>
         </div>
       </div>
