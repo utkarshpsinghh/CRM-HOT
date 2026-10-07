@@ -714,10 +714,10 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Calculate Dashboard Statistics
   const stats: DashboardStats = useMemo(() => {
-    const total = members.length;
     const active = members.filter(m => m.status === 'Active').length;
     const visitor = members.filter(m => m.status === 'Visitor').length;
     const inactive = members.filter(m => m.status === 'Inactive').length;
+    const total = active + inactive + visitor;
     const strikesTotal = members.filter(m => m.strikes > 0).length;
     const needsAttention = inactiveInsights.length;
 

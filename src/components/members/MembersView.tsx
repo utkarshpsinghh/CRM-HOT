@@ -119,6 +119,10 @@ export const MembersView: React.FC<MembersViewProps> = ({
     R1: 1,
   };
 
+  const totalActiveMembers = useMemo(() => {
+    return members.filter(m => m.status === 'Active' || m.status === 'Inactive' || m.status === 'Visitor').length;
+  }, [members]);
+
   const filteredMembers = useMemo(() => {
     return members.filter(m => {
       if (memberFilter.search) {
@@ -129,7 +133,11 @@ export const MembersView: React.FC<MembersViewProps> = ({
       }
       if (memberFilter.rank !== 'ALL' && m.currentRank !== memberFilter.rank) return false;
       if (memberFilter.comm !== 'ALL' && m.communication !== memberFilter.comm) return false;
-      if (memberFilter.status !== 'ALL' && m.status !== memberFilter.status) return false;
+      if (memberFilter.status !== 'ALL') {
+        if (m.status !== memberFilter.status) return false;
+      } else {
+        if (m.status === 'Archived') return false;
+      }
       if (memberFilter.strikeMin > 0 && m.strikes < memberFilter.strikeMin) return false;
       return true;
     });
@@ -192,10 +200,10 @@ export const MembersView: React.FC<MembersViewProps> = ({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-slate-100 tracking-tight">
-            Alliance Roster
+            Alliance Members
           </h1>
           <p className="text-xs text-slate-400 font-medium mt-0.5">
-            {sortedMembers.length} warriors registered
+            {totalActiveMembers} members registered
           </p>
         </div>
 
@@ -207,10 +215,10 @@ export const MembersView: React.FC<MembersViewProps> = ({
             }}
             disabled={isSyncing}
             className="btn-secondary px-3.5 py-2 text-xs font-semibold flex items-center gap-1.5 cursor-pointer shadow-sm disabled:opacity-50"
-            title="Update & synchronize member roster"
+            title="Update & synchronize alliance members"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin text-amber-400' : 'text-amber-400'}`} />
-            <span>{isSyncing ? 'Syncing...' : 'Sync Roster'}</span>
+            <span>{isSyncing ? 'Syncing...' : 'Sync Members'}</span>
           </button>
 
           <button
@@ -281,7 +289,7 @@ export const MembersView: React.FC<MembersViewProps> = ({
           onChange={e => setSelectedEventType(e.target.value)}
           className="w-full sm:w-auto px-3 py-2 rounded-lg bg-slate-950/80 border border-amber-500/40 text-amber-300 text-xs font-medium focus:outline-none focus:border-amber-400 cursor-pointer"
         >
-          <option value="ALL">All Wars Turnout</option>
+          <option value="ALL">All Events Turnout</option>
           <option value="BT1">BT1 (Bear Trap 1)</option>
           <option value="BT2">BT2 (Bear Trap 2)</option>
           <option value="Swordland L1">Swordland L1</option>
@@ -324,7 +332,7 @@ export const MembersView: React.FC<MembersViewProps> = ({
             const typeStat = selectedEventType !== 'ALL' ? partStats?.perType[selectedEventType] : null;
             const activePct = typeStat ? typeStat.percentage : (partStats ? partStats.percentage : 0);
             const activeRatio = typeStat ? `${typeStat.joined}/${typeStat.total}` : (partStats ? `${partStats.joinedCount}/${partStats.totalEvents}` : '0/0');
-            const activeTitle = selectedEventType === 'ALL' ? 'War Turnout' : `${selectedEventType} Turnout`;
+            const activeTitle = selectedEventType === 'ALL' ? 'Event Turnout' : `${selectedEventType} Turnout`;
 
             return (
               <div
@@ -371,7 +379,7 @@ export const MembersView: React.FC<MembersViewProps> = ({
                           {activePct.toFixed(0)}%
                         </span>
                         <span className="text-[10px] text-slate-400 font-mono">
-                          ({activeRatio} wars)
+                          ({activeRatio} events)
                         </span>
                       </div>
                     </div>
@@ -504,7 +512,7 @@ export const MembersView: React.FC<MembersViewProps> = ({
                 className="py-3 px-4 cursor-pointer hover:text-amber-300 select-none"
               >
                 <div className="flex items-center gap-1.5 text-amber-400">
-                  <span>{selectedEventType === 'ALL' ? 'War Turnout %' : `${selectedEventType} %`}</span>
+                  <span>{selectedEventType === 'ALL' ? 'Event Turnout %' : `${selectedEventType} %`}</span>
                   <ArrowUpDown className="w-3.5 h-3.5" />
                 </div>
               </th>
@@ -999,10 +1007,10 @@ export const MembersView: React.FC<MembersViewProps> = ({
                   {isSyncing
                     ? 'Synchronizing...'
                     : syncTab === 'official'
-                    ? 'Sync Official Roster (94 Members)'
+                    ? 'Sync Official Members (94)'
                     : syncTab === 'sheet'
                     ? 'Sync from Google Sheet'
-                    : 'Sync & Save Roster'}
+                    : 'Sync & Save Members'}
                 </span>
               </button>
 

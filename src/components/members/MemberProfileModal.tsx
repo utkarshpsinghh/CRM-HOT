@@ -78,30 +78,30 @@ export const MemberProfileModal: React.FC<MemberProfileModalProps> = ({
       onClose={onClose}
       title={member.name}
       subtitle="Member Profile"
-      icon={<Shield className="w-5 h-5 text-[#fbbf24]" />}
+      icon={<Shield className="w-5 h-5 text-amber-400" />}
       maxWidth="lg"
     >
-      <div className="space-y-4 text-stone-200">
+      <div className="space-y-4 text-slate-200">
         {/* Header Summary */}
-        <div className="p-4 rounded-xl bg-[#170e09] border border-[#3d200e] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="p-4 rounded-xl bg-slate-900/80 border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="space-y-1.5">
             <div className="flex items-center gap-2.5 flex-wrap">
-              <span className="font-bold text-xl text-[#fffbeb]">{member.name}</span>
+              <span className="font-bold text-xl text-slate-100">{member.name}</span>
               <RankBadge rank={member.currentRank} size="sm" />
               <ActivityBadge status={member.status} size="sm" />
               {member.gameId && (
                 <button
                   type="button"
                   onClick={handleCopyGameId}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-black/50 border border-amber-500/40 hover:border-amber-400 text-amber-300 font-mono text-xs cursor-pointer shadow-sm transition-colors"
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-950 border border-slate-800 hover:border-amber-500/50 text-amber-300 font-mono text-xs cursor-pointer shadow-sm transition-colors"
                   title="Click to copy Game ID"
                 >
-                  <span className="text-[10px] text-stone-400 uppercase font-sans font-semibold">Game ID:</span>
+                  <span className="text-[10px] text-slate-400 uppercase font-sans font-semibold">Game ID:</span>
                   <span className="font-bold">{member.gameId}</span>
                   {copiedGameId ? (
                     <Check className="w-3.5 h-3.5 text-emerald-400" />
                   ) : (
-                    <Copy className="w-3.5 h-3.5 text-stone-400 hover:text-amber-300" />
+                    <Copy className="w-3.5 h-3.5 text-slate-400 hover:text-amber-300" />
                   )}
                 </button>
               )}
@@ -118,9 +118,9 @@ export const MemberProfileModal: React.FC<MemberProfileModalProps> = ({
                 onClose();
                 onOpenEditMember(member);
               }}
-              className="px-3 py-1.5 rounded-lg bg-[#2b170c] border border-[#52290d] text-xs font-semibold text-stone-200 hover:text-white flex items-center gap-1 cursor-pointer"
+              className="btn-secondary px-3 py-1.5 text-xs font-semibold flex items-center gap-1 cursor-pointer"
             >
-              <Edit3 className="w-3.5 h-3.5" />
+              <Edit3 className="w-3.5 h-3.5 text-amber-400" />
               <span>Edit</span>
             </button>
 
@@ -129,18 +129,18 @@ export const MemberProfileModal: React.FC<MemberProfileModalProps> = ({
                 onClose();
                 onOpenAddStrike(member);
               }}
-              className="px-3 py-1.5 rounded-lg bg-red-950/70 border border-red-800 text-xs font-semibold text-red-200 hover:text-white flex items-center gap-1 cursor-pointer"
+              className="px-3 py-1.5 rounded-lg bg-rose-500/10 border border-rose-500/20 text-xs font-semibold text-rose-300 hover:bg-rose-500/20 hover:text-white flex items-center gap-1 cursor-pointer transition-colors"
             >
-              <Flame className="w-3.5 h-3.5 text-red-400" />
+              <Flame className="w-3.5 h-3.5 text-rose-400" />
               <span>Add Strike</span>
             </button>
           </div>
         </div>
 
         {/* Clean Attendance Bar */}
-        <div className="p-3.5 rounded-xl bg-[#170e09] border border-[#3d200e] space-y-1.5">
+        <div className="p-3.5 rounded-xl bg-slate-900/80 border border-slate-800 space-y-1.5">
           <div className="flex items-center justify-between text-xs">
-            <span className="font-semibold text-stone-300">Attendance Rate</span>
+            <span className="font-semibold text-slate-300">Attendance Rate</span>
             <span className="font-mono font-bold text-emerald-400">
               {partStats.percentage.toFixed(0)}% ({partStats.joinedCount} of {partStats.totalEvents} joined)
             </span>
@@ -154,11 +154,13 @@ export const MemberProfileModal: React.FC<MemberProfileModalProps> = ({
         </div>
 
         {/* 3 Simple Tabs */}
-        <div className="flex items-center gap-2 border-b border-[#3d200e] pb-1">
+        <div className="flex items-center gap-2 border-b border-slate-800 pb-1">
           <button
             onClick={() => setActiveTab('events')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer ${
-              activeTab === 'events' ? 'bg-[#331c0d] text-[#fbbf24]' : 'text-stone-400 hover:text-stone-200'
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors ${
+              activeTab === 'events'
+                ? 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
+                : 'text-slate-400 hover:text-slate-200'
             }`}
           >
             Events ({events.length})
@@ -166,8 +168,10 @@ export const MemberProfileModal: React.FC<MemberProfileModalProps> = ({
 
           <button
             onClick={() => setActiveTab('strikes')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer ${
-              activeTab === 'strikes' ? 'bg-[#331c0d] text-[#fbbf24]' : 'text-stone-400 hover:text-stone-200'
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors ${
+              activeTab === 'strikes'
+                ? 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
+                : 'text-slate-400 hover:text-slate-200'
             }`}
           >
             Strikes ({memberStrikes.length})
@@ -175,8 +179,10 @@ export const MemberProfileModal: React.FC<MemberProfileModalProps> = ({
 
           <button
             onClick={() => setActiveTab('notes')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer ${
-              activeTab === 'notes' ? 'bg-[#331c0d] text-[#fbbf24]' : 'text-stone-400 hover:text-stone-200'
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors ${
+              activeTab === 'notes'
+                ? 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
+                : 'text-slate-400 hover:text-slate-200'
             }`}
           >
             Notes
@@ -186,10 +192,10 @@ export const MemberProfileModal: React.FC<MemberProfileModalProps> = ({
         {/* Tab 1: Events */}
         {activeTab === 'events' && (
           <div className="space-y-3">
-            {/* All-Time Specific Event Type Attendance Percentages (Requirement 1) */}
-            <div className="p-3.5 rounded-xl bg-[#120c08] border border-[#3d200e] space-y-2.5">
-              <div className="text-xs font-fantasy font-bold text-[#fef08a] uppercase tracking-wider">
-                All-Time Attendance by Specific Event
+            {/* All-Time Specific Event Type Attendance Percentages */}
+            <div className="p-3.5 rounded-xl bg-slate-900/80 border border-slate-800 space-y-2.5">
+              <div className="text-xs font-semibold text-slate-300 uppercase tracking-wider">
+                All-Time Attendance by Event
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 {['BT1', 'BT2', 'Swordland L1', 'Swordland L2', 'Tri Alliance L1', 'Tri Alliance L2'].map(eventType => {
@@ -201,10 +207,10 @@ export const MemberProfileModal: React.FC<MemberProfileModalProps> = ({
                   return (
                     <div
                       key={eventType}
-                      className="p-2.5 rounded-lg bg-[#1a110a] border border-[#2c1d15] space-y-1"
+                      className="p-2.5 rounded-lg bg-slate-950 border border-slate-800 space-y-1"
                     >
                       <div className="flex items-center justify-between text-xs">
-                        <span className="font-bold text-stone-200 truncate">{eventType}</span>
+                        <span className="font-semibold text-slate-200 truncate">{eventType}</span>
                         <span
                           className={`font-mono font-bold text-xs ${
                             pct >= 75
@@ -212,24 +218,24 @@ export const MemberProfileModal: React.FC<MemberProfileModalProps> = ({
                               : pct >= 50
                               ? 'text-amber-400'
                               : total > 0
-                              ? 'text-red-400'
-                              : 'text-stone-500'
+                              ? 'text-rose-400'
+                              : 'text-slate-500'
                           }`}
                         >
                           {total > 0 ? `${pct.toFixed(0)}%` : '—'}
                         </span>
                       </div>
 
-                      <div className="w-full bg-[#0c0806] rounded-full h-1.5 overflow-hidden">
+                      <div className="w-full bg-slate-900 rounded-full h-1.5 overflow-hidden">
                         <div
                           className={`h-full rounded-full transition-all ${
-                            pct >= 75 ? 'bg-emerald-500' : pct >= 50 ? 'bg-amber-500' : 'bg-red-500'
+                            pct >= 75 ? 'bg-emerald-500' : pct >= 50 ? 'bg-amber-500' : 'bg-rose-500'
                           }`}
                           style={{ width: `${pct}%` }}
                         />
                       </div>
 
-                      <div className="text-[10px] text-stone-500 font-mono text-right">
+                      <div className="text-[10px] text-slate-400 font-mono text-right">
                         {joined}/{total} joined
                       </div>
                     </div>
@@ -239,15 +245,15 @@ export const MemberProfileModal: React.FC<MemberProfileModalProps> = ({
             </div>
 
             {/* Individual Battle Attendance Ledger */}
-            <div className="rounded-xl bg-[#140c08] border border-[#3d200e] max-h-56 overflow-y-auto divide-y divide-[#261307]">
+            <div className="rounded-xl bg-slate-900/80 border border-slate-800 max-h-56 overflow-y-auto divide-y divide-slate-800">
               {partStats.perEvent.map(pe => (
                 <div
                   key={pe.eventId}
-                  className="p-3 flex items-center justify-between text-xs"
+                  className="p-3 flex items-center justify-between text-xs hover:bg-slate-800/30 transition-colors"
                 >
                   <div>
-                    <span className="font-bold text-stone-200">{pe.eventType}</span>
-                    <div className="text-[11px] text-stone-400">{pe.eventName}</div>
+                    <span className="font-semibold text-slate-200">{pe.eventType}</span>
+                    <div className="text-[11px] text-slate-400">{pe.eventName}</div>
                   </div>
 
                   <div className="flex items-center gap-2">
@@ -264,7 +270,7 @@ export const MemberProfileModal: React.FC<MemberProfileModalProps> = ({
         {activeTab === 'strikes' && (
           <div className="space-y-3">
             {memberStrikes.length === 0 ? (
-              <div className="p-6 text-center text-xs text-stone-400 bg-[#140c08] rounded-lg border border-[#3d200e]">
+              <div className="p-6 text-center text-xs text-slate-400 bg-slate-900/60 rounded-xl border border-slate-800">
                 No strikes recorded for this player.
               </div>
             ) : (
@@ -272,15 +278,15 @@ export const MemberProfileModal: React.FC<MemberProfileModalProps> = ({
                 {memberStrikes.map(s => (
                   <div
                     key={s.id}
-                    className="p-3 rounded-lg bg-red-950/20 border border-red-900/50 flex items-center justify-between gap-3 text-xs"
+                    className="p-3 rounded-lg bg-rose-500/10 border border-rose-500/20 flex items-center justify-between gap-3 text-xs"
                   >
                     <div>
-                      <div className="font-semibold text-red-300">{s.reason}</div>
-                      <div className="text-[11px] text-stone-400 font-mono mt-0.5">{s.date} • by {s.addedBy}</div>
+                      <div className="font-semibold text-rose-300">{s.reason}</div>
+                      <div className="text-[11px] text-slate-400 font-mono mt-0.5">{s.date} • by {s.addedBy}</div>
                     </div>
                     <button
                       onClick={() => handlePardonStrike(s.id)}
-                      className="px-2 py-1 rounded bg-[#2b170c] text-stone-300 hover:text-white text-[11px] cursor-pointer"
+                      className="px-2 py-1 rounded-md bg-slate-800 text-slate-300 hover:text-white border border-slate-700 text-[11px] cursor-pointer transition-colors"
                     >
                       Remove
                     </button>
@@ -299,14 +305,14 @@ export const MemberProfileModal: React.FC<MemberProfileModalProps> = ({
               onChange={e => setCommNoteInput(e.target.value)}
               rows={4}
               placeholder="Add notes about this player (e.g. availability, preferred rally role, Discord handle)..."
-              className="w-full p-3 rounded-lg bg-[#140c08] border border-[#3d200e] text-stone-200 text-xs focus:outline-none focus:border-[#fbbf24]"
+              className="w-full p-3 rounded-lg bg-slate-950 border border-slate-800 text-slate-200 text-xs focus:outline-none focus:border-amber-500 placeholder:text-slate-500"
             />
             <div className="flex justify-end">
               <button
                 type="button"
                 onClick={handleSaveNotes}
                 disabled={isSavingNote}
-                className="btn-kingshot-gold px-3.5 py-1.5 text-xs font-bold uppercase cursor-pointer"
+                className="btn-primary px-3.5 py-1.5 text-xs font-semibold cursor-pointer shadow-sm"
               >
                 {isSavingNote ? 'Saving...' : 'Save Notes'}
               </button>

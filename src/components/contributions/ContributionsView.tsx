@@ -202,7 +202,7 @@ export const ContributionsView: React.FC = () => {
       case 'ATTENDANCE_MARKED':
       case 'ATTENDANCE_BULK':
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-950/80 text-amber-300 border border-amber-600/40">
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-amber-500/10 text-amber-300 border border-amber-500/30">
             <CheckCircle2 className="w-3 h-3 text-amber-400" />
             <span>Attendance</span>
           </span>
@@ -210,16 +210,16 @@ export const ContributionsView: React.FC = () => {
       case 'EVENT_CREATED':
       case 'EVENT_COMPLETED':
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-950/80 text-blue-300 border border-blue-600/40">
-            <Swords className="w-3 h-3 text-blue-400" />
-            <span>War Battle</span>
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-sky-500/10 text-sky-300 border border-sky-500/30">
+            <Swords className="w-3 h-3 text-sky-400" />
+            <span>Event</span>
           </span>
         );
       case 'STRIKE_ADDED':
       case 'STRIKE_REMOVED':
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-red-950/80 text-red-300 border border-red-600/40">
-            <Flame className="w-3 h-3 text-red-400" />
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-rose-500/10 text-rose-300 border border-rose-500/30">
+            <Flame className="w-3 h-3 text-rose-400" />
             <span>Strike</span>
           </span>
         );
@@ -227,21 +227,21 @@ export const ContributionsView: React.FC = () => {
       case 'MEMBER_UPDATED':
       case 'MEMBER_ARCHIVED':
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-950/80 text-emerald-300 border border-emerald-600/40">
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-emerald-500/10 text-emerald-300 border border-emerald-500/30">
             <UserCheck className="w-3 h-3 text-emerald-400" />
-            <span>Roster</span>
+            <span>Member</span>
           </span>
         );
       case 'COMMUNICATION_LOGGED':
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-purple-950/80 text-purple-300 border border-purple-600/40">
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-purple-500/10 text-purple-300 border border-purple-500/30">
             <MessageSquare className="w-3 h-3 text-purple-400" />
             <span>Note</span>
           </span>
         );
       default:
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-stone-800 text-stone-300 border border-stone-600/40">
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-800 text-slate-300 border border-slate-700">
             <FileText className="w-3 h-3" />
             <span>Action</span>
           </span>
@@ -250,14 +250,14 @@ export const ContributionsView: React.FC = () => {
   };
 
   const getOfficerRankTitle = (actions: number) => {
-    if (actions >= 50) return { title: 'Master Scribe', color: 'text-amber-300' };
-    if (actions >= 25) return { title: 'War Chronicler', color: 'text-yellow-400' };
-    if (actions >= 10) return { title: 'Battle Scribe', color: 'text-emerald-400' };
-    return { title: 'Vanguard Scout', color: 'text-stone-300' };
+    if (actions >= 50) return { title: 'Master Scribe', color: 'text-amber-400' };
+    if (actions >= 25) return { title: 'Lead Officer', color: 'text-sky-400' };
+    if (actions >= 10) return { title: 'Active Officer', color: 'text-emerald-400' };
+    return { title: 'Contributor', color: 'text-slate-400' };
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-fade-in">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
@@ -266,11 +266,11 @@ export const ContributionsView: React.FC = () => {
               <Award className="w-5 h-5" />
             </div>
             <div>
-              <h1 className="text-xl sm:text-2xl font-fantasy font-black text-[#fffbeb] tracking-wide">
+              <h1 className="text-xl sm:text-2xl font-bold text-slate-100 tracking-tight">
                 Officer Contributions
               </h1>
-              <p className="text-xs text-stone-300">
-                See which officers contributed to alliance war tracking
+              <p className="text-xs text-slate-400 mt-0.5">
+                Track all administrative leadership actions and event logging
               </p>
             </div>
           </div>
@@ -279,7 +279,7 @@ export const ContributionsView: React.FC = () => {
         {isMainAdmin && (
           <button
             onClick={handleExportCSV}
-            className="btn-kingshot-gold px-3.5 py-2 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 cursor-pointer shadow-sm self-start sm:self-auto"
+            className="btn-primary px-3.5 py-2 text-xs font-semibold flex items-center gap-1.5 cursor-pointer shadow-sm self-start sm:self-auto"
           >
             <Download className="w-4 h-4" />
             <span>Export CSV</span>
@@ -289,70 +289,70 @@ export const ContributionsView: React.FC = () => {
 
       {/* Top Aggregates KPI Banner */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5 sm:gap-3">
-        <div className="p-3 sm:p-4 rounded-xl bg-[#20150f] border border-[#4d2b14] space-y-1">
-          <div className="text-[10px] uppercase font-bold text-stone-400 flex items-center gap-1.5">
+        <div className="p-3 sm:p-4 rounded-xl bg-slate-900/80 border border-slate-800 space-y-1">
+          <div className="text-[10px] uppercase font-semibold text-slate-400 flex items-center gap-1.5">
             <Award className="w-3.5 h-3.5 text-amber-400" />
             <span>Total Actions</span>
           </div>
-          <div className="text-xl sm:text-2xl font-fantasy font-black text-amber-300">
+          <div className="text-xl sm:text-2xl font-bold font-mono text-amber-400">
             {totals.totalContributions}
           </div>
-          <div className="text-[10px] text-stone-400">across all officers</div>
+          <div className="text-[10px] text-slate-500">across all officers</div>
         </div>
 
-        <div className="p-3 sm:p-4 rounded-xl bg-[#20150f] border border-[#4d2b14] space-y-1">
-          <div className="text-[10px] uppercase font-bold text-stone-400 flex items-center gap-1.5">
+        <div className="p-3 sm:p-4 rounded-xl bg-slate-900/80 border border-slate-800 space-y-1">
+          <div className="text-[10px] uppercase font-semibold text-slate-400 flex items-center gap-1.5">
             <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
             <span>Attendance Marked</span>
           </div>
-          <div className="text-xl sm:text-2xl font-fantasy font-black text-emerald-300">
+          <div className="text-xl sm:text-2xl font-bold font-mono text-emerald-400">
             {totals.attendanceSum}
           </div>
-          <div className="text-[10px] text-stone-400">individual checks logged</div>
+          <div className="text-[10px] text-slate-500">individual checks logged</div>
         </div>
 
-        <div className="p-3 sm:p-4 rounded-xl bg-[#20150f] border border-[#4d2b14] space-y-1">
-          <div className="text-[10px] uppercase font-bold text-stone-400 flex items-center gap-1.5">
+        <div className="p-3 sm:p-4 rounded-xl bg-slate-900/80 border border-slate-800 space-y-1">
+          <div className="text-[10px] uppercase font-semibold text-slate-400 flex items-center gap-1.5">
             <Swords className="w-3.5 h-3.5 text-blue-400" />
-            <span>Wars Organized</span>
+            <span>Events Organized</span>
           </div>
-          <div className="text-xl sm:text-2xl font-fantasy font-black text-blue-300">
+          <div className="text-xl sm:text-2xl font-bold font-mono text-blue-400">
             {totals.eventsSum}
           </div>
-          <div className="text-[10px] text-stone-400">battle events initialized</div>
+          <div className="text-[10px] text-slate-500">alliance events initialized</div>
         </div>
 
-        <div className="p-3 sm:p-4 rounded-xl bg-[#20150f] border border-[#4d2b14] space-y-1">
-          <div className="text-[10px] uppercase font-bold text-stone-400 flex items-center gap-1.5">
-            <Flame className="w-3.5 h-3.5 text-red-400" />
+        <div className="p-3 sm:p-4 rounded-xl bg-slate-900/80 border border-slate-800 space-y-1">
+          <div className="text-[10px] uppercase font-semibold text-slate-400 flex items-center gap-1.5">
+            <Flame className="w-3.5 h-3.5 text-rose-400" />
             <span>Strikes Handled</span>
           </div>
-          <div className="text-xl sm:text-2xl font-fantasy font-black text-red-300">
+          <div className="text-xl sm:text-2xl font-bold font-mono text-rose-400">
             {totals.strikesSum}
           </div>
-          <div className="text-[10px] text-stone-400">issued or pardoned</div>
+          <div className="text-[10px] text-slate-500">issued or pardoned</div>
         </div>
 
-        <div className="col-span-2 sm:col-span-1 p-3 sm:p-4 rounded-xl bg-[#20150f] border border-[#4d2b14] space-y-1">
-          <div className="text-[10px] uppercase font-bold text-stone-400 flex items-center gap-1.5">
+        <div className="col-span-2 sm:col-span-1 p-3 sm:p-4 rounded-xl bg-slate-900/80 border border-slate-800 space-y-1">
+          <div className="text-[10px] uppercase font-semibold text-slate-400 flex items-center gap-1.5">
             <Users className="w-3.5 h-3.5 text-purple-400" />
             <span>Active Officers</span>
           </div>
-          <div className="text-xl sm:text-2xl font-fantasy font-black text-purple-300">
+          <div className="text-xl sm:text-2xl font-bold font-mono text-purple-400">
             {totals.officersCount}
           </div>
-          <div className="text-[10px] text-stone-400">with tracking activity</div>
+          <div className="text-[10px] text-slate-500">with tracking activity</div>
         </div>
       </div>
 
       {/* SECTION 1: Officer Contributions Leaderboard Cards */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <h2 className="text-base font-fantasy font-black text-[#fffbeb] uppercase tracking-wide flex items-center gap-2">
+          <h2 className="text-sm sm:text-base font-bold text-slate-100 uppercase tracking-wide flex items-center gap-2">
             <Shield className="w-4 h-4 text-amber-400" />
-            <span>R4 &amp; Leadership Activity Leaderboard</span>
+            <span>Leadership Activity Leaderboard</span>
           </h2>
-          <span className="text-xs text-stone-400">Ranked by recorded contributions</span>
+          <span className="text-xs text-slate-400">Ranked by recorded contributions</span>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -363,85 +363,85 @@ export const ContributionsView: React.FC = () => {
             return (
               <div
                 key={officer.id || officer.username}
-                className="p-4 rounded-2xl bg-[#20150f] border-2 border-[#4d2b14] space-y-3 shadow-md hover:border-amber-600/60 transition-colors"
+                className="p-4 rounded-xl bg-slate-900/80 border border-slate-800 space-y-3 shadow-md hover:border-slate-700 transition-colors"
               >
                 {/* Officer Card Header */}
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-center gap-2.5">
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-b from-[#b45309] to-[#78350f] border border-amber-500/50 flex items-center justify-center text-white font-fantasy font-black text-base shadow">
+                    <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 font-bold font-mono text-sm shadow">
                       #{index + 1}
                     </div>
                     <div>
                       <div className="flex items-center gap-1.5">
-                        <span className="font-fantasy font-black text-sm text-[#fffbeb]">
+                        <span className="font-bold text-sm text-slate-100">
                           {officer.name}
                         </span>
                         <span
-                          className={`text-[9px] px-1.5 py-0.2 rounded-full font-bold uppercase border ${
+                          className={`text-[9px] px-1.5 py-0.2 rounded-full font-semibold border ${
                             isLeader
-                              ? 'bg-amber-950/80 text-amber-300 border-amber-600/60'
-                              : 'bg-stone-800 text-stone-300 border-stone-600/60'
+                              ? 'bg-amber-500/10 text-amber-400 border-amber-500/30'
+                              : 'bg-slate-800 text-slate-300 border-slate-700'
                           }`}
                         >
-                          {isLeader ? 'Main Admin' : 'R4'}
+                          {isLeader ? 'Main Admin' : 'Officer'}
                         </span>
                       </div>
-                      <div className="text-[11px] font-mono text-stone-400">
+                      <div className="text-[11px] font-mono text-slate-400">
                         @{officer.username} • <span className={`font-semibold ${rank.color}`}>{rank.title}</span>
                       </div>
                     </div>
                   </div>
 
                   <div className="text-right">
-                    <div className="text-lg font-fantasy font-black text-amber-300">
+                    <div className="text-lg font-bold font-mono text-amber-400">
                       {officer.totalActions}
                     </div>
-                    <div className="text-[9px] uppercase font-bold text-stone-400">Actions</div>
+                    <div className="text-[10px] uppercase font-semibold text-slate-400">Actions</div>
                   </div>
                 </div>
 
                 {/* Contribution Breakdown Grid */}
-                <div className="grid grid-cols-2 gap-1.5 pt-2 border-t border-[#341b0d] text-xs font-mono">
-                  <div className="p-2 rounded-lg bg-[#140c08] border border-[#2d180c] flex items-center justify-between">
-                    <span className="text-stone-400 text-[11px] flex items-center gap-1">
+                <div className="grid grid-cols-2 gap-1.5 pt-2 border-t border-slate-800 text-xs font-mono">
+                  <div className="p-2 rounded-lg bg-slate-950 border border-slate-800 flex items-center justify-between">
+                    <span className="text-slate-400 text-[11px] flex items-center gap-1">
                       <CheckCircle2 className="w-3 h-3 text-amber-400" />
                       Attendance:
                     </span>
-                    <span className="font-bold text-amber-200">{officer.attendanceCount}</span>
+                    <span className="font-bold text-slate-200">{officer.attendanceCount}</span>
                   </div>
 
-                  <div className="p-2 rounded-lg bg-[#140c08] border border-[#2d180c] flex items-center justify-between">
-                    <span className="text-stone-400 text-[11px] flex items-center gap-1">
-                      <Swords className="w-3 h-3 text-blue-400" />
+                  <div className="p-2 rounded-lg bg-slate-950 border border-slate-800 flex items-center justify-between">
+                    <span className="text-slate-400 text-[11px] flex items-center gap-1">
+                      <Swords className="w-3 h-3 text-sky-400" />
                       Events:
                     </span>
-                    <span className="font-bold text-blue-200">{officer.eventsCount}</span>
+                    <span className="font-bold text-slate-200">{officer.eventsCount}</span>
                   </div>
 
-                  <div className="p-2 rounded-lg bg-[#140c08] border border-[#2d180c] flex items-center justify-between">
-                    <span className="text-stone-400 text-[11px] flex items-center gap-1">
-                      <Flame className="w-3 h-3 text-red-400" />
+                  <div className="p-2 rounded-lg bg-slate-950 border border-slate-800 flex items-center justify-between">
+                    <span className="text-slate-400 text-[11px] flex items-center gap-1">
+                      <Flame className="w-3 h-3 text-rose-400" />
                       Strikes:
                     </span>
-                    <span className="font-bold text-red-200">{officer.strikesCount}</span>
+                    <span className="font-bold text-slate-200">{officer.strikesCount}</span>
                   </div>
 
-                  <div className="p-2 rounded-lg bg-[#140c08] border border-[#2d180c] flex items-center justify-between">
-                    <span className="text-stone-400 text-[11px] flex items-center gap-1">
+                  <div className="p-2 rounded-lg bg-slate-950 border border-slate-800 flex items-center justify-between">
+                    <span className="text-slate-400 text-[11px] flex items-center gap-1">
                       <MessageSquare className="w-3 h-3 text-purple-400" />
                       Notes:
                     </span>
-                    <span className="font-bold text-purple-200">{officer.commsCount + officer.membersCount}</span>
+                    <span className="font-bold text-slate-200">{officer.commsCount + officer.membersCount}</span>
                   </div>
                 </div>
 
                 {/* Footer: Last active */}
-                <div className="flex items-center justify-between text-[10px] text-stone-400 pt-1 border-t border-[#2d180c]">
+                <div className="flex items-center justify-between text-[10px] text-slate-400 pt-1 border-t border-slate-800">
                   <span className="flex items-center gap-1">
-                    <Clock className="w-3 h-3 text-stone-400" />
+                    <Clock className="w-3 h-3 text-slate-400" />
                     Last Active:
                   </span>
-                  <span className="font-mono text-stone-300">
+                  <span className="font-mono text-slate-300">
                     {officer.lastActive ? safeFormatDate(officer.lastActive) : 'Never'}
                   </span>
                 </div>
@@ -455,141 +455,141 @@ export const ContributionsView: React.FC = () => {
       {isMainAdmin && (
         <div className="space-y-3">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <h2 className="text-base font-fantasy font-black text-[#fffbeb] uppercase tracking-wide flex items-center gap-2">
+            <h2 className="text-sm sm:text-base font-bold text-slate-100 uppercase tracking-wide flex items-center gap-2">
               <Clock className="w-4 h-4 text-amber-400" />
               <span>Live Tracking Activity Log</span>
             </h2>
 
-          <div className="text-xs text-stone-400">
-            Showing {filteredContributions.length} of {contributions.length} recorded entries
-          </div>
-        </div>
-
-        {/* Filter Controls */}
-        <div className="p-3 rounded-xl bg-[#20150f] border border-[#4d2b14] flex flex-wrap gap-2.5 items-center w-full min-w-0">
-          {/* Search */}
-          <div className="relative w-full sm:flex-1 min-w-0">
-            <Search className="w-4 h-4 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
-              placeholder="Search by action, player, or event..."
-              className="w-full pl-9 pr-3 py-1.5 rounded-lg bg-[#140c08] border border-[#3d200e] text-stone-200 text-xs focus:outline-none focus:border-[#fbbf24]"
-            />
+            <div className="text-xs text-slate-400">
+              Showing {filteredContributions.length} of {contributions.length} recorded entries
+            </div>
           </div>
 
-          {/* Officer Filter */}
-          <select
-            value={selectedOfficer}
-            onChange={e => setSelectedOfficer(e.target.value)}
-            className="w-full sm:w-auto min-w-0 px-2.5 py-1.5 rounded-lg bg-[#140c08] border border-[#3d200e] text-stone-200 text-xs focus:outline-none focus:border-[#fbbf24]"
-          >
-            <option value="ALL">All Officers</option>
-            {officerStats.map(o => (
-              <option key={o.username} value={o.username}>
-                {o.name} (@{o.username})
-              </option>
-            ))}
-          </select>
+          {/* Filter Controls */}
+          <div className="p-3 rounded-xl bg-slate-900/80 border border-slate-800 flex flex-wrap gap-2.5 items-center w-full min-w-0">
+            {/* Search */}
+            <div className="relative w-full sm:flex-1 min-w-0">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+                placeholder="Search by action, player, or event..."
+                className="w-full pl-9 pr-3 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-slate-200 text-xs focus:outline-none focus:border-amber-500 placeholder:text-slate-500"
+              />
+            </div>
 
-          {/* Action Type Filter */}
-          <select
-            value={selectedActionType}
-            onChange={e => setSelectedActionType(e.target.value)}
-            className="w-full sm:w-auto min-w-0 px-2.5 py-1.5 rounded-lg bg-[#140c08] border border-[#3d200e] text-stone-200 text-xs focus:outline-none focus:border-[#fbbf24]"
-          >
-            <option value="ALL">All Action Types</option>
-            <option value="ATTENDANCE">War Attendance</option>
-            <option value="EVENTS">Battle Events</option>
-            <option value="STRIKES">Strikes & Discipline</option>
-            <option value="MEMBERS">Roster Changes</option>
-            <option value="COMMS">Communication Notes</option>
-          </select>
-        </div>
+            {/* Officer Filter */}
+            <select
+              value={selectedOfficer}
+              onChange={e => setSelectedOfficer(e.target.value)}
+              className="w-full sm:w-auto min-w-0 px-2.5 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-slate-200 text-xs focus:outline-none focus:border-amber-500 cursor-pointer"
+            >
+              <option value="ALL">All Officers</option>
+              {officerStats.map(o => (
+                <option key={o.username} value={o.username}>
+                  {o.name} (@{o.username})
+                </option>
+              ))}
+            </select>
 
-        {/* Desktop Table View (screens >= md) */}
-        <div className="hidden md:block rounded-xl bg-[#20150f] border border-[#4d2b14] overflow-x-auto shadow-sm">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-[#170e09] text-stone-300 font-semibold text-xs border-b border-[#3d200e]">
-              <tr>
-                <th className="py-3 px-4">Officer</th>
-                <th className="py-3 px-4">Action</th>
-                <th className="py-3 px-4">Target</th>
-                <th className="py-3 px-4">Description</th>
-                <th className="py-3 px-4 text-right">Timestamp</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[#2a170b] text-stone-200">
-              {filteredContributions.length === 0 ? (
+            {/* Action Type Filter */}
+            <select
+              value={selectedActionType}
+              onChange={e => setSelectedActionType(e.target.value)}
+              className="w-full sm:w-auto min-w-0 px-2.5 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-slate-200 text-xs focus:outline-none focus:border-amber-500 cursor-pointer"
+            >
+              <option value="ALL">All Action Types</option>
+              <option value="ATTENDANCE">Event Attendance</option>
+              <option value="EVENTS">Alliance Events</option>
+              <option value="STRIKES">Strikes &amp; Discipline</option>
+              <option value="MEMBERS">Member Changes</option>
+              <option value="COMMS">Communication Notes</option>
+            </select>
+          </div>
+
+          {/* Desktop Table View (screens >= md) */}
+          <div className="hidden md:block rounded-xl bg-slate-900/80 border border-slate-800 overflow-x-auto shadow-sm">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-slate-950/60 text-slate-300 font-semibold text-xs border-b border-slate-800">
                 <tr>
-                  <td colSpan={5} className="py-10 text-center text-stone-400">
-                    No officer contributions match your filters.
-                  </td>
+                  <th className="py-3 px-4">Officer</th>
+                  <th className="py-3 px-4">Action</th>
+                  <th className="py-3 px-4">Target</th>
+                  <th className="py-3 px-4">Description</th>
+                  <th className="py-3 px-4 text-right">Timestamp</th>
                 </tr>
-              ) : (
-                filteredContributions.map(item => (
-                  <tr key={item.id} className="hover:bg-[#271a13] transition-colors">
-                    <td className="py-3 px-4">
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-stone-100">{item.adminName}</span>
-                        <span className="text-[10px] text-stone-400 font-mono">@{item.adminUsername}</span>
-                      </div>
-                    </td>
-                    <td className="py-3 px-4">{getActionBadge(item.action)}</td>
-                    <td className="py-3 px-4">
-                      <span className="font-semibold text-amber-200/90">{item.targetName || '—'}</span>
-                    </td>
-                    <td className="py-3 px-4 text-stone-300">{item.description}</td>
-                    <td className="py-3 px-4 text-right font-mono text-[11px] text-stone-400">
-                      {safeFormatDateTime(item.timestamp)}
+              </thead>
+              <tbody className="divide-y divide-slate-800/60 text-slate-200">
+                {filteredContributions.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="py-10 text-center text-slate-400">
+                      No officer contributions match your filters.
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                ) : (
+                  filteredContributions.map(item => (
+                    <tr key={item.id} className="hover:bg-slate-800/40 transition-colors">
+                      <td className="py-3 px-4">
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-slate-100">{item.adminName}</span>
+                          <span className="text-[10px] text-slate-400 font-mono">@{item.adminUsername}</span>
+                        </div>
+                      </td>
+                      <td className="py-3 px-4">{getActionBadge(item.action)}</td>
+                      <td className="py-3 px-4">
+                        <span className="font-semibold text-amber-300/90">{item.targetName || '—'}</span>
+                      </td>
+                      <td className="py-3 px-4 text-slate-300">{item.description}</td>
+                      <td className="py-3 px-4 text-right font-mono text-[11px] text-slate-400">
+                        {safeFormatDateTime(item.timestamp)}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
 
-        {/* Mobile Feed Cards (screens < md) */}
-        <div className="block md:hidden space-y-2.5">
-          {filteredContributions.length === 0 ? (
-            <div className="p-8 text-center text-stone-400 bg-[#20150f] rounded-2xl border border-[#4d2b14]">
-              No officer contributions match your filters.
-            </div>
-          ) : (
-            filteredContributions.map(item => (
-              <div
-                key={item.id}
-                className="p-3 rounded-xl bg-[#20150f] border border-[#4d2b14] space-y-2 text-xs"
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-1.5">
-                    <span className="font-bold text-stone-100">{item.adminName}</span>
-                    <span className="text-[10px] text-stone-400 font-mono">@{item.adminUsername}</span>
-                  </div>
-                  {getActionBadge(item.action)}
-                </div>
-
-                <div className="p-2 rounded bg-[#140c08] border border-[#2d180c] space-y-1">
-                  {item.targetName && (
-                    <div className="text-[11px] font-semibold text-amber-300">
-                      Target: {item.targetName}
-                    </div>
-                  )}
-                  <div className="text-stone-300 text-xs">{item.description}</div>
-                </div>
-
-                <div className="flex items-center justify-between text-[10px] text-stone-400 font-mono pt-1">
-                  <span>Count: {item.count || 1}</span>
-                  <span>{safeFormatDateTime(item.timestamp)}</span>
-                </div>
+          {/* Mobile Feed Cards (screens < md) */}
+          <div className="block md:hidden space-y-2.5">
+            {filteredContributions.length === 0 ? (
+              <div className="p-8 text-center text-slate-400 bg-slate-900/60 rounded-xl border border-slate-800">
+                No officer contributions match your filters.
               </div>
-            ))
-          )}
+            ) : (
+              filteredContributions.map(item => (
+                <div
+                  key={item.id}
+                  className="p-3 rounded-xl bg-slate-900/80 border border-slate-800 space-y-2 text-xs"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-semibold text-slate-100">{item.adminName}</span>
+                      <span className="text-[10px] text-slate-400 font-mono">@{item.adminUsername}</span>
+                    </div>
+                    {getActionBadge(item.action)}
+                  </div>
+
+                  <div className="p-2 rounded-lg bg-slate-950 border border-slate-800 space-y-1">
+                    {item.targetName && (
+                      <div className="text-[11px] font-semibold text-amber-300">
+                        Target: {item.targetName}
+                      </div>
+                    )}
+                    <div className="text-slate-300 text-xs">{item.description}</div>
+                  </div>
+
+                  <div className="flex items-center justify-between text-[10px] text-slate-400 font-mono pt-1">
+                    <span>Count: {item.count || 1}</span>
+                    <span>{safeFormatDateTime(item.timestamp)}</span>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
         </div>
-      </div>
-    )}
-  </div>
-);
+      )}
+    </div>
+  );
 };

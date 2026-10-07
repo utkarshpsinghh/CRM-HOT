@@ -45,8 +45,8 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCreateEvent }) => {
 
   const navLinks: Array<{ id: string; label: string; icon: React.ReactNode; count?: number; badge?: string | null }> = [
     { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-4 h-4" /> },
-    { id: 'members', label: 'Roster', count: stats.totalMembers, icon: <Users className="w-4 h-4" /> },
-    { id: 'events', label: 'Wars', icon: <Swords className="w-4 h-4" /> },
+    { id: 'members', label: 'Members', count: stats.totalMembers, icon: <Users className="w-4 h-4" /> },
+    { id: 'events', label: 'Events', icon: <Swords className="w-4 h-4" /> },
     { id: 'attendance', label: 'Attendance', icon: <ClipboardCheck className="w-4 h-4" /> },
     { id: 'leaderboard', label: 'Leaderboard', icon: <Trophy className="w-4 h-4" /> },
     {
@@ -54,7 +54,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCreateEvent }) => {
       label: 'Activity',
       icon: <AlertTriangle className="w-4 h-4" />,
     },
-    ...(isMainAdmin ? [{ id: 'contributions', label: 'Treasury', icon: <Award className="w-4 h-4" /> }] : []),
+    ...(isMainAdmin ? [{ id: 'contributions', label: 'Contributions', icon: <Award className="w-4 h-4" /> }] : []),
     ...(isMainAdmin ? [{ id: 'settings', label: 'Settings', icon: <Settings className="w-4 h-4" /> }] : []),
   ];
 

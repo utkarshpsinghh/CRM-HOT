@@ -222,10 +222,10 @@ export const LeaderboardView: React.FC = () => {
           </div>
           <div>
             <div className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-              {timeframe === 'month' ? 'Wars Evaluated (Month)' : 'Total All-Time Wars'}
+              {timeframe === 'month' ? 'Events Evaluated (Month)' : 'Total All-Time Events'}
             </div>
             <div className="text-2xl font-bold font-mono text-white mt-0.5">
-              {summaryMetrics.totalWars} Wars
+              {summaryMetrics.totalWars} Events
             </div>
           </div>
         </div>
@@ -267,7 +267,7 @@ export const LeaderboardView: React.FC = () => {
               Podium Champions
             </span>
             <h2 className="text-lg sm:text-xl font-bold text-slate-100 mt-1">
-              {timeframe === 'month' ? 'Top War Performers This Month' : 'All-Time Alliance Legends'}
+              {timeframe === 'month' ? 'Top Event Performers This Month' : 'All-Time Alliance Legends'}
             </h2>
           </div>
 
@@ -290,7 +290,7 @@ export const LeaderboardView: React.FC = () => {
                 <div className="flex items-center justify-center gap-1.5">
                   <RankBadge rank={top2.member.currentRank} size="sm" />
                   <span className="text-xs text-slate-400 font-mono">
-                    {top2.eventsJoined}/{top2.totalEligibleEvents} Wars
+                    {top2.eventsJoined}/{top2.totalEligibleEvents} Events
                   </span>
                 </div>
                 <div className="text-2xl font-bold font-mono text-slate-200">
@@ -321,7 +321,7 @@ export const LeaderboardView: React.FC = () => {
                 <div className="flex items-center justify-center gap-1.5">
                   <RankBadge rank={top1.member.currentRank} size="sm" />
                   <span className="text-xs text-amber-300/90 font-mono font-medium">
-                    {top1.eventsJoined}/{top1.totalEligibleEvents} Wars
+                    {top1.eventsJoined}/{top1.totalEligibleEvents} Events
                   </span>
                 </div>
                 <div className="text-3xl font-bold font-mono text-amber-400">
@@ -351,7 +351,7 @@ export const LeaderboardView: React.FC = () => {
                 <div className="flex items-center justify-center gap-1.5">
                   <RankBadge rank={top3.member.currentRank} size="sm" />
                   <span className="text-xs text-slate-400 font-mono">
-                    {top3.eventsJoined}/{top3.totalEligibleEvents} Wars
+                    {top3.eventsJoined}/{top3.totalEligibleEvents} Events
                   </span>
                 </div>
                 <div className="text-2xl font-bold font-mono text-orange-400">
@@ -432,7 +432,7 @@ export const LeaderboardView: React.FC = () => {
                   <th className="py-3 px-3">Alliance Member</th>
                   <th className="py-3 px-3 text-center">Rank</th>
                   <th className="py-3 px-3">Turnout Rate</th>
-                  <th className="py-3 px-3 text-center">Wars Joined</th>
+                  <th className="py-3 px-3 text-center">Events Joined</th>
                   <th className="py-3 px-3 text-center">Vote Reliability</th>
                   <th className="py-3 px-3 text-center">Strikes</th>
                   <th className="py-3 px-3 text-center">Status</th>

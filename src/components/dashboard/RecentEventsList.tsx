@@ -22,7 +22,7 @@ export const RecentEventsList: React.FC = () => {
         <div className="flex items-center gap-2">
           <Swords className="w-4 h-4 text-amber-400" />
           <h3 className="font-semibold text-sm text-slate-200">
-            Recent &amp; Upcoming Alliance Wars
+            Recent &amp; Upcoming Alliance Events
           </h3>
         </div>
         <span className="text-xs text-slate-400 font-medium hidden sm:inline">

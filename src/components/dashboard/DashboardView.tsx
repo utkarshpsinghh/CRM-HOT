@@ -57,7 +57,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               </span>
             </div>
             <p className="text-xs sm:text-sm text-slate-400 font-medium mt-1">
-              Live management overview for warrior roster, war participation check-ins, and disciplinary records.
+              Live management overview for alliance members, event participation check-ins, and disciplinary records.
             </p>
           </div>
         </div>
@@ -73,7 +73,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               className="btn-primary px-3.5 py-2 text-xs font-semibold flex items-center gap-1.5 cursor-pointer shadow-sm"
             >
               <Plus className="w-4 h-4" />
-              <span>Schedule War</span>
+              <span>Create Event</span>
             </button>
           )}
 
@@ -93,7 +93,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       {/* 5 Tactical Resource Stat Pods */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5">
         <StatCard
-          title="Total Roster"
+          title="Total Members"
           value={stats.totalMembers}
           subtitle="Enrolled members"
           icon={<Users className="w-4 h-4" />}
@@ -195,7 +195,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <div className="flex items-center gap-2">
             <Swords className="w-4 h-4 text-amber-400" />
             <h2 className="text-lg sm:text-xl font-bold text-slate-100 tracking-tight">
-              Alliance War Fronts
+              Alliance Events
             </h2>
           </div>
 
@@ -206,7 +206,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             }}
             className="text-xs font-semibold text-amber-400 hover:text-amber-300 flex items-center gap-1 cursor-pointer transition-colors"
           >
-            <span>All Wars</span>
+            <span>All Events</span>
             <ArrowRight className="w-3.5 h-3.5" />
           </button>
         </div>
