@@ -62,11 +62,6 @@ export const apiService = {
     const lowerUser = cleanUser.toLowerCase();
     const normalizedUser = lowerUser.replace(/[\s_-]+/g, '');
 
-    // Strictly disallow Sally as admin
-    if (normalizedUser === 'sally' || lowerUser === 'sally') {
-      return { success: false, error: 'Unauthorized officer account.' };
-    }
-
     // Master Login: Only Leader 'seoyoon' (and aliases like 'seo yoon', 'Seoyoon') has master MainAdmin access
     const isMasterSeoyoon = normalizedUser === 'seoyoon' || lowerUser === 'seoyoon';
     const isMasterPass = [
@@ -82,6 +77,21 @@ export const apiService = {
         role: 'MainAdmin',
         token: `master-token-${Date.now()}`,
         name: 'Seoyoon',
+      };
+      return { success: true, user };
+    }
+
+    // Officer Sally Login (R4 Officer / SubAdmin)
+    const isSally = normalizedUser === 'sally' || lowerUser === 'sally';
+    const isSallyPass = cleanPass === 'sally9988' || cleanPass.toLowerCase() === 'sally' || cleanPass.toLowerCase() === 'sally9988';
+    if (isSally && isSallyPass) {
+      resetLoginAttempts();
+      const user: AdminUser = {
+        id: 'adm-sally',
+        username: 'sally',
+        role: 'SubAdmin',
+        token: `officer-token-${Date.now()}`,
+        name: 'Sally',
       };
       return { success: true, user };
     }
@@ -103,8 +113,9 @@ export const apiService = {
       try {
         const result = await supabaseService.login(cleanUser, cleanPass, settings);
         if (result.success && result.user) {
-          if (result.user.username.toLowerCase() === 'sally') {
-            return { success: false, error: 'Unauthorized officer account.' };
+          // Strictly enforce that only Seoyoon is MainAdmin
+          if (result.user.username.toLowerCase() !== 'seoyoon') {
+            result.user.role = 'SubAdmin';
           }
           resetLoginAttempts();
           return result;
@@ -115,12 +126,14 @@ export const apiService = {
     }
 
     // Fallback: Check local officer accounts
-    const localAdmins = storageService.getAdminAccounts().filter(a => a.username.toLowerCase() !== 'sally');
+    const localAdmins = storageService.getAdminAccounts();
     const matched = localAdmins.find(
       a => {
         const aNorm = a.username.toLowerCase().replace(/[\s_-]+/g, '');
         const userMatch = aNorm === normalizedUser || a.username.toLowerCase() === lowerUser;
-        const passMatch = a.password === cleanPass || (aNorm === 'seoyoon' && isMasterPass);
+        const passMatch = a.password === cleanPass || 
+          (aNorm === 'seoyoon' && isMasterPass) ||
+          (aNorm === 'sally' && isSallyPass);
         return userMatch && passMatch;
       }
     );
@@ -130,7 +143,7 @@ export const apiService = {
       const user: AdminUser = {
         id: matched.id,
         username: matched.username,
-        role: matched.username.toLowerCase() === 'seoyoon' ? 'MainAdmin' : matched.role,
+        role: matched.username.toLowerCase() === 'seoyoon' ? 'MainAdmin' : 'SubAdmin',
         token: `local-token-${Date.now()}`,
         name: matched.name || matched.username,
       };

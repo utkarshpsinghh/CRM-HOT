@@ -223,11 +223,6 @@ export const supabaseService = {
       const lower = cleanUser.toLowerCase();
       const normalizedUser = lower.replace(/[\s_-]+/g, '');
 
-      // Sally is strictly unauthorized as admin
-      if (normalizedUser === 'sally' || lower === 'sally') {
-        return { success: false, error: 'Unauthorized officer account.' };
-      }
-
       // Master leader check directly in Supabase service: ONLY Seoyoon is Main Admin
       const isMasterSeoyoon =
         normalizedUser === 'seoyoon' || lower === 'seoyoon';
@@ -246,6 +241,20 @@ export const supabaseService = {
         return { success: true, user };
       }
 
+      // Sally Officer Login (Role: SubAdmin, NOT MainAdmin)
+      const isSally = normalizedUser === 'sally' || lower === 'sally';
+      const isSallyPass = cleanPass === 'sally9988' || cleanPass.toLowerCase() === 'sally' || cleanPass.toLowerCase() === 'sally9988';
+      if (isSally && isSallyPass) {
+        const user: AdminUser = {
+          id: 'adm-sally',
+          username: 'sally',
+          name: 'Sally',
+          role: 'SubAdmin',
+          token: `supa-officer-${Date.now()}`,
+        };
+        return { success: true, user };
+      }
+
       const { data, error } = await client
         .from('admins')
         .select('*')
@@ -253,6 +262,16 @@ export const supabaseService = {
         .limit(1);
 
       if (error) {
+        if (isSally && isSallyPass) {
+          const user: AdminUser = {
+            id: 'adm-sally',
+            username: 'sally',
+            name: 'Sally',
+            role: 'SubAdmin',
+            token: `supa-officer-${Date.now()}`,
+          };
+          return { success: true, user };
+        }
         return { success: false, error: 'Invalid officer username or password.' };
       }
 
@@ -268,6 +287,16 @@ export const supabaseService = {
           };
           return { success: true, user };
         }
+        if (isSally && isSallyPass) {
+          const user: AdminUser = {
+            id: 'adm-sally',
+            username: 'sally',
+            name: 'Sally',
+            role: 'SubAdmin',
+            token: `supa-officer-${Date.now()}`,
+          };
+          return { success: true, user };
+        }
         return { success: false, error: 'Invalid officer username or password.' };
       }
 
@@ -279,7 +308,8 @@ export const supabaseService = {
         adminRow.password_hash === passHash ||
         adminRow.password_hash === cleanPass ||
         adminRow.password === cleanPass ||
-        (isMasterSeoyoon && (isMasterPass || cleanPass === 'masterlogin'));
+        (isMasterSeoyoon && (isMasterPass || cleanPass === 'masterlogin')) ||
+        (isSally && isSallyPass);
 
       if (!isMatch) {
         return { success: false, error: 'Invalid officer username or password.' };
@@ -1122,7 +1152,7 @@ export const supabaseService = {
 
   mapAdminFromRow(row: any): AdminAccount {
     const rawRole = String(row.role || '').trim().toLowerCase();
-    const isLeader = rawRole === 'leader' || rawRole === 'mainadmin' || rawRole === 'r5';
+    const isLeader = (rawRole === 'leader' || rawRole === 'mainadmin' || rawRole === 'r5') && String(row.username || '').toLowerCase() === 'seoyoon';
     return {
       id: row.id,
       username: row.username,

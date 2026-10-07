@@ -133,18 +133,27 @@ export const storageService = {
         }
       }
 
-      // 7. Purge extra default admins: ONLY Seoyoon remains Main Admin
+      // 7. Purge extra default admins: ONLY Seoyoon remains Main Admin, Sally is SubAdmin
       const rawAdm = localStorage.getItem(STORAGE_KEYS.ADMIN_ACCOUNTS);
       if (rawAdm) {
         const adms: AdminAccount[] = JSON.parse(rawAdm);
-        const filtered = adms.filter(a => a.username.toLowerCase() !== 'admin' && a.username.toLowerCase() !== 'sally');
+        const filtered = adms.filter(a => a.username.toLowerCase() !== 'admin');
+        filtered.forEach(a => {
+          if (a.username.toLowerCase() === 'sally') {
+            a.role = 'SubAdmin';
+          }
+        });
         localStorage.setItem(STORAGE_KEYS.ADMIN_ACCOUNTS, JSON.stringify(filtered));
       }
 
-      // Purge active auth if it was sally or admin
+      // Purge active auth if it was legacy admin
       const currentAuth = this.getAuth();
-      if (currentAuth && (currentAuth.username?.toLowerCase() === 'sally' || currentAuth.username?.toLowerCase() === 'admin')) {
+      if (currentAuth && currentAuth.username?.toLowerCase() === 'admin') {
         this.setAuth(null);
+      }
+      if (currentAuth && currentAuth.username?.toLowerCase() === 'sally' && currentAuth.role === 'MainAdmin') {
+        currentAuth.role = 'SubAdmin';
+        this.setAuth(currentAuth);
       }
     } catch (err) {
       console.warn('Error purging mock junk:', err);
@@ -429,8 +438,23 @@ export const storageService = {
     const raw = localStorage.getItem(STORAGE_KEYS.ADMIN_ACCOUNTS);
     let accounts: AdminAccount[] = raw ? JSON.parse(raw) : [...initialAdmins];
     
-    // Purge legacy default accounts: ONLY Seoyoon is the official Main Admin
-    accounts = accounts.filter(a => a.username.toLowerCase() !== 'admin' && a.username.toLowerCase() !== 'sally');
+    // Purge legacy default accounts ('admin')
+    accounts = accounts.filter(a => a.username.toLowerCase() !== 'admin');
+
+    // Ensure Sally is present with SubAdmin role
+    const sallyAcc = accounts.find(a => a.username.toLowerCase() === 'sally');
+    if (sallyAcc) {
+      sallyAcc.role = 'SubAdmin';
+    } else {
+      accounts.push({
+        id: 'adm-sally',
+        username: 'sally',
+        password: 'sally9988',
+        role: 'SubAdmin',
+        name: 'Sally',
+        createdAt: new Date().toISOString(),
+      });
+    }
 
     if (!accounts.some(a => a.username.toLowerCase() === 'seoyoon')) {
       accounts.unshift(initialAdmins[0]);

@@ -216,7 +216,14 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             if (Array.isArray(allData.strikes)) setStrikes(allData.strikes);
             if (Array.isArray(allData.communications)) setCommunications(allData.communications);
             if (Array.isArray(allData.admins)) {
-              const cleanAdmins = allData.admins.filter((a: AdminAccount) => a && a.username && a.username.toLowerCase() !== 'sally' && a.username.toLowerCase() !== 'admin');
+              const cleanAdmins = allData.admins
+                .filter((a: AdminAccount) => a && a.username && a.username.toLowerCase() !== 'admin')
+                .map((a: AdminAccount) => {
+                  if (a.username.toLowerCase() === 'sally' || a.username.toLowerCase() !== 'seoyoon') {
+                    return { ...a, role: (a.username.toLowerCase() === 'seoyoon' ? 'MainAdmin' : 'SubAdmin') as 'MainAdmin' | 'SubAdmin' };
+                  }
+                  return a;
+                });
               setAdmins(cleanAdmins);
             }
             if (Array.isArray(allData.contributions)) setContributions(allData.contributions);
