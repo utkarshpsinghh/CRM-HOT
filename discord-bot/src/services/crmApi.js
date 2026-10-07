@@ -322,6 +322,186 @@ class CrmApiClient {
       return { success: false, data: [] };
     }
   }
+
+  /**
+   * Link Discord user ID to an Alliance Member
+   */
+  async linkDiscordUser(discordUserId, member) {
+    try {
+      const { data } = await this.supabase
+        .from('settings')
+        .select('value')
+        .eq('key', 'discord_member_links')
+        .single();
+
+      let links = {};
+      if (data && data.value) {
+        try { links = JSON.parse(data.value); } catch {}
+      }
+
+      links[discordUserId] = {
+        memberId: member.id,
+        memberName: member.name,
+        gameId: member.gameId,
+        linkedAt: new Date().toISOString(),
+      };
+
+      await this.supabase
+        .from('settings')
+        .upsert({ key: 'discord_member_links', value: JSON.stringify(links) }, { onConflict: 'key' });
+
+      return true;
+    } catch (err) {
+      console.error('[linkDiscordUser ERROR]:', err.message);
+      return false;
+    }
+  }
+
+  /**
+   * Retrieve member linked to a Discord user ID
+   */
+  async getLinkedMember(discordUserId) {
+    try {
+      const { data } = await this.supabase
+        .from('settings')
+        .select('value')
+        .eq('key', 'discord_member_links')
+        .single();
+
+      if (!data || !data.value) return null;
+      const links = JSON.parse(data.value);
+      const link = links[discordUserId];
+      if (!link || !link.memberId) return null;
+
+      return await this.searchMember(link.memberId);
+    } catch (err) {
+      console.error('[getLinkedMember ERROR]:', err.message);
+      return null;
+    }
+  }
+
+  /**
+   * Issue a strike to a player (Officer action)
+   */
+  async addStrike(memberId, reason, officerName = 'Officer') {
+    try {
+      // 1. Fetch current member strikes
+      const { data: member } = await this.supabase
+        .from('members')
+        .select('id, name, strikes')
+        .eq('id', memberId)
+        .single();
+
+      if (!member) return { success: false, message: 'Member not found.' };
+
+      const newStrikeCount = (member.strikes || 0) + 1;
+
+      // 2. Insert into strikes table
+      const strikeId = `strk-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+      await this.supabase.from('strikes').insert({
+        id: strikeId,
+        member_id: memberId,
+        reason: reason || 'Alliance violation',
+        date: new Date().toISOString(),
+        created_at: new Date().toISOString(),
+      });
+
+      // 3. Update members table
+      await this.supabase
+        .from('members')
+        .update({ strikes: newStrikeCount, updated_at: new Date().toISOString() })
+        .eq('id', memberId);
+
+      // 4. Log officer contribution
+      try {
+        await this.supabase.from('contributions').insert({
+          id: `cnt-${Date.now()}`,
+          admin_id: 'discord-bot',
+          admin_username: officerName.toLowerCase().replace(/\s+/g, '_'),
+          admin_name: officerName,
+          admin_role: 'SubAdmin',
+          action: 'STRIKE_ADDED',
+          description: `Issued penalty strike to ${member.name}: ${reason}`,
+          target_name: member.name,
+          count: 1,
+          timestamp: new Date().toISOString(),
+        });
+      } catch {}
+
+      return {
+        success: true,
+        memberName: member.name,
+        newStrikes: newStrikeCount,
+      };
+    } catch (err) {
+      console.error('[addStrike ERROR]:', err.message);
+      return { success: false, message: err.message };
+    }
+  }
+
+  /**
+   * Remove a strike from a player (Officer action)
+   */
+  async removeStrike(memberId, officerName = 'Officer') {
+    try {
+      const { data: member } = await this.supabase
+        .from('members')
+        .select('id, name, strikes')
+        .eq('id', memberId)
+        .single();
+
+      if (!member) return { success: false, message: 'Member not found.' };
+
+      const currentStrikes = member.strikes || 0;
+      if (currentStrikes <= 0) {
+        return { success: false, message: `${member.name} has 0 strikes.` };
+      }
+
+      const newStrikeCount = Math.max(0, currentStrikes - 1);
+
+      // Delete latest strike record
+      const { data: latestStrike } = await this.supabase
+        .from('strikes')
+        .select('id')
+        .eq('member_id', memberId)
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (latestStrike && latestStrike.length > 0) {
+        await this.supabase.from('strikes').delete().eq('id', latestStrike[0].id);
+      }
+
+      await this.supabase
+        .from('members')
+        .update({ strikes: newStrikeCount, updated_at: new Date().toISOString() })
+        .eq('id', memberId);
+
+      // Log officer contribution
+      try {
+        await this.supabase.from('contributions').insert({
+          id: `cnt-${Date.now()}`,
+          admin_id: 'discord-bot',
+          admin_username: officerName.toLowerCase().replace(/\s+/g, '_'),
+          admin_name: officerName,
+          admin_role: 'SubAdmin',
+          action: 'STRIKE_REMOVED',
+          description: `Removed penalty strike from ${member.name}`,
+          target_name: member.name,
+          count: 1,
+          timestamp: new Date().toISOString(),
+        });
+      } catch {}
+
+      return {
+        success: true,
+        memberName: member.name,
+        newStrikes: newStrikeCount,
+      };
+    } catch (err) {
+      console.error('[removeStrike ERROR]:', err.message);
+      return { success: false, message: err.message };
+    }
+  }
 }
 
 export const crmApi = new CrmApiClient();

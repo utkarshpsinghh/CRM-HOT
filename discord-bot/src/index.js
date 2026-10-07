@@ -1,9 +1,16 @@
 import { Client, Collection, GatewayIntentBits, ActivityType } from 'discord.js';
 import { config, validateConfig } from './config.js';
 import * as profileCmd from './commands/profile.js';
+import * as linkCmd from './commands/link.js';
+import * as meCmd from './commands/me.js';
 import * as leaderboardCmd from './commands/leaderboard.js';
-import * as eventsCmd from './commands/events.js';
 import * as attendanceCmd from './commands/attendance.js';
+import * as eventsCmd from './commands/events.js';
+import * as beartrapCmd from './commands/beartrap.js';
+import * as strikeCmd from './commands/strike.js';
+import * as compareCmd from './commands/compare.js';
+import * as rosterCmd from './commands/roster.js';
+import * as mvpCmd from './commands/mvp.js';
 import * as inactivesCmd from './commands/inactives.js';
 import * as helpCmd from './commands/help.js';
 
@@ -17,9 +24,16 @@ const client = new Client({
 client.commands = new Collection();
 const commandModules = [
   profileCmd,
+  linkCmd,
+  meCmd,
   leaderboardCmd,
-  eventsCmd,
   attendanceCmd,
+  eventsCmd,
+  beartrapCmd,
+  strikeCmd,
+  compareCmd,
+  rosterCmd,
+  mvpCmd,
   inactivesCmd,
   helpCmd,
 ];
@@ -36,12 +50,13 @@ client.once('ready', () => {
   console.log(`🤖 HOT Alliance Bot is ONLINE!`);
   console.log(`Logged in as: ${client.user.tag}`);
   console.log(`Connected to CRM: ${config.crmBaseUrl}`);
+  console.log(`Registered Commands (${client.commands.size}): ${Array.from(client.commands.keys()).join(', ')}`);
   console.log(`=======================================================`);
 
   client.user.setPresence({
     activities: [
       {
-        name: 'Kingdom #1391 [HOT] Roster',
+        name: 'Kingdom #1391 [HOT] Roster • /help',
         type: ActivityType.Watching,
       },
     ],
