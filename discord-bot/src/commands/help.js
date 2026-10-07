@@ -29,7 +29,7 @@ export async function execute(interaction) {
             name: '🔒 Locked Features (Unlocked Upon Verification)',
             value: [
               '• 🐻 Bear Trap Schedule, Countdown & Status (`/beartrap`)',
-              '• 🗳️ Direct CRM Battle Slot Voting (`/vote`)',
+              '• 🗳️ Bear Trap Battle Slot Voting (`/vote`)',
               '• 📊 Personal Combat Dossier & Turnout Rating (`/me`)',
               '• 🏆 Global Alliance Leaderboards & MVP (`/leaderboard`, `/mvp`)',
               '• 🏰 Full 80-Member Roster & Census (`/roster`)',
@@ -69,7 +69,7 @@ export async function execute(interaction) {
         {
           name: '⚔️ Battle Coordination & Bear Trap Voting',
           value: [
-            '• `/vote` — Cast your Bear Trap slot vote directly synchronized to the CRM database.',
+            '• `/vote` — Cast your Bear Trap battle deployment slot vote.',
             '• `/beartrap` — Next battle countdown, live dual slot status (`16:00 UTC` / `00:30 UTC`), and turnouts.',
             '• `/attendance <player>` — Detailed battle ledger showing voted and attended slots.',
             '• `/events [status]` — Schedule for Bear Traps, Swordsland War, and Tri Alliance battles.',

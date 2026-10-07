@@ -109,7 +109,7 @@ export async function execute(interaction) {
     await interaction.editReply({
       embeds: [
         createBaseEmbed('Command Error', COLORS.CRIMSON).setDescription(
-          `Failed to fetch player data from CRM API: \`${err.message}\``
+          `Failed to fetch player data: \`${err.message}\``
         ),
       ],
     });

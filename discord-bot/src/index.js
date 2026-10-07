@@ -143,14 +143,14 @@ client.on('interactionCreate', async interaction => {
       const result = await crmApi.castVote(linked.id, eventId, targetSlot.id);
       if (!result.success) {
         return await interaction.reply({
-          content: `❌ Failed to save vote to CRM: ${result.message}`,
+          content: `❌ Failed to record vote: ${result.message}`,
           ephemeral: true,
         });
       }
 
       const slotLabel = isBt1 ? 'BT1 (16:00 UTC)' : 'BT2 (00:30 UTC)';
       return await interaction.reply({
-        content: `✅ **Vote Synchronized!** **${linked.name}** has voted for **${slotLabel}** and directly updated the official CRM database!`,
+        content: `✅ **Vote Confirmed!** **${linked.name}** is registered for **${slotLabel}**. Prepare for battle!`,
         ephemeral: true,
       });
     }

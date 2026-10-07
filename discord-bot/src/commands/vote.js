@@ -10,7 +10,7 @@ import { createBaseEmbed, COLORS } from '../utils/embedBuilder.js';
 
 export const data = new SlashCommandBuilder()
   .setName('vote')
-  .setDescription('Cast or view the official Bear Trap battle slot vote directly synced with CRM');
+  .setDescription('Cast or view the official Bear Trap battle slot vote');
 
 export async function execute(interaction) {
   await interaction.deferReply();
@@ -29,7 +29,7 @@ export async function execute(interaction) {
       return await interaction.editReply({
         embeds: [
           createBaseEmbed('No Active Battle Found', COLORS.GOLD).setDescription(
-            'There are currently no active or upcoming Bear Trap battles scheduled in CRM.'
+            'There are currently no active or upcoming Bear Trap battles scheduled.'
           ),
         ],
       });
@@ -48,8 +48,7 @@ export async function execute(interaction) {
       return createBaseEmbed(`🐻 [HOT] Bear Trap Slot Vote: ${targetEvent.eventName}`, COLORS.GOLD)
         .setDescription(
           `**Kingdom #1391 • House of Titans [HOT]**\n` +
-          `A battle has been scheduled in the alliance CRM. Cast your vote for your preferred time slot below!\n\n` +
-          `⚡ **Direct CRM Sync:** Votes submitted here are directly saved into the official CRM database in real-time.\n` +
+          `A battle has been scheduled by Alliance Leadership. Cast your vote for your preferred battle deployment slot below!\n\n` +
           `🛡️ **Rule:** Warriors must attend at least **1 slot** per 48-hour battle cycle.`
         )
         .addFields(
@@ -70,7 +69,7 @@ export async function execute(interaction) {
           }
         )
         .setFooter({
-          text: 'Click a button below to cast or update your vote • Instant CRM Database Sync',
+          text: 'Click a button below to cast or update your vote • Kingdom #1391 Battle Command',
         });
     };
 
@@ -120,17 +119,17 @@ export async function execute(interaction) {
         });
       }
 
-      // 2. Cast vote directly in CRM database
+      // 2. Cast vote directly in attendance ledger
       const result = await crmApi.castVote(linked.id, targetEvent.id, targetSlot.id);
 
       if (!result.success) {
         return await btnInteraction.reply({
-          content: `❌ Failed to save vote to CRM: ${result.message}`,
+          content: `❌ Failed to record vote: ${result.message}`,
           ephemeral: true,
         });
       }
 
-      // 3. Reload latest data from CRM
+      // 3. Reload latest data
       const { participations: freshParts } = await crmApi.getCachedParentData();
 
       // 4. Update the embed
@@ -141,7 +140,7 @@ export async function execute(interaction) {
 
       const slotLabel = isBt1 ? 'BT1 (16:00 UTC)' : 'BT2 (00:30 UTC)';
       await btnInteraction.followUp({
-        content: `✅ **Vote Recorded!** **${linked.name}** is registered for **${slotLabel}** and directly synchronized to the CRM database!`,
+        content: `✅ **Vote Confirmed!** **${linked.name}** is registered for **${slotLabel}**. Prepare for battle!`,
         ephemeral: true,
       }).catch(() => {});
     });

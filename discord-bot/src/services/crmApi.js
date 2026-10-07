@@ -409,10 +409,72 @@ class CrmApiClient {
   }
 
   /**
-   * Cast a slot vote for an event and directly sync it into CRM database
+   * Cast a slot vote for an event and directly sync it into the attendance ledger
    */
   async castVote(memberId, eventId, slotId) {
     try {
+      const now = new Date().toISOString();
+
+      const legacyPairs = {
+        'evt-parent-8-bear-trap-2026-10-07': {
+          slot1LegacyId: 'evt-1791372900265-foen', // BT1
+          slot2LegacyId: 'evt-1791369322863-f6fw', // BT2
+        },
+        'evt-parent-7-bear-trap-2026-10-05': {
+          slot1LegacyId: 'evt-4eee1101',
+          slot2LegacyId: 'evt-e4448cc6',
+        },
+        'evt-parent-5-bear-trap-2026-10-03': {
+          slot1LegacyId: 'evt-c031d684',
+          slot2LegacyId: 'evt-f9234e34',
+        },
+        'evt-parent-3-bear-trap-2026-10-01': {
+          slot1LegacyId: 'evt-6f6a9d3a',
+          slot2LegacyId: 'evt-61922e28',
+        },
+        'evt-parent-2-bear-trap-2026-09-29': {
+          slot1LegacyId: 'evt-b7b108e7',
+          slot2LegacyId: 'evt-a7c586d3',
+        },
+        'evt-parent-1-bear-trap-2026-09-27': {
+          slot1LegacyId: 'evt-185df6f0',
+          slot2LegacyId: 'evt-c233df90',
+        },
+      };
+
+      const legacyPair = legacyPairs[eventId] || {
+        slot1LegacyId: 'evt-1791372900265-foen',
+        slot2LegacyId: 'evt-1791369322863-f6fw',
+      };
+
+      const isBt1 = slotId.endsWith('-1');
+      const votedLegacyId = isBt1 ? legacyPair.slot1LegacyId : legacyPair.slot2LegacyId;
+      const otherLegacyId = isBt1 ? legacyPair.slot2LegacyId : legacyPair.slot1LegacyId;
+
+      // 1. Dual-write to Supabase attendance table
+      if (votedLegacyId) {
+        await this.supabase.from('attendance').upsert({
+          id: `att-${votedLegacyId}-${memberId}`,
+          event_id: votedLegacyId,
+          member_id: memberId,
+          vote_status: 'YES',
+          attendance_status: 'NOT_APPLICABLE',
+          updated_at: now,
+        }, { onConflict: 'id' });
+      }
+
+      if (otherLegacyId) {
+        await this.supabase.from('attendance').upsert({
+          id: `att-${otherLegacyId}-${memberId}`,
+          event_id: otherLegacyId,
+          member_id: memberId,
+          vote_status: 'NO RESPONSE',
+          attendance_status: 'NOT_APPLICABLE',
+          updated_at: now,
+        }, { onConflict: 'id' });
+      }
+
+      // 2. Dual-write to crm_event_participations_cache in settings table
       const { data: cacheRow } = await this.supabase
         .from('settings')
         .select('value')
@@ -424,9 +486,7 @@ class CrmApiClient {
         try { participations = JSON.parse(cacheRow.value); } catch {}
       }
 
-      const now = new Date().toISOString();
       let found = false;
-
       for (let i = 0; i < participations.length; i++) {
         const p = participations[i];
         if (p.eventId === eventId && p.memberId === memberId) {

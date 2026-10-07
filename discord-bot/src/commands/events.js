@@ -29,7 +29,7 @@ export async function execute(interaction) {
       return await interaction.editReply({
         embeds: [
           createBaseEmbed('No Events Found', COLORS.BRONZE).setDescription(
-            status ? `No events found with status \`${status}\`.` : 'No events currently registered in CRM.'
+            status ? `No events found with status \`${status}\`.` : 'No events currently registered.'
           ),
         ],
       });
@@ -67,7 +67,7 @@ export async function execute(interaction) {
     await interaction.editReply({
       embeds: [
         createBaseEmbed('Events Error', COLORS.CRIMSON).setDescription(
-          `Failed to load events from CRM API: \`${err.message}\``
+          `Failed to load events: \`${err.message}\``
         ),
       ],
     });

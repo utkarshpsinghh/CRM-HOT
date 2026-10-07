@@ -5,13 +5,13 @@ import { createBaseEmbed, COLORS } from '../utils/embedBuilder.js';
 let isRunning = false;
 
 /**
- * Periodically monitors CRM for newly scheduled Bear Traps and initiates voting in Discord
+ * Periodically monitors for newly scheduled Bear Traps and initiates voting in Discord
  */
 export function startBearTrapVoteMonitor(client) {
   if (isRunning) return;
   isRunning = true;
 
-  console.log('[MONITOR] Bear Trap automated vote monitor initiated.');
+  console.log('[MONITOR] Bear Trap battle vote monitor active.');
 
   // Run initial check after 10 seconds, then every 2 minutes
   setTimeout(() => checkAndBroadcastVote(client), 10000);
@@ -30,7 +30,7 @@ async function checkAndBroadcastVote(client) {
     // Check if we have already broadcasted this event's vote
     const lastBroadcastedEventId = await crmApi.getSetting('bot_last_broadcasted_vote_id', null);
     if (lastBroadcastedEventId === scheduledBT.id) {
-      return; // Already broadcasted
+      return;
     }
 
     // Find target channel to post
@@ -52,9 +52,8 @@ async function checkAndBroadcastVote(client) {
     const embed = createBaseEmbed(`🚨 [HOT] Bear Trap Scheduled: Vote Initiated!`, COLORS.GOLD)
       .setDescription(
         `**Attention Kingdom #1391 [HOT] Warriors!**\n\n` +
-        `A new Bear Trap battle (**${scheduledBT.eventName}**) has just been scheduled in the alliance CRM!\n` +
-        `Please cast your vote below for your preferred battle time slot.\n\n` +
-        `⚡ **Direct CRM Sync:** Your selection will be instantly saved into the official CRM database.\n` +
+        `A new Bear Trap battle (**${scheduledBT.eventName}**) has been scheduled by Alliance Leadership!\n` +
+        `Please select your preferred battle deployment slot below.\n\n` +
         `🛡️ **Rule:** Warriors must attend at least **1 slot** per 48-hour battle cycle.`
       )
       .addFields(
@@ -70,7 +69,7 @@ async function checkAndBroadcastVote(client) {
         }
       )
       .setFooter({
-        text: 'Kingdom #1391 • House of Titans • Automated CRM Battle Dispatch',
+        text: 'Kingdom #1391 • House of Titans • Battle Command',
       });
 
     const buttons = new ActionRowBuilder().addComponents(

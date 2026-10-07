@@ -22,11 +22,11 @@ export function createUnlinkedEmbed(commandName = 'this command') {
     .setDescription(
       `Hail warrior! Before accessing **/${commandName}**, you must link your Discord account to your in-game **Kingdom #1391 [HOT]** identity.\n\n` +
       `**Why link your account?**\n` +
-      `• 📊 Inspect personal battle attendance records with \`/me\`\n` +
-      `• 🔥 Build consecutive daily attendance streaks with \`/checkin\`\n` +
-      `• ⚔️ Battle alliance comrades in combat duels with \`/duel\`\n` +
-      `• 🫡 Render and receive peer commendations with \`/salute\`\n\n` +
-      `👉 **Click the button below to link instantly**, or type **\`/link <name_or_id>\`**.`
+      `• 🗳️ Cast Bear Trap deployment votes with \`/vote\`\n` +
+      `• 📊 Inspect personal combat dossiers with \`/me\`\n` +
+      `• ⏳ Track live Bear Trap countdowns with \`/beartrap\`\n` +
+      `• 🏆 Check alliance rankings with \`/leaderboard\`\n\n` +
+      `👉 **Click the button below to link**, or type **\`/link\`** with your Governor Profile screenshot.`
     )
     .setFooter({ text: 'Kingdom #1391 • House of Titans • Identity Verification' });
 }

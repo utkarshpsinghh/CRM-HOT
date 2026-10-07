@@ -67,7 +67,7 @@ export async function execute(interaction) {
     await interaction.editReply({
       embeds: [
         createBaseEmbed('Leaderboard Error', COLORS.CRIMSON).setDescription(
-          `Failed to load leaderboard from CRM API: \`${err.message}\``
+          `Failed to load leaderboard: \`${err.message}\``
         ),
       ],
     });

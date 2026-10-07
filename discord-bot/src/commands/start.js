@@ -27,7 +27,7 @@ export async function execute(interaction) {
             name: '✨ What You Unlock Upon Linking:',
             value: [
               '• **/me** — Instant personal battle dossier & turnout rating',
-              '• **/vote** — Cast Bear Trap slot votes directly synchronized to CRM',
+              '• **/vote** — Cast your Bear Trap battle deployment vote',
               '• **/beartrap** — Live countdown & dual slot status for Bear Trap',
               '• **/attendance** — Complete personal battle attendance ledger',
             ].join('\n'),
@@ -63,14 +63,14 @@ export async function execute(interaction) {
 
     const embed = createBaseEmbed(`👑 Welcome back, ${member.name}!`, COLORS.EMERALD)
       .setDescription(
-        `Your Discord account <@${interaction.user.id}> is actively linked to **${member.name}** in the [HOT] Alliance database.\n\n` +
+        `Your Discord account <@${interaction.user.id}> is actively linked to **${member.name}** in the [HOT] Alliance roster.\n\n` +
         `**Status:** \`${member.status || 'Active'}\` • **Rank:** ${formatRank(member.rank)} • **Turnout:** ${renderProgressBar(attendanceRate)}`
       )
       .addFields(
         {
           name: '🎯 Quick Combat Actions',
           value: [
-            '• **/vote** — Cast or update your Bear Trap slot vote (synced to CRM)',
+            '• **/vote** — Cast or update your Bear Trap slot vote',
             '• **/beartrap** — Check countdown & turnout for the next battle',
             '• **/me** — View your complete combat dossier & last 5 battles',
             '• **/leaderboard** — View alliance attendance rankings',
