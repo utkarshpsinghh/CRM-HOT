@@ -11,6 +11,7 @@ import {
 import { config, validateConfig } from './config.js';
 import { crmApi } from './services/crmApi.js';
 import { createBaseEmbed, COLORS, formatRank } from './utils/embedBuilder.js';
+import { createUnlinkedEmbed, createLinkButton } from './utils/authCheck.js';
 
 import * as startCmd from './commands/start.js';
 import * as profileCmd from './commands/profile.js';
@@ -182,6 +183,21 @@ client.on('interactionCreate', async interaction => {
   if (!command) {
     console.warn(`[WARN] Unknown command requested: ${interaction.commandName}`);
     return;
+  }
+
+  // GLOBAL IDENTITY VERIFICATION GATE:
+  // If the user is unlinked, they can ONLY run /start, /link, or /help.
+  // All other commands are intercepted and blocked until they link their in-game account.
+  const unlinkedAllowed = ['start', 'link', 'help'];
+  if (!unlinkedAllowed.includes(interaction.commandName)) {
+    const linkedMember = await crmApi.getLinkedMember(interaction.user.id);
+    if (!linkedMember) {
+      return await interaction.reply({
+        embeds: [createUnlinkedEmbed(interaction.commandName)],
+        components: [createLinkButton()],
+        ephemeral: true,
+      });
+    }
   }
 
   try {
