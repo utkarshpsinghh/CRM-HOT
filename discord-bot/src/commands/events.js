@@ -10,14 +10,15 @@ export const data = new SlashCommandBuilder()
       .setName('status')
       .setDescription('Filter by event status')
       .addChoices(
-        { name: 'All Events', value: '' },
+        { name: 'All Events', value: 'all' },
         { name: 'Scheduled / Upcoming', value: 'Scheduled' },
         { name: 'Completed Battles', value: 'Completed' }
       )
   );
 
 export async function execute(interaction) {
-  const status = interaction.options.getString('status') || '';
+  const selectedStatus = interaction.options.getString('status');
+  const status = selectedStatus && selectedStatus !== 'all' ? selectedStatus : '';
   await interaction.deferReply();
 
   try {
