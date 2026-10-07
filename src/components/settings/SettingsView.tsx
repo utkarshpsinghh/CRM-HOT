@@ -550,7 +550,7 @@ export const SettingsView: React.FC = () => {
                 </span>
               </div>
               <div className="text-xs text-stone-400 mt-0.5">
-                When locked, visitors see the Under Construction screen. Officers can sign in anytime via the Officer Portal.
+                When locked, visitors see the Under Construction screen. Only Main Admin can sign in; R4 officer logins are restricted during development mode.
               </div>
             </div>
           </div>

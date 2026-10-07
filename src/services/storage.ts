@@ -519,6 +519,14 @@ export const storageService = {
     });
   },
 
+  getUnderDevelopment(): boolean {
+    const val = localStorage.getItem(STORAGE_KEYS.UNDER_DEVELOPMENT);
+    if (val !== null) {
+      return val === 'true';
+    }
+    return Boolean(this.getSettings().underDevelopment);
+  },
+
   setUnderDevelopment(val: boolean) {
     localStorage.setItem(STORAGE_KEYS.UNDER_DEVELOPMENT, String(val));
     const current = this.getSettings();

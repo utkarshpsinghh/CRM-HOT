@@ -11,6 +11,7 @@ import {
   Clock,
   ShieldCheck,
   Shield,
+  ShieldAlert,
 } from 'lucide-react';
 import { sounds } from '../../utils/sound';
 import { getLoginAttemptState, resetLoginAttempts } from '../../utils/security';
@@ -52,6 +53,7 @@ export const LoginView: React.FC = () => {
   }, []);
 
   const isLocked = lockoutSeconds > 0;
+  const isDevMode = Boolean(settings?.underDevelopment) || storageService.getUnderDevelopment();
 
   const cleanInputUser = username.trim().toLowerCase().replace(/[\s_-]+/g, '');
   const isMasterSeoyoon = cleanInputUser === 'seoyoon';
@@ -61,6 +63,14 @@ export const LoginView: React.FC = () => {
     if (isSubmitting) return;
 
     setError(null);
+
+    // During development mode, restrict officer login: ONLY Main Admin can sign in
+    if (isDevMode && !isMasterSeoyoon) {
+      setError('Development mode is active. Officer (R4) login is restricted — only Main Admin can sign in at this time.');
+      sounds.playAlert();
+      return;
+    }
+
     setIsSubmitting(true);
     sounds.playClick();
 
@@ -166,6 +176,19 @@ export const LoginView: React.FC = () => {
             </div>
           )}
 
+          {/* Development Mode Active Banner */}
+          {isDevMode && (
+            <div className="mb-4 p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs flex items-start gap-2.5">
+              <ShieldAlert className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <p className="font-bold text-amber-300">Development Mode Active</p>
+                <p className="text-[11px] text-amber-200/90 mt-0.5 leading-relaxed">
+                  Portal maintenance is in progress. Officer (R4) logins are restricted — only Main Admin can sign in.
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Login Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Username Input */}
@@ -237,8 +260,17 @@ export const LoginView: React.FC = () => {
           {/* Security Footnote */}
           <div className="mt-6 pt-4 border-t border-slate-800 text-center space-y-1">
             <div className="flex items-center justify-center gap-1.5 text-xs text-slate-400">
-              <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
-              <span>Authorized Officers (R4 / R5)</span>
+              {isDevMode ? (
+                <>
+                  <ShieldAlert className="w-3.5 h-3.5 text-amber-400" />
+                  <span className="text-amber-300/90 font-medium">Main Admin Only (Dev Mode Active)</span>
+                </>
+              ) : (
+                <>
+                  <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Authorized Officers (R4 / R5)</span>
+                </>
+              )}
             </div>
             <div className="text-[11px] text-slate-500 font-mono">
               HOT Alliance • Strength Through Unity

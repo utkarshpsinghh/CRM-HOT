@@ -177,10 +177,25 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const checkRevocation = async () => {
       if (isCancelled) return;
       const currentSettings = storageService.getSettings();
+
+      // Check if development mode was turned on: restrict R4 officers
+      const isDevActive = Boolean(currentSettings.underDevelopment) || storageService.getUnderDevelopment();
+      if (isDevActive && !isCancelled) {
+        console.warn(`Portal was put in development mode. Logging out officer "${admin.username}".`);
+        storageService.setRevokedNotice('Portal is currently in development mode. Officer (R4) access is restricted to Main Admin.');
+        sounds.playAlert();
+        logout();
+        return;
+      }
+
       const isValid = await apiService.checkAdminValid(admin.id, admin.username, currentSettings);
       if (!isValid && !isCancelled) {
-        console.warn(`Officer "${admin.username}" access was revoked by Main Admin. Automatically logging out.`);
-        storageService.setRevokedNotice('Your officer access has been revoked by the Main Admin.');
+        const isNowDev = Boolean(storageService.getSettings().underDevelopment) || storageService.getUnderDevelopment();
+        const notice = isNowDev
+          ? 'Portal is currently in development mode. Officer (R4) access is restricted to Main Admin.'
+          : 'Your officer access has been revoked by the Main Admin.';
+        console.warn(`Officer "${admin.username}" access was revoked or restricted. Automatically logging out.`);
+        storageService.setRevokedNotice(notice);
         sounds.playAlert();
         logout();
       }
@@ -198,7 +213,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     window.addEventListener('focus', checkRevocation);
     window.addEventListener('visibilitychange', handleVisibility);
 
-    // Cross-tab storage listener for instantaneous same-browser revocation
+    // Cross-tab storage listener for instantaneous same-browser revocation or dev mode switch
     const handleStorage = (e: StorageEvent) => {
       if (e.key === 'crm_officer_revoked') {
         const revokedUser = (e.newValue || '').toLowerCase();
@@ -207,12 +222,20 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           sounds.playAlert();
           logout();
         }
+      } else if (e.key === 'crm_hot_under_dev' || e.key === 'crm_hot_settings') {
+        const isDev = storageService.getUnderDevelopment();
+        if (isDev) {
+          storageService.setRevokedNotice('Portal is currently in development mode. Officer (R4) access is restricted to Main Admin.');
+          sounds.playAlert();
+          logout();
+        }
       }
     };
     window.addEventListener('storage', handleStorage);
 
-    // Supabase Realtime Channel: Instant push notification on admin deletion
+    // Supabase Realtime Channels: Instant push notification on admin deletion or dev mode toggle
     let channel: any = null;
+    let settingsChannel: any = null;
     const currentSettings = storageService.getSettings();
     if (supabaseService.isConfigured(currentSettings)) {
       const client = supabaseService.getClient(currentSettings);
@@ -238,6 +261,28 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               }
             )
             .subscribe();
+
+          settingsChannel = client
+            .channel(`officer-devmode-listener-${admin.id || admin.username}`)
+            .on(
+              'postgres_changes',
+              { event: '*', schema: 'public', table: 'settings' },
+              (payload: any) => {
+                const row = payload.new;
+                if (row && row.key === 'underDevelopment') {
+                  const isDev = row.value === 'true';
+                  storageService.setUnderDevelopment(isDev);
+                  setSettings(prev => ({ ...prev, underDevelopment: isDev }));
+                  if (isDev) {
+                    console.warn(`Realtime dev mode enabled. Logging out officer "${admin.username}".`);
+                    storageService.setRevokedNotice('Portal was switched to development mode. Officer (R4) access is restricted to Main Admin.');
+                    sounds.playAlert();
+                    logout();
+                  }
+                }
+              }
+            )
+            .subscribe();
         } catch (err) {
           console.warn('Realtime channel subscription warning:', err);
         }
@@ -250,8 +295,12 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       window.removeEventListener('focus', checkRevocation);
       window.removeEventListener('visibilitychange', handleVisibility);
       window.removeEventListener('storage', handleStorage);
-      if (channel && supabaseService.getClient(currentSettings)) {
-        supabaseService.getClient(currentSettings)?.removeChannel(channel);
+      const activeClient = supabaseService.getClient(currentSettings);
+      if (channel && activeClient) {
+        activeClient.removeChannel(channel);
+      }
+      if (settingsChannel && activeClient) {
+        activeClient.removeChannel(settingsChannel);
       }
     };
   }, [admin, logout]);

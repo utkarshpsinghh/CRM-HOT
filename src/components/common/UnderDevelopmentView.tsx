@@ -57,8 +57,8 @@ export const UnderDevelopmentView: React.FC = () => {
             </p>
           </div>
 
-          {/* Officer Login Button */}
-          <div className="pt-4 border-t border-slate-800">
+          {/* Main Admin Login Button */}
+          <div className="pt-4 border-t border-slate-800 space-y-2">
             <button
               type="button"
               onClick={() => {
@@ -68,9 +68,12 @@ export const UnderDevelopmentView: React.FC = () => {
               className="btn-primary w-full py-2.5 text-xs sm:text-sm font-semibold flex items-center justify-center gap-2 cursor-pointer shadow-md"
             >
               <Lock className="w-4 h-4" />
-              <span>Officer Portal Sign In</span>
+              <span>Main Admin Sign In</span>
               <ArrowRight className="w-4 h-4" />
             </button>
+            <p className="text-[11px] text-amber-400/80 font-medium text-center">
+              R4 officer logins are restricted while portal is under development
+            </p>
           </div>
         </div>
       </div>

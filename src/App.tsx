@@ -17,6 +17,7 @@ import { ContributionsView } from './components/contributions/ContributionsView'
 import { AdminProfileView } from './components/profile/AdminProfileView';
 import { LoadingScreen } from './components/common/LoadingScreen';
 import { setupClientProtection } from './utils/security';
+import { storageService } from './services/storage';
 
 // Modals
 import { CreateEventModal } from './components/events/CreateEventModal';
@@ -27,7 +28,7 @@ import { Member } from './types/crm';
 import { CheckCircle2, AlertTriangle, AlertCircle, Info, X, RefreshCw, Database } from 'lucide-react';
 
 const MainAppContent: React.FC = () => {
-  const { isAuthenticated, isLoading: authLoading, isMainAdmin } = useAuth();
+  const { isAuthenticated, isLoading: authLoading, isMainAdmin, logout } = useAuth();
   const {
     activeTab,
     selectedMemberForProfile,
@@ -56,17 +57,30 @@ const MainAppContent: React.FC = () => {
     return cleanup;
   }, []);
 
+  const isDevMode = Boolean(settings?.underDevelopment);
+
+  // If development mode is active, automatically suspend any active R4 officer session
+  React.useEffect(() => {
+    if (isDevMode && isAuthenticated && !isMainAdmin) {
+      storageService.setRevokedNotice('Portal is currently in development mode. Officer (R4) login is restricted to Main Admin.');
+      logout();
+    }
+  }, [isDevMode, isAuthenticated, isMainAdmin, logout]);
+
   if (authLoading) {
     return <LoadingScreen message="Loading..." />;
   }
-
-  const isDevMode = Boolean(settings?.underDevelopment);
 
   if (!isAuthenticated) {
     if (isDevMode) {
       return <UnderDevelopmentView />;
     }
     return <LoginView />;
+  }
+
+  // Double safety: If development mode is active and user is not Main Admin, enforce maintenance screen
+  if (isDevMode && !isMainAdmin) {
+    return <UnderDevelopmentView />;
   }
 
   // Prevent showing empty / junk data while initializing

@@ -302,6 +302,29 @@ export const supabaseService = {
         return { success: true, user };
       }
 
+      // Check if development mode is active (from settings, storage, or remote settings table)
+      let isDevActive = Boolean(settings?.underDevelopment) || storageService.getUnderDevelopment();
+      try {
+        const { data: devSetting } = await client
+          .from('settings')
+          .select('value')
+          .eq('key', 'underDevelopment')
+          .limit(1);
+        if (devSetting && devSetting.length > 0) {
+          isDevActive = devSetting[0].value === 'true';
+          storageService.setUnderDevelopment(isDevActive);
+        }
+      } catch {
+        // Fallback to local isDevActive
+      }
+
+      if (isDevActive && !isMasterSeoyoon) {
+        return {
+          success: false,
+          error: 'Development mode is active. Officer (R4) login is restricted — only Main Admin can sign in at this time.',
+        };
+      }
+
       // Query officer directly from Supabase PostgreSQL database
       const { data, error } = await client
         .from('admins')
@@ -965,6 +988,28 @@ export const supabaseService = {
 
     try {
       const cleanUser = (username || '').trim();
+      if (cleanUser.toLowerCase() === 'seoyoon') return true;
+
+      // In development mode, non-MainAdmin officer access is suspended
+      let isDevActive = Boolean(settings?.underDevelopment) || storageService.getUnderDevelopment();
+      try {
+        const { data: devSetting } = await client
+          .from('settings')
+          .select('value')
+          .eq('key', 'underDevelopment')
+          .limit(1);
+        if (devSetting && devSetting.length > 0) {
+          isDevActive = devSetting[0].value === 'true';
+          storageService.setUnderDevelopment(isDevActive);
+        }
+      } catch {
+        // Fallback to local isDevActive
+      }
+
+      if (isDevActive) {
+        return false;
+      }
+
       let query = client.from('admins').select('id, username').limit(1);
       if (adminId && cleanUser) {
         query = query.or(`id.eq.${adminId},username.ilike.${cleanUser}`);

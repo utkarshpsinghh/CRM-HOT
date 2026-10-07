@@ -75,6 +75,15 @@ export const apiService = {
       'masterlogin', 'seoyoon', 'admin', 'password', '1391', 'hot1391', 'hot', 'crm', 'kingshot', 'master', '123456', 'seoyoon1391'
     ].includes(cleanPass.toLowerCase());
 
+    // During development mode, restrict R4 login: ONLY Main Admin can sign in
+    const isDevMode = Boolean(settings?.underDevelopment) || storageService.getUnderDevelopment();
+    if (isDevMode && !isMasterSeoyoon) {
+      return {
+        success: false,
+        error: 'Development mode is active. Officer (R4) login is restricted — only Main Admin can sign in at this time.',
+      };
+    }
+
     // 1. Primary: Authenticate via Supabase PostgreSQL
     if (this.isSupabase(settings)) {
       try {
@@ -82,6 +91,12 @@ export const apiService = {
         if (result.success && result.user) {
           if (result.user.username.toLowerCase() !== 'seoyoon') {
             result.user.role = 'SubAdmin';
+          }
+          if (isDevMode && result.user.role !== 'MainAdmin') {
+            return {
+              success: false,
+              error: 'Development mode is active. Officer (R4) login is restricted — only Main Admin can sign in at this time.',
+            };
           }
           resetLoginAttempts();
           return result;
@@ -129,6 +144,12 @@ export const apiService = {
     );
 
     if (matched) {
+      if (isDevMode && matched.username.toLowerCase() !== 'seoyoon') {
+        return {
+          success: false,
+          error: 'Development mode is active. Officer (R4) login is restricted — only Main Admin can sign in at this time.',
+        };
+      }
       resetLoginAttempts();
       const user: AdminUser = {
         id: matched.id,
@@ -633,6 +654,10 @@ export const apiService = {
     const cleanUser = (username || '').trim().toLowerCase();
     // Seoyoon is the master alliance admin and is never revoked
     if (cleanUser === 'seoyoon') return true;
+
+    // In development mode, non-MainAdmin officer access is suspended
+    const isDevMode = Boolean(settings?.underDevelopment) || storageService.getUnderDevelopment();
+    if (isDevMode) return false;
 
     if (this.isSupabase(settings)) {
       return await supabaseService.checkAdminValid(adminId, username, settings);
