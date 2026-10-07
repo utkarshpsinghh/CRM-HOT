@@ -44,6 +44,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
     updateParticipationVote,
     updateParticipationAttendance,
     updateParticipationPenalty,
+    bulkUpdateParticipations,
   } = useCRM();
 
   const { isMainAdmin } = useAuth();
@@ -186,6 +187,46 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
     await updateParticipationAttendance(currentEvent.id, memberId, slotId, status);
   };
 
+  // Bulk actions: auto-fill attendance from poll votes
+  const handleAutoFillFromVotes = async () => {
+    if (!currentEvent) return;
+    sounds.playClick();
+    const updates: EventParticipation[] = [];
+    currentParticipations.forEach(p => {
+      if (p.voteStatus === 'VOTED' && p.selectedSlotId && p.attendanceStatus === 'NOT_MARKED') {
+        updates.push({
+          ...p,
+          attendanceStatus: 'ATTENDED',
+          attendanceSlotId: p.selectedSlotId,
+          updatedAt: new Date().toISOString(),
+        });
+      }
+    });
+    if (updates.length > 0) {
+      await bulkUpdateParticipations(currentEvent.id, updates);
+    }
+  };
+
+  // Bulk actions: mark remaining un-marked members as Absent
+  const handleMarkUnmarkedAbsent = async () => {
+    if (!currentEvent) return;
+    sounds.playClick();
+    const updates: EventParticipation[] = [];
+    currentParticipations.forEach(p => {
+      if (p.attendanceStatus === 'NOT_MARKED') {
+        updates.push({
+          ...p,
+          attendanceStatus: 'ABSENT',
+          attendanceSlotId: null,
+          updatedAt: new Date().toISOString(),
+        });
+      }
+    });
+    if (updates.length > 0) {
+      await bulkUpdateParticipations(currentEvent.id, updates);
+    }
+  };
+
   // Filtered and sorted member records
   const filteredRecords = useMemo(() => {
     const list = currentParticipations.filter(p => {
@@ -298,12 +339,16 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
               <span>{computedStatus}</span>
             </span>
           </div>
-          <div className="text-xs text-slate-400 font-mono mt-1 flex items-center gap-2">
+          <div className="text-xs text-slate-400 font-mono mt-1 flex items-center gap-2 flex-wrap">
             <span>{safeFormatDate(currentEvent.date, { month: 'short', day: 'numeric', year: 'numeric' })} (UTC)</span>
             <span>•</span>
-            <span className="text-amber-400/90">Slot 1: {slot1?.slotName || 'BT1'}</span>
+            <span className="text-amber-300 font-semibold bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
+              Slot 1 ({slot1?.slotName || 'Slot 1'}): {slot1?.startTime || '16:00 UTC'}
+            </span>
             <span>•</span>
-            <span className="text-amber-400/90">Slot 2: {slot2?.slotName || 'BT2'}</span>
+            <span className="text-amber-300 font-semibold bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
+              Slot 2 ({slot2?.slotName || 'Slot 2'}): {slot2?.startTime || '02:00 UTC'}
+            </span>
           </div>
         </div>
 
@@ -455,23 +500,33 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
             <span className="text-[10px] text-slate-400">Followed Poll</span>
           </div>
           <div className="space-y-2 text-xs">
-            <div className="p-2 rounded bg-slate-950/50 border border-slate-800/60">
-              <div className="flex justify-between font-semibold text-slate-300 text-[11px]">
-                <span>{slot1?.slotName || 'Slot 1'}:</span>
-                <span className="font-mono text-purple-300 font-bold">
-                  {slot1Metrics?.fulfillmentRate || 0}% ({slot1Metrics?.followedVoteCount || 0}/{slot1Metrics?.votedCount || 0})
-                </span>
+            {metrics.totalVoters === 0 ? (
+              <div className="p-2.5 rounded bg-slate-950/60 border border-slate-800/80 text-slate-400 text-xs leading-relaxed">
+                No poll votes were recorded for this event. All{' '}
+                <strong className="text-emerald-400 font-bold">{metrics.uniqueAttendees} attendees</strong>{' '}
+                participated as valid non-voters.
               </div>
-            </div>
+            ) : (
+              <>
+                <div className="p-2 rounded bg-slate-950/50 border border-slate-800/60">
+                  <div className="flex justify-between font-semibold text-slate-300 text-[11px]">
+                    <span>{slot1?.slotName || 'Slot 1'}:</span>
+                    <span className="font-mono text-purple-300 font-bold">
+                      {slot1Metrics?.fulfillmentRate || 0}% ({slot1Metrics?.followedVoteCount || 0}/{slot1Metrics?.votedCount || 0})
+                    </span>
+                  </div>
+                </div>
 
-            <div className="p-2 rounded bg-slate-950/50 border border-slate-800/60">
-              <div className="flex justify-between font-semibold text-slate-300 text-[11px]">
-                <span>{slot2?.slotName || 'Slot 2'}:</span>
-                <span className="font-mono text-purple-300 font-bold">
-                  {slot2Metrics?.fulfillmentRate || 0}% ({slot2Metrics?.followedVoteCount || 0}/{slot2Metrics?.votedCount || 0})
-                </span>
-              </div>
-            </div>
+                <div className="p-2 rounded bg-slate-950/50 border border-slate-800/60">
+                  <div className="flex justify-between font-semibold text-slate-300 text-[11px]">
+                    <span>{slot2?.slotName || 'Slot 2'}:</span>
+                    <span className="font-mono text-purple-300 font-bold">
+                      {slot2Metrics?.fulfillmentRate || 0}% ({slot2Metrics?.followedVoteCount || 0}/{slot2Metrics?.votedCount || 0})
+                    </span>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
           <div className="mt-2 text-[10px] text-slate-500">
             Measures reliability of players following their voted slot
@@ -702,6 +757,32 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
               <option value="name_asc">Name (A to Z)</option>
               <option value="name_desc">Name (Z to A)</option>
             </select>
+
+            {/* Batch Actions */}
+            {isMainAdmin && (
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={handleAutoFillFromVotes}
+                  title="Automatically mark attendance based on members' selected poll votes"
+                  className="px-2.5 py-1.5 rounded-lg bg-sky-500/15 hover:bg-sky-500/25 border border-sky-500/30 text-sky-300 text-xs font-semibold flex items-center gap-1 cursor-pointer transition-colors"
+                >
+                  <CheckCheck className="w-3.5 h-3.5" />
+                  <span className="hidden md:inline">Auto-Fill from Votes</span>
+                  <span className="md:hidden">Auto-Fill</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleMarkUnmarkedAbsent}
+                  title="Mark all remaining un-marked members as Absent"
+                  className="px-2.5 py-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-300 text-xs font-semibold flex items-center gap-1 cursor-pointer transition-colors"
+                >
+                  <X className="w-3.5 h-3.5" />
+                  <span className="hidden md:inline">Mark Unmarked Absent</span>
+                  <span className="md:hidden">Mark Absent</span>
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
@@ -768,13 +849,71 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
 
                       {/* Selected Slot (Vote) */}
                       <td className="py-2.5 px-3">
-                        {record.voteStatus === 'VOTED' && votedSlot ? (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-mono font-bold bg-sky-500/15 text-sky-300 border border-sky-500/30">
-                            {votedSlot.slotName}
-                          </span>
-                        ) : (
-                          <span className="text-slate-500 italic text-[11px]">No Vote</span>
-                        )}
+                        <div className="flex items-center gap-1 flex-wrap">
+                          {slot1 && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                sounds.playClick();
+                                const isSelected = record.voteStatus === 'VOTED' && record.selectedSlotId === slot1.id;
+                                updateParticipationVote(
+                                  currentEvent.id,
+                                  member.id,
+                                  isSelected ? null : slot1.id,
+                                  isSelected ? 'NO_VOTE' : 'VOTED'
+                                );
+                              }}
+                              title={`Vote ${slot1.slotName} (click again to clear)`}
+                              className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold transition-all cursor-pointer ${
+                                record.voteStatus === 'VOTED' && record.selectedSlotId === slot1.id
+                                  ? 'bg-sky-500 text-slate-950 shadow-sm border border-sky-400 font-black'
+                                  : 'bg-slate-950 border border-slate-800 text-sky-400 hover:border-sky-500/50 hover:bg-sky-500/10'
+                              }`}
+                            >
+                              {slot1.slotName}
+                            </button>
+                          )}
+
+                          {slot2 && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                sounds.playClick();
+                                const isSelected = record.voteStatus === 'VOTED' && record.selectedSlotId === slot2.id;
+                                updateParticipationVote(
+                                  currentEvent.id,
+                                  member.id,
+                                  isSelected ? null : slot2.id,
+                                  isSelected ? 'NO_VOTE' : 'VOTED'
+                                );
+                              }}
+                              title={`Vote ${slot2.slotName} (click again to clear)`}
+                              className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold transition-all cursor-pointer ${
+                                record.voteStatus === 'VOTED' && record.selectedSlotId === slot2.id
+                                  ? 'bg-sky-500 text-slate-950 shadow-sm border border-sky-400 font-black'
+                                  : 'bg-slate-950 border border-slate-800 text-sky-400 hover:border-sky-500/50 hover:bg-sky-500/10'
+                              }`}
+                            >
+                              {slot2.slotName}
+                            </button>
+                          )}
+
+                          {record.voteStatus === 'VOTED' ? (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                sounds.playClick();
+                                updateParticipationVote(currentEvent.id, member.id, null, 'NO_VOTE');
+                              }}
+                              title="Clear Vote (Set to No Vote)"
+                              className="px-1.5 py-0.5 rounded text-[9px] font-mono text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer"
+                            >
+                              Clear
+                            </button>
+                          ) : (
+                            <span className="text-[10px] text-slate-500 italic ml-0.5">No Vote</span>
+                          )}
+                        </div>
                       </td>
 
                       {/* Attendance Status */}

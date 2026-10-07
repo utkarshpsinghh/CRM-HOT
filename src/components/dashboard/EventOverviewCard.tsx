@@ -2,29 +2,28 @@ import React from 'react';
 import { AllianceEvent } from '../../types/crm';
 import { useCRM } from '../../context/CRMContext';
 import { ProgressBar } from '../common/ProgressBar';
-import { ChevronRight, Calendar, Clock, CheckCircle2, Swords } from 'lucide-react';
+import { ChevronRight, Clock, CheckCircle2, Layers, Users } from 'lucide-react';
 import { sounds } from '../../utils/sound';
 import { safeFormatDate, getComputedEventStatus, getEventRelativeTime } from '../../utils/date';
+import { calculateEventHealthMetrics } from '../../utils/eventCalculations';
 
 interface EventOverviewCardProps {
   event: AllianceEvent;
 }
 
 export const EventOverviewCard: React.FC<EventOverviewCardProps> = ({ event }) => {
-  const { attendance, setSelectedEventIdForAttendance, setActiveTab } = useCRM();
+  const { eventSlots, eventParticipations, members, setSelectedEventIdForAttendance, setActiveTab } = useCRM();
 
-  const eventRecords = attendance.filter(a => a.eventId === event.id);
-  const total = eventRecords.length;
+  const eligibleCount = members.filter(m => m.status !== 'Archived').length;
+  const metrics = calculateEventHealthMetrics(event.id, eventSlots, eventParticipations, eligibleCount);
 
-  const votedYes = eventRecords.filter(r => r.voteStatus === 'YES').length;
-  const votedNo = eventRecords.filter(r => r.voteStatus === 'NO').length;
-  const totalVoted = votedYes + votedNo;
-  const noVote = eventRecords.filter(r => r.voteStatus === 'NO RESPONSE').length;
+  const slotsForEvent = eventSlots.filter(s => s.eventId === event.id);
+  const slot1 = slotsForEvent.find(s => s.slotNumber === 1);
+  const slot2 = slotsForEvent.find(s => s.slotNumber === 2);
 
-  const joined = eventRecords.filter(r => r.attendanceStatus === 'JOINED').length;
-  const didNotJoin = eventRecords.filter(r => r.attendanceStatus === 'DIDNT_JOIN').length;
+  const slot1Metrics = metrics.slots.find(s => s.slotNumber === 1);
+  const slot2Metrics = metrics.slots.find(s => s.slotNumber === 2);
 
-  const attendancePct = total > 0 ? (joined / total) * 100 : 0;
   const computedStatus = getComputedEventStatus(event.date);
   const relativeTime = getEventRelativeTime(event.date);
 
@@ -50,10 +49,11 @@ export const EventOverviewCard: React.FC<EventOverviewCardProps> = ({ event }) =
       }`}
     >
       <div>
+        {/* Card Header: Event Type, Status, and Date */}
         <div className="flex items-start justify-between gap-2 mb-2">
           <div>
             <div className="flex items-center gap-2">
-              <span className="font-bold text-base text-slate-100">
+              <span className="font-bold text-base text-slate-100 font-fantasy">
                 {event.eventType}
               </span>
               <span
@@ -80,42 +80,75 @@ export const EventOverviewCard: React.FC<EventOverviewCardProps> = ({ event }) =
           </div>
 
           <div className="text-right text-xs text-slate-400 font-mono">
-            <div className="font-semibold text-slate-200">{formattedDate}</div>
+            <div className="font-semibold text-slate-200">{formattedDate} UTC</div>
             {relativeTime && (
               <div className="text-[10px] text-amber-400 font-medium">{relativeTime}</div>
             )}
           </div>
         </div>
 
-        {/* Attendance Bar */}
+        {/* Turnout Progress Bar */}
         <div className="my-3 space-y-1">
           <ProgressBar
-            percentage={attendancePct}
+            percentage={metrics.overallParticipationRate}
             label="Turnout Rate"
-            subLabel={`${joined}/${total}`}
+            subLabel={`${metrics.uniqueAttendees}/${metrics.eligibleMembersCount}`}
             color={
-              attendancePct >= 75 ? 'emerald' : attendancePct >= 50 ? 'gold' : 'crimson'
+              metrics.overallParticipationRate >= 75
+                ? 'emerald'
+                : metrics.overallParticipationRate >= 50
+                ? 'gold'
+                : 'crimson'
             }
           />
         </div>
 
-        {/* Voting & Attendance Stats Grid */}
-        <div className="grid grid-cols-2 gap-2 text-xs py-2 px-3 rounded-lg bg-slate-950/60 border border-slate-800/80 mb-3">
-          <div>
-            <span className="text-slate-400 text-[11px] block">Poll Votes:</span>
-            <span className="font-mono font-semibold text-slate-200">
-              <span className="text-emerald-400">{votedYes} YES</span>
-              <span className="text-slate-600 mx-1">/</span>
-              <span className="text-rose-400">{votedNo} NO</span>
-            </span>
+        {/* 2-Slot Breakdown (Slot 1 & Slot 2 with distinct times & attendance) */}
+        <div className="grid grid-cols-2 gap-2 text-xs py-2 px-2.5 rounded-lg bg-slate-950/60 border border-slate-800/80 mb-2.5">
+          <div className="border-r border-slate-800/80 pr-2 min-w-0">
+            <div className="flex items-center justify-between">
+              <span className="font-bold text-[11px] text-amber-300 font-fantasy truncate">
+                {slot1?.slotName || 'Slot 1'}
+              </span>
+              <span className="font-mono text-emerald-400 font-bold text-[11px]">
+                {slot1Metrics?.actualAttendees || 0}
+              </span>
+            </div>
+            <div className="text-[10px] text-slate-400 truncate mt-0.5">
+              {slot1?.startTime || '16:00 UTC'}
+            </div>
+            <div className="text-[10px] text-slate-500 mt-0.5">
+              Turnout: <span className="text-slate-300 font-semibold">{slot1Metrics?.participationRate || 0}%</span>
+            </div>
           </div>
-          <div>
-            <span className="text-slate-400 text-[11px] block">Attendance:</span>
-            <span className="font-mono font-semibold text-slate-200">
-              <span className="text-emerald-400">{joined} Joined</span>
-              <span className="text-slate-600 mx-1">/</span>
-              <span className="text-rose-400">{didNotJoin} Missed</span>
-            </span>
+
+          <div className="pl-1 min-w-0">
+            <div className="flex items-center justify-between">
+              <span className="font-bold text-[11px] text-amber-300 font-fantasy truncate">
+                {slot2?.slotName || 'Slot 2'}
+              </span>
+              <span className="font-mono text-emerald-400 font-bold text-[11px]">
+                {slot2Metrics?.actualAttendees || 0}
+              </span>
+            </div>
+            <div className="text-[10px] text-slate-400 truncate mt-0.5">
+              {slot2?.startTime || '02:00 UTC'}
+            </div>
+            <div className="text-[10px] text-slate-500 mt-0.5">
+              Turnout: <span className="text-slate-300 font-semibold">{slot2Metrics?.participationRate || 0}%</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Voting & Non-voter Stats */}
+        <div className="flex items-center justify-between text-[11px] px-2.5 py-1.5 rounded-lg bg-slate-950/40 border border-slate-800/50 mb-3 text-slate-400">
+          <div className="flex items-center gap-1">
+            <Layers className="w-3 h-3 text-sky-400" />
+            <span>Poll: <strong className="text-sky-300 font-mono">{metrics.totalVoters}</strong> ({metrics.votingRate}%)</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <Users className="w-3 h-3 text-purple-400" />
+            <span>Non-voters joined: <strong className="text-purple-300 font-mono">{metrics.nonVotersAttendedCount}</strong></span>
           </div>
         </div>
       </div>
@@ -123,7 +156,7 @@ export const EventOverviewCard: React.FC<EventOverviewCardProps> = ({ event }) =
       {/* Action Footer */}
       <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between">
         <span className="text-[11px] text-slate-400 font-medium">
-          {noVote > 0 ? `${noVote} unvoted members` : 'All votes recorded'}
+          {metrics.noVoteCount > 0 ? `${metrics.noVoteCount} unvoted members` : 'All votes recorded'}
         </span>
         <button
           onClick={handleOpenAttendance}

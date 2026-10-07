@@ -21,6 +21,7 @@ export const InactivityTrackerView: React.FC = () => {
     members,
     events,
     attendance,
+    eventParticipations,
     updateMember,
     setSelectedMemberForProfile,
     archiveMember,
@@ -41,9 +42,25 @@ export const InactivityTrackerView: React.FC = () => {
     const map = new Map<string, string>();
     members.forEach(member => {
       const memberAtt = attendance.filter(a => a.memberId === member.id);
+      const memberParts = eventParticipations.filter(p => p.memberId === member.id);
       let latestTime = 0;
       let desc = 'Enrolled in Roster';
 
+      // Check modern participations
+      memberParts.forEach(p => {
+        const evt = eventMap.get(p.eventId);
+        if (!evt) return;
+        const t = new Date(evt.date).getTime();
+        if (p.attendanceStatus === 'ATTENDED' && t > latestTime) {
+          latestTime = t;
+          desc = `Joined ${evt.eventType || evt.eventName}`;
+        } else if (p.voteStatus === 'VOTED' && t > latestTime) {
+          latestTime = t;
+          desc = `Voted on ${evt.eventType || evt.eventName}`;
+        }
+      });
+
+      // Check legacy attendance
       memberAtt.forEach(rec => {
         const evt = eventMap.get(rec.eventId);
         if (!evt) return;
@@ -60,7 +77,7 @@ export const InactivityTrackerView: React.FC = () => {
       map.set(member.id, desc);
     });
     return map;
-  }, [members, attendance, eventMap]);
+  }, [members, attendance, eventParticipations, eventMap]);
 
   const filteredMembers = useMemo(() => {
     return members.filter(member => {

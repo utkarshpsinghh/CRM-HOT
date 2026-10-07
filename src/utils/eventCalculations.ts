@@ -56,9 +56,19 @@ export function getDefaultSlotsForEventType(
   const slot1Name = matched ? matched.slot1Name : `${eventType} 1`;
   const slot2Name = matched ? matched.slot2Name : `${eventType} 2`;
   const time1 = matched ? matched.defaultTime1 : '16:00';
-  const time2 = matched ? matched.defaultTime2: '02:00';
+  const time2 = matched ? matched.defaultTime2 : '02:00';
 
   const datePart = (baseDate || '').split('T')[0] || new Date().toISOString().split('T')[0];
+  
+  // For Bear Trap, Slot 1 is typically 16:00 UTC and Slot 2 is at 02:00 UTC the following day
+  let slot2DatePart = datePart;
+  if (matched?.type === 'Bear Trap') {
+    const baseD = new Date(baseDate || Date.now());
+    if (!isNaN(baseD.getTime())) {
+      const nextD = new Date(baseD.getTime() + 24 * 60 * 60 * 1000);
+      slot2DatePart = nextD.toISOString().split('T')[0];
+    }
+  }
 
   return [
     {
@@ -74,7 +84,7 @@ export function getDefaultSlotsForEventType(
       eventId,
       slotNumber: 2,
       slotName: slot2Name,
-      startTime: `${datePart} ${time2} UTC`,
+      startTime: `${slot2DatePart} ${time2} UTC`,
       createdAt: new Date().toISOString(),
     },
   ];

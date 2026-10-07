@@ -5,7 +5,7 @@ import { sounds } from '../../utils/sound';
 import { safeFormatDate, getComputedEventStatus } from '../../utils/date';
 
 export const RecentEventsList: React.FC = () => {
-  const { events, attendance, setSelectedEventIdForAttendance, setActiveTab } = useCRM();
+  const { events, attendance, eventParticipations, members, setSelectedEventIdForAttendance, setActiveTab } = useCRM();
 
   // Reverse events to show most recent first
   const sorted = [...events].reverse();
@@ -15,6 +15,8 @@ export const RecentEventsList: React.FC = () => {
     setSelectedEventIdForAttendance(eventId);
     setActiveTab('attendance');
   };
+
+  const eligibleCount = members.filter(m => m.status !== 'Archived').length;
 
   return (
     <div className="rounded-xl border border-slate-800 bg-slate-900/75 overflow-hidden">
@@ -32,9 +34,18 @@ export const RecentEventsList: React.FC = () => {
 
       <div className="divide-y divide-slate-800/60">
         {sorted.slice(0, 6).map(evt => {
-          const records = attendance.filter(a => a.eventId === evt.id);
-          const total = records.length;
-          const joined = records.filter(r => r.attendanceStatus === 'JOINED').length;
+          const parts = eventParticipations.filter(p => p.eventId === evt.id);
+          let total = eligibleCount;
+          let joined = 0;
+
+          if (parts.length > 0) {
+            joined = parts.filter(p => p.attendanceStatus === 'ATTENDED').length;
+          } else {
+            const records = attendance.filter(a => a.eventId === evt.id);
+            total = records.length;
+            joined = records.filter(r => r.attendanceStatus === 'JOINED').length;
+          }
+
           const pct = total > 0 ? ((joined / total) * 100).toFixed(0) : '0';
 
           const formattedDate = safeFormatDate(evt.date, {

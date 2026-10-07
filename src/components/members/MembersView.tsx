@@ -42,6 +42,7 @@ export const MembersView: React.FC<MembersViewProps> = ({
     members,
     events,
     attendance,
+    eventParticipations,
     archiveMember,
     setSelectedMemberForProfile,
     inactiveInsights,
@@ -94,10 +95,10 @@ export const MembersView: React.FC<MembersViewProps> = ({
   const memberParticipationMap = useMemo(() => {
     const map = new Map<string, ReturnType<typeof calculateMemberParticipation>>();
     members.forEach(m => {
-      map.set(m.id, calculateMemberParticipation(m.id, events, attendance));
+      map.set(m.id, calculateMemberParticipation(m.id, events, attendance, eventParticipations));
     });
     return map;
-  }, [members, events, attendance]);
+  }, [members, events, attendance, eventParticipations]);
 
   const rankWeights: Record<AllianceRank, number> = {
     R5: 5,

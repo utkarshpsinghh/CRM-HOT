@@ -885,7 +885,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const strikesTotal = members.filter(m => m.strikes > 0).length;
     const needsAttention = inactiveInsights.length;
 
-    // Fast O(N) calculation across completed events using Set lookup
+    // Fast calculation across completed events using Set lookup
     const completedEventIds = new Set(
       events.filter(e => e.status === 'Completed' || getComputedEventStatus(e.date) === 'Completed').map(e => e.id)
     );
@@ -893,12 +893,32 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     let totalExpected = 0;
     let totalVotes = 0;
 
-    for (let i = 0; i < attendance.length; i++) {
-      const r = attendance[i];
-      if (completedEventIds.has(r.eventId)) {
-        totalExpected++;
-        if (r.attendanceStatus === 'JOINED') totalJoined++;
-        if (r.voteStatus === 'YES' || r.voteStatus === 'NO') totalVotes++;
+    if (eventParticipations.length > 0) {
+      completedEventIds.forEach(evtId => {
+        const parts = eventParticipations.filter(p => p.eventId === evtId);
+        if (parts.length > 0) {
+          totalExpected += total;
+          totalJoined += parts.filter(p => p.attendanceStatus === 'ATTENDED').length;
+          totalVotes += parts.filter(p => p.voteStatus === 'VOTED').length;
+        } else {
+          for (let i = 0; i < attendance.length; i++) {
+            const r = attendance[i];
+            if (r.eventId === evtId) {
+              totalExpected++;
+              if (r.attendanceStatus === 'JOINED') totalJoined++;
+              if (r.voteStatus === 'YES' || r.voteStatus === 'NO') totalVotes++;
+            }
+          }
+        }
+      });
+    } else {
+      for (let i = 0; i < attendance.length; i++) {
+        const r = attendance[i];
+        if (completedEventIds.has(r.eventId)) {
+          totalExpected++;
+          if (r.attendanceStatus === 'JOINED') totalJoined++;
+          if (r.voteStatus === 'YES' || r.voteStatus === 'NO') totalVotes++;
+        }
       }
     }
 
@@ -909,24 +929,45 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const latestEvent = events[events.length - 1];
     let latestSummary = undefined;
     if (latestEvent) {
-      const records = attendance.filter(a => a.eventId === latestEvent.id);
-      const totalInEvt = records.length;
-      const joinedCount = records.filter(r => r.attendanceStatus === 'JOINED').length;
-      const votedCount = records.filter(r => r.voteStatus === 'YES' || r.voteStatus === 'NO').length;
-      const didNotJoinCount = records.filter(r => r.voteStatus === 'YES' && r.attendanceStatus === 'DIDNT_JOIN').length;
-      const noVoteCount = records.filter(r => r.voteStatus === 'NO RESPONSE').length;
+      const parts = eventParticipations.filter(p => p.eventId === latestEvent.id);
+      if (parts.length > 0) {
+        const joinedCount = parts.filter(p => p.attendanceStatus === 'ATTENDED').length;
+        const votedCount = parts.filter(p => p.voteStatus === 'VOTED').length;
+        const didNotJoinCount = parts.filter(p => p.attendanceStatus === 'ABSENT').length;
+        const noVoteCount = parts.filter(p => p.voteStatus === 'NO_VOTE').length;
+        const totalInEvt = total;
 
-      latestSummary = {
-        ...latestEvent,
-        eventId: latestEvent.id,
-        totalMembers: totalInEvt,
-        voted: votedCount,
-        joined: joinedCount,
-        didNotJoin: didNotJoinCount,
-        noVote: noVoteCount,
-        attendancePercentage: totalInEvt > 0 ? (joinedCount / totalInEvt) * 100 : 0,
-        votePercentage: totalInEvt > 0 ? (votedCount / totalInEvt) * 100 : 0,
-      };
+        latestSummary = {
+          ...latestEvent,
+          eventId: latestEvent.id,
+          totalMembers: totalInEvt,
+          voted: votedCount,
+          joined: joinedCount,
+          didNotJoin: didNotJoinCount,
+          noVote: noVoteCount,
+          attendancePercentage: totalInEvt > 0 ? (joinedCount / totalInEvt) * 100 : 0,
+          votePercentage: totalInEvt > 0 ? (votedCount / totalInEvt) * 100 : 0,
+        };
+      } else {
+        const records = attendance.filter(a => a.eventId === latestEvent.id);
+        const totalInEvt = records.length;
+        const joinedCount = records.filter(r => r.attendanceStatus === 'JOINED').length;
+        const votedCount = records.filter(r => r.voteStatus === 'YES' || r.voteStatus === 'NO').length;
+        const didNotJoinCount = records.filter(r => r.voteStatus === 'YES' && r.attendanceStatus === 'DIDNT_JOIN').length;
+        const noVoteCount = records.filter(r => r.voteStatus === 'NO RESPONSE').length;
+
+        latestSummary = {
+          ...latestEvent,
+          eventId: latestEvent.id,
+          totalMembers: totalInEvt,
+          voted: votedCount,
+          joined: joinedCount,
+          didNotJoin: didNotJoinCount,
+          noVote: noVoteCount,
+          attendancePercentage: totalInEvt > 0 ? (joinedCount / totalInEvt) * 100 : 0,
+          votePercentage: totalInEvt > 0 ? (votedCount / totalInEvt) * 100 : 0,
+        };
+      }
     }
 
     return {
@@ -940,7 +981,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       averageVoteRate: avgVote,
       latestEventSummary: latestSummary,
     };
-  }, [members, events, attendance, inactiveInsights]);
+  }, [members, events, attendance, eventParticipations, inactiveInsights]);
 
   // Contribution and Officer Tracking Helper (Instant local + background cloud sync)
   const logContribution = useCallback(

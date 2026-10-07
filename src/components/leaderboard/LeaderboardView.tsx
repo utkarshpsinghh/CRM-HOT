@@ -33,7 +33,7 @@ interface MemberLeaderboardEntry {
 }
 
 export const LeaderboardView: React.FC = () => {
-  const { members, events, attendance, setSelectedMemberForProfile } = useCRM();
+  const { members, events, attendance, eventParticipations, setSelectedMemberForProfile } = useCRM();
 
   // Filters
   const [timeframe, setTimeframe] = useState<'month' | 'all'>('month');
@@ -75,17 +75,30 @@ export const LeaderboardView: React.FC = () => {
     const eligibleMembers = members.filter(m => m.status !== 'Archived');
 
     const entries: MemberLeaderboardEntry[] = eligibleMembers.map(member => {
+      const modernParts = eventParticipations.filter(
+        p => p.memberId === member.id && eventIdSet.has(p.eventId)
+      );
       const memberRecords = attendance.filter(
         a => a.memberId === member.id && eventIdSet.has(a.eventId)
       );
 
-      const eventsJoined = memberRecords.filter(r => r.attendanceStatus === 'JOINED').length;
-      const eventsVoted = memberRecords.filter(
+      const modernJoined = modernParts.filter(p => p.attendanceStatus === 'ATTENDED').length;
+      const modernVoted = modernParts.filter(p => p.voteStatus === 'VOTED').length;
+      const modernMissed = modernParts.filter(
+        p => p.voteStatus === 'VOTED' && p.attendanceStatus === 'ABSENT'
+      ).length;
+
+      const legacyJoined = memberRecords.filter(r => r.attendanceStatus === 'JOINED').length;
+      const legacyVoted = memberRecords.filter(
         r => r.voteStatus === 'YES' || r.voteStatus === 'NO'
       ).length;
-      const missedAfterYes = memberRecords.filter(
+      const legacyMissed = memberRecords.filter(
         r => r.voteStatus === 'YES' && r.attendanceStatus === 'DIDNT_JOIN'
       ).length;
+
+      const eventsJoined = modernParts.length > 0 ? modernJoined : legacyJoined;
+      const eventsVoted = modernParts.length > 0 ? modernVoted : legacyVoted;
+      const missedAfterYes = modernParts.length > 0 ? modernMissed : legacyMissed;
 
       const attendanceRate = totalEventsCount > 0 ? (eventsJoined / totalEventsCount) * 100 : 0;
       const voteRate = totalEventsCount > 0 ? (eventsVoted / totalEventsCount) * 100 : 0;

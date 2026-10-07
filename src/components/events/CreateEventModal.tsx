@@ -37,23 +37,59 @@ export const CreateEventModal: React.FC<CreateEventModalProps> = ({ isOpen, onCl
     return `${y}-${m}-${d}T${h}:${mi}`;
   });
 
-  const [slot1Time, setSlot1Time] = useState('16:00 UTC');
-  const [slot2Time, setSlot2Time] = useState('02:00 UTC');
+  const [slot1Time, setSlot1Time] = useState(() => {
+    const now = new Date();
+    const dStr = now.toISOString().split('T')[0];
+    return `${dStr} 16:00 UTC`;
+  });
+  const [slot2Time, setSlot2Time] = useState(() => {
+    const now = new Date();
+    const nextD = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+    const dStr2 = nextD.toISOString().split('T')[0];
+    return `${dStr2} 02:00 UTC`;
+  });
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const getSlotDefaults = (type: MainEventType, baseDateStr: string) => {
+    const matched = MAIN_EVENT_TYPES.find(m => m.type === type);
+    const datePart = (baseDateStr || '').split('T')[0] || new Date().toISOString().split('T')[0];
+    const time1 = matched ? matched.defaultTime1 : '16:00';
+    const time2 = matched ? matched.defaultTime2 : '02:00';
+
+    let datePart2 = datePart;
+    if (type === 'Bear Trap') {
+      const d = new Date(baseDateStr || Date.now());
+      if (!isNaN(d.getTime())) {
+        const nextD = new Date(d.getTime() + 24 * 60 * 60 * 1000);
+        datePart2 = nextD.toISOString().split('T')[0];
+      }
+    }
+
+    return {
+      s1: `${datePart} ${time1} UTC`,
+      s2: `${datePart2} ${time2} UTC`,
+    };
+  };
 
   const handleTypeChange = (type: MainEventType) => {
     setEventType(type);
     const matched = MAIN_EVENT_TYPES.find(m => m.type === type);
     if (matched) {
       setEventName(type);
-      setSlot1Time(`${matched.defaultTime1} UTC`);
-      setSlot2Time(`${matched.defaultTime2} UTC`);
     } else {
       setEventName(type === 'CUSTOM' ? '' : `${type} Event`);
-      setSlot1Time('16:00 UTC');
-      setSlot2Time('02:00 UTC');
     }
+    const defs = getSlotDefaults(type, date);
+    setSlot1Time(defs.s1);
+    setSlot2Time(defs.s2);
+  };
+
+  const handleDateChange = (newDate: string) => {
+    setDate(newDate);
+    const defs = getSlotDefaults(eventType, newDate);
+    setSlot1Time(defs.s1);
+    setSlot2Time(defs.s2);
   };
 
   const activeRosterCount = members.filter(m => m.status !== 'Archived').length;
@@ -154,7 +190,7 @@ export const CreateEventModal: React.FC<CreateEventModalProps> = ({ isOpen, onCl
             type="datetime-local"
             required
             value={date}
-            onChange={e => setDate(e.target.value)}
+            onChange={e => handleDateChange(e.target.value)}
             className="w-full px-3 py-2 rounded-xl bg-[#120c08] border border-[#3e2716] text-stone-200 focus:outline-none focus:border-[#ca8a04]"
           />
           {date && (

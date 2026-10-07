@@ -1,4 +1,4 @@
-import { AllianceEvent, AttendanceRecord } from '../types/crm';
+import { AllianceEvent, AttendanceRecord, EventParticipation } from '../types/crm';
 import { getComputedEventStatus } from './date';
 
 export interface MemberParticipationStats {
@@ -31,7 +31,8 @@ export interface EventTypeAverageStats {
 export function calculateMemberParticipation(
   memberId: string,
   events: AllianceEvent[],
-  attendance: AttendanceRecord[]
+  attendance: AttendanceRecord[] = [],
+  eventParticipations: EventParticipation[] = []
 ): MemberParticipationStats {
   // Count completed, live, or past events for fair and accurate evaluation
   const activeEvents = events.filter(e => {
@@ -46,9 +47,31 @@ export function calculateMemberParticipation(
   const perType: Record<string, { total: number; joined: number; percentage: number }> = {};
 
   activeEvents.forEach(evt => {
-    const rec = attendance.find(a => a.eventId === evt.id && a.memberId === memberId);
-    const isJoined = rec ? rec.attendanceStatus === 'JOINED' : false;
-    const isVoted = rec ? rec.voteStatus === 'YES' || rec.voteStatus === 'NO' : false;
+    // 1. Try modern event participation
+    const modernPart = eventParticipations.find(
+      p => p.eventId === evt.id && p.memberId === memberId
+    );
+
+    let isJoined = false;
+    let isVoted = false;
+    let voteStatusStr = 'NO RESPONSE';
+    let attendanceStatusStr = 'NOT_APPLICABLE';
+
+    if (modernPart) {
+      isJoined = modernPart.attendanceStatus === 'ATTENDED';
+      isVoted = modernPart.voteStatus === 'VOTED';
+      voteStatusStr = modernPart.voteStatus;
+      attendanceStatusStr = modernPart.attendanceStatus;
+    } else {
+      // 2. Fallback to legacy attendance record
+      const rec = attendance.find(a => a.eventId === evt.id && a.memberId === memberId);
+      if (rec) {
+        isJoined = rec.attendanceStatus === 'JOINED';
+        isVoted = rec.voteStatus === 'YES' || rec.voteStatus === 'NO';
+        voteStatusStr = rec.voteStatus;
+        attendanceStatusStr = rec.attendanceStatus;
+      }
+    }
 
     if (isJoined) joinedCount++;
     if (isVoted) votedCount++;
@@ -59,8 +82,8 @@ export function calculateMemberParticipation(
       eventName: evt.eventName,
       date: evt.date,
       joined: isJoined,
-      voteStatus: rec ? rec.voteStatus : 'NO RESPONSE',
-      attendanceStatus: rec ? rec.attendanceStatus : 'NOT_APPLICABLE',
+      voteStatus: voteStatusStr,
+      attendanceStatus: attendanceStatusStr,
     });
 
     // Per event type
@@ -97,7 +120,8 @@ export function calculateMemberParticipation(
 
 export function calculateAllEventAverages(
   events: AllianceEvent[],
-  attendance: AttendanceRecord[]
+  attendance: AttendanceRecord[] = [],
+  eventParticipations: EventParticipation[] = []
 ): Record<string, EventTypeAverageStats> {
   const activeEvents = events.filter(e => {
     if (e.status === 'Completed' || e.status === 'Live') return true;
@@ -120,12 +144,21 @@ export function calculateAllEventAverages(
     if (!typeMap[type]) {
       typeMap[type] = { totalEvents: 0, totalJoined: 0, totalSlots: 0 };
     }
-    const records = attendance.filter(a => a.eventId === evt.id || EVENT_ID_ALIASES[a.eventId] === evt.id);
-    if (records.length === 0) return;
-    const joined = records.filter(a => a.attendanceStatus === 'JOINED').length;
-    typeMap[type].totalEvents += 1;
-    typeMap[type].totalJoined += joined;
-    typeMap[type].totalSlots += records.length;
+
+    const modernParts = eventParticipations.filter(p => p.eventId === evt.id);
+    if (modernParts.length > 0) {
+      const joined = modernParts.filter(p => p.attendanceStatus === 'ATTENDED').length;
+      typeMap[type].totalEvents += 1;
+      typeMap[type].totalJoined += joined;
+      typeMap[type].totalSlots += modernParts.length;
+    } else {
+      const records = attendance.filter(a => a.eventId === evt.id || EVENT_ID_ALIASES[a.eventId] === evt.id);
+      if (records.length === 0) return;
+      const joined = records.filter(a => a.attendanceStatus === 'JOINED').length;
+      typeMap[type].totalEvents += 1;
+      typeMap[type].totalJoined += joined;
+      typeMap[type].totalSlots += records.length;
+    }
   });
 
   const result: Record<string, EventTypeAverageStats> = {};
