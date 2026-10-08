@@ -1,6 +1,7 @@
 import { SlashCommandBuilder } from 'discord.js';
 import { crmApi } from '../services/crmApi.js';
 import { createBaseEmbed, COLORS, formatRank } from '../utils/embedBuilder.js';
+import { verifyGovernorProfileScreenshot } from '../utils/imageVerifier.js';
 
 export const data = new SlashCommandBuilder()
   .setName('link')
@@ -25,7 +26,7 @@ export async function execute(interaction) {
   await interaction.deferReply();
 
   try {
-    // 1. Validate screenshot
+    // 1. Validate image attachment format
     if (!screenshot || !screenshot.contentType?.startsWith('image/')) {
       return await interaction.editReply({
         embeds: [
@@ -51,7 +52,19 @@ export async function execute(interaction) {
       });
     }
 
-    // 3. Link account with screenshot proof
+    // 3. Authenticate Governor Profile Screenshot via OCR Analysis
+    const verification = await verifyGovernorProfileScreenshot(screenshot.url, member);
+    if (!verification.valid) {
+      return await interaction.editReply({
+        embeds: [
+          createBaseEmbed('Verification Failed', COLORS.CRIMSON).setDescription(
+            `⚠️ **Profile Authentication Failed**\n\n${verification.reason}`
+          ),
+        ],
+      });
+    }
+
+    // 4. Link account with verified screenshot proof
     const success = await crmApi.linkDiscordUser(interaction.user.id, member, screenshot.url);
 
     if (!success) {

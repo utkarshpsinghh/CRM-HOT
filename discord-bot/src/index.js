@@ -31,6 +31,14 @@ import * as mvpCmd from './commands/mvp.js';
 import * as inactivesCmd from './commands/inactives.js';
 import * as helpCmd from './commands/help.js';
 
+// Global error handlers to prevent unexpected process crashes
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('[UNHANDLED REJECTION]', reason);
+});
+process.on('uncaughtException', (err) => {
+  console.error('[UNCAUGHT EXCEPTION]', err);
+});
+
 validateConfig();
 
 const client = new Client({
@@ -91,39 +99,35 @@ client.once('ready', () => {
 client.on('interactionCreate', async interaction => {
   // 1. BUTTON INTERACTIONS
   if (interaction.isButton()) {
-    // 1A. Link Modal Trigger
+    // 1A. Link Button Trigger (Direct user to upload screenshot with /link)
     if (interaction.customId === 'btn_open_link_modal') {
-      const modal = new ModalBuilder()
-        .setCustomId('modal_link_account')
-        .setTitle('Link Kingdom #1391 In-Game ID')
-        .addComponents(
-          new ActionRowBuilder().addComponents(
-            new TextInputBuilder()
-              .setCustomId('input_player_query')
-              .setLabel('In-Game Name or Player ID (e.g. 202703263)')
-              .setStyle(TextInputStyle.Short)
-              .setPlaceholder('Enter your exact in-game name or numeric Player ID')
-              .setRequired(true)
-              .setMinLength(2)
-              .setMaxLength(50)
-          )
-        );
-
-      await interaction.showModal(modal);
-      return;
+      return await interaction.reply({
+        embeds: [
+          createBaseEmbed('🛡️ Profile Security Verification', COLORS.GOLD).setDescription(
+            `Hail warrior! To prevent unauthorized account claiming and ensure you only link your own identity, profile verification requires an in-game screenshot.\n\n` +
+            `### 📸 How to Verify & Link:\n` +
+            `1. Open the game and tap your avatar in the top-left to view your **Governor Profile** screen.\n` +
+            `2. Take a screenshot (showing your name, ID, and the bottom **Settings** tab).\n` +
+            `3. Run **\`/link player:<name_or_id> screenshot:<file>\`** in chat.\n\n` +
+            `*Our automated verification scanner will immediately verify your profile ownership.*`
+          ),
+        ],
+        ephemeral: true,
+      });
     }
 
     // 1B. Automated Broadcast Vote Buttons (vote_bt1_<eventId> and vote_bt2_<eventId>)
     if (interaction.customId.startsWith('vote_bt1_') || interaction.customId.startsWith('vote_bt2_')) {
+      await interaction.deferReply({ ephemeral: true });
+
       const isBt1 = interaction.customId.startsWith('vote_bt1_');
       const eventId = interaction.customId.replace('vote_bt1_', '').replace('vote_bt2_', '');
 
       // Check if user is linked
       const linked = await crmApi.getLinkedMember(interaction.user.id);
       if (!linked) {
-        return await interaction.reply({
+        return await interaction.editReply({
           content: '⛔ You must link your in-game identity first using `/link` before you can cast a vote!',
-          ephemeral: true,
         });
       }
 
@@ -134,24 +138,21 @@ client.on('interactionCreate', async interaction => {
         : eventSlots.find(s => s.slotName === 'BT2' || s.slotNumber === 2);
 
       if (!targetSlot) {
-        return await interaction.reply({
+        return await interaction.editReply({
           content: '⚠️ Battle slot is not available or event not found.',
-          ephemeral: true,
         });
       }
 
       const result = await crmApi.castVote(linked.id, eventId, targetSlot.id);
       if (!result.success) {
-        return await interaction.reply({
+        return await interaction.editReply({
           content: `❌ Failed to record vote: ${result.message}`,
-          ephemeral: true,
         });
       }
 
       const slotLabel = isBt1 ? 'BT1 (16:00 UTC)' : 'BT2 (00:30 UTC)';
-      return await interaction.reply({
+      return await interaction.editReply({
         content: `✅ **Vote Confirmed!** **${linked.name}** is registered for **${slotLabel}**. Prepare for battle!`,
-        ephemeral: true,
       });
     }
   }
@@ -159,56 +160,15 @@ client.on('interactionCreate', async interaction => {
   // 2. MODAL SUBMISSION
   if (interaction.isModalSubmit()) {
     if (interaction.customId === 'modal_link_account') {
-      await interaction.deferReply({ ephemeral: true });
-
-      const query = interaction.fields.getTextInputValue('input_player_query');
-      const member = await crmApi.searchMember(query);
-
-      if (!member) {
-        return await interaction.editReply({
-          embeds: [
-            createBaseEmbed('Player Not Found', COLORS.CRIMSON).setDescription(
-              `Could not find any member matching **"${query}"** in the [HOT] roster.\n\n` +
-              `*Tip: Please check spelling or use your exact numeric in-game Player ID.*`
-            ),
-          ],
-        });
-      }
-
-      const success = await crmApi.linkDiscordUser(interaction.user.id, member);
-      if (!success) {
-        return await interaction.editReply({
-          embeds: [
-            createBaseEmbed('Linking Failed', COLORS.CRIMSON).setDescription(
-              'Unable to store your account link right now. Please try again later.'
-            ),
-          ],
-        });
-      }
-
-      const embed = createBaseEmbed('🎉 Account Successfully Linked!', COLORS.EMERALD)
-        .setDescription(
-          `Hail **${member.name}**! Your Discord identity <@${interaction.user.id}> is now securely bound to your in-game profile.`
-        )
-        .addFields(
-          { name: '👤 In-Game Name', value: member.name, inline: true },
-          { name: '🆔 Player ID', value: `\`${member.gameId || 'Not Linked'}\``, inline: true },
-          { name: '🛡️ Alliance Rank', value: formatRank(member.rank), inline: true },
-          {
-            name: '🚀 What to do next?',
-            value: [
-              '• Type **/me** to view your personal combat dossier',
-              '• Type **/vote** to cast your Bear Trap slot vote',
-              '• Type **/beartrap** to view live countdown to the next trap',
-              '• Type **/help** to browse all alliance commands',
-            ].join('\n'),
-            inline: false,
-          }
-        )
-        .setFooter({ text: 'Tip: For full profile security, upload your Governor Profile screenshot with /link.' });
-
-      await interaction.editReply({ embeds: [embed] });
-      return;
+      return await interaction.reply({
+        embeds: [
+          createBaseEmbed('🛡️ Screenshot Verification Required', COLORS.GOLD).setDescription(
+            'To protect players from account impersonation, all account linking requires an in-game Governor Profile screenshot.\n\n' +
+            'Please run **`/link player:<name_or_id> screenshot:<file>`** to verify and link your account.'
+          ),
+        ],
+        ephemeral: true,
+      });
     }
   }
 
