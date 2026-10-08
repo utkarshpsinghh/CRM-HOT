@@ -2,7 +2,7 @@ import { SlashCommandBuilder } from 'discord.js';
 import { crmApi } from '../services/crmApi.js';
 import { createBaseEmbed, COLORS, formatRank, renderProgressBar } from '../utils/embedBuilder.js';
 
-import { requireLinkedMember } from '../utils/authCheck.js';
+import { requireLinkedMember, createWarRoomButtons } from '../utils/authCheck.js';
 
 export const data = new SlashCommandBuilder()
   .setName('me')
@@ -63,7 +63,7 @@ export async function execute(interaction) {
           value: [
             `• **Turnout Rate:** ${renderProgressBar(attendanceRate)}`,
             `• **Events Attended:** **${attendedCount}** / **${totalEvents}** Battles`,
-            lbEntry ? `• **Alliance Rank:** **#${lbEntry.rank}** on Leaderboard` : '',
+            `• 🏆 **Leaderboard Standing:** **#${lbEntry ? lbEntry.rank : 'Unranked'}** of **${leaderboard.length || 80}** warriors`,
           ].filter(Boolean).join('\n'),
           inline: false,
         }
@@ -85,7 +85,10 @@ export async function execute(interaction) {
       });
     }
 
-    await interaction.editReply({ embeds: [embed] });
+    await interaction.editReply({
+      embeds: [embed],
+      components: [createWarRoomButtons()],
+    });
   } catch (err) {
     console.error('Execute /me error:', err);
     await interaction.editReply({

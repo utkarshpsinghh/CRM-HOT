@@ -55,6 +55,8 @@ export async function execute(interaction) {
         {
           name: '👤 2. Personal Dossiers & Records',
           value: [
+            '`/myrank` — Instantly check your personal alliance leaderboard rank & tier.',
+            '`/rank [player]` — Check your own standing or inspect any member rank.',
             '`/me` — View your personal combat dossier, strikes, and battle turnout.',
             '`/profile <player>` — Look up any alliance member dossier by Name or Player ID.',
             '`/start` — War Room quick-action portal.',

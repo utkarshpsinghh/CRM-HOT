@@ -16,6 +16,8 @@ import * as rosterCmd from './commands/roster.js';
 import * as mvpCmd from './commands/mvp.js';
 import * as inactivesCmd from './commands/inactives.js';
 import * as helpCmd from './commands/help.js';
+import * as rankCmd from './commands/rank.js';
+import * as myrankCmd from './commands/myrank.js';
 
 validateConfig();
 
@@ -36,6 +38,8 @@ const commands = [
   mvpCmd.data.toJSON(),
   inactivesCmd.data.toJSON(),
   helpCmd.data.toJSON(),
+  rankCmd.data.toJSON(),
+  myrankCmd.data.toJSON(),
 ];
 
 const rest = new REST({ version: '10' }).setToken(config.discordToken);

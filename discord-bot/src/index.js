@@ -30,6 +30,8 @@ import * as rosterCmd from './commands/roster.js';
 import * as mvpCmd from './commands/mvp.js';
 import * as inactivesCmd from './commands/inactives.js';
 import * as helpCmd from './commands/help.js';
+import * as rankCmd from './commands/rank.js';
+import * as myrankCmd from './commands/myrank.js';
 
 // Global error handlers to prevent unexpected process crashes
 process.on('unhandledRejection', (reason, promise) => {
@@ -64,6 +66,8 @@ const commandModules = [
   mvpCmd,
   inactivesCmd,
   helpCmd,
+  rankCmd,
+  myrankCmd,
 ];
 
 commandModules.forEach(mod => {

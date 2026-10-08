@@ -49,7 +49,8 @@ export async function execute(interaction) {
     const embed = createBaseEmbed(`👑 Welcome back, ${member.name}!`, COLORS.EMERALD)
       .setDescription(
         `Your Discord identity is verified and bound to **${member.name}** [${formatRank(member.rank)}].\n\n` +
-        `**Status:** \`${member.status || 'Active'}\` • **Turnout Score:** ${renderProgressBar(attendanceRate)}`
+        `**Status:** \`${member.status || 'Active'}\` • 🏆 **Standing:** **#${lbEntry ? lbEntry.rank : 'Unranked'}** of **${leaderboard.length || 80}** warriors\n` +
+        `**Turnout Score:** ${renderProgressBar(attendanceRate)}`
       )
       .addFields(
         {
@@ -57,9 +58,10 @@ export async function execute(interaction) {
           value: [
             '`1.` 🗳️ **/vote** — Cast active Bear Trap slot vote',
             '`2.` 🐻 **/beartrap** — Live countdown & slot turnout status',
-            '`3.` 📊 **/me** — View personal combat dossier & battle history',
-            '`4.` 🏰 **/roster** — Full 80-member alliance census & ranks',
-            '`5.` 🏆 **/leaderboard** — Global attendance rankings',
+            '`3.` 🏆 **/myrank** — Check your alliance leaderboard standing & tier',
+            '`4.` 📊 **/me** — View personal combat dossier & battle history',
+            '`5.` 🏰 **/roster** — Full 80-member alliance census & ranks',
+            '`6.` 🏆 **/leaderboard** — Global attendance rankings',
           ].join('\n'),
           inline: false,
         }
