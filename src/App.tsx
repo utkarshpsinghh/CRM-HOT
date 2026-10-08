@@ -26,6 +26,8 @@ import { AddStrikeModal } from './components/members/AddStrikeModal';
 import { MemberProfileModal } from './components/members/MemberProfileModal';
 import { Member } from './types/crm';
 import { CheckCircle2, AlertTriangle, AlertCircle, Info, X, RefreshCw, Database } from 'lucide-react';
+import { Capacitor } from '@capacitor/core';
+import { AndroidApp } from './components/android/AndroidApp';
 
 const MainAppContent: React.FC = () => {
   const { isAuthenticated, isLoading: authLoading, isMainAdmin, logout } = useAuth();
@@ -91,6 +93,31 @@ const MainAppContent: React.FC = () => {
         <LoadingScreen message="Loading records..." />
       </div>
     );
+  }
+
+  // Detect whether to display the dedicated native Android UI
+  const [uiMode, setUiMode] = useState<'auto' | 'android' | 'web'>(() => {
+    try {
+      const saved = localStorage.getItem('crm_ui_mode');
+      if (saved === 'android' || saved === 'web') return saved;
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('ui') === 'android') return 'android';
+      if (params.get('ui') === 'web') return 'web';
+    } catch {}
+    return 'auto';
+  });
+
+  const isAndroidNative = Capacitor.isNativePlatform() || Capacitor.getPlatform() === 'android';
+  const showAndroidUI = uiMode === 'android' || (uiMode === 'auto' && isAndroidNative);
+
+  const handleToggleForceWeb = () => {
+    const next = showAndroidUI ? 'web' : 'android';
+    setUiMode(next);
+    localStorage.setItem('crm_ui_mode', next);
+  };
+
+  if (showAndroidUI) {
+    return <AndroidApp onToggleForceWeb={handleToggleForceWeb} isForceWeb={false} />;
   }
 
   const handleOpenAddMember = () => {
