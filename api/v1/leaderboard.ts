@@ -69,8 +69,8 @@ export default async function handler(req: any, res: any) {
 
     const allCanonicalEvents = [...dynamicCompleted, ...parentEvents];
 
-    // Timeframe handling: 'month' (October 2026 -> 6 events) or 'all' (8 events in total)
-    const timeframe = req.query?.timeframe === 'all' ? 'all' : 'month';
+    // Timeframe handling: 'all' (8 events in total, default) or 'month' (October 2026 -> 6 events)
+    const timeframe = req.query?.timeframe === 'month' ? 'month' : 'all';
     const now = new Date();
     const currentYear = now.getFullYear();
     const currentMonth = now.getMonth();

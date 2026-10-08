@@ -92,7 +92,7 @@ export async function execute(interaction) {
       });
     }
 
-    const timeframeLabel = lbRes.timeframeLabel || 'This Month';
+    const timeframeLabel = lbRes.timeframeLabel || 'All-Time';
 
     const embed = createBaseEmbed(`[HOT] OneForAll • ${targetMember.name}`, tierColor)
       .setDescription(

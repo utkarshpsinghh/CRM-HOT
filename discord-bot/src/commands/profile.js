@@ -74,7 +74,7 @@ export async function execute(interaction) {
           inline: true,
         },
         {
-          name: 'Attendance',
+          name: 'Attendance (All-Time)',
           value: [
             `• **Turnout Rate:** ${renderProgressBar(attendanceRate)}`,
             `• **Battles Attended:** **${attendedCount}** / **${totalEvents}**`,

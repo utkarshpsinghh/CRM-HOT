@@ -8,10 +8,10 @@ export const data = new SlashCommandBuilder()
   .addStringOption(option =>
     option
       .setName('timeframe')
-      .setDescription('Time period (default: This Month, matching CRM)')
+      .setDescription('Time period (default: All-Time)')
       .addChoices(
-        { name: 'This Month (Default)', value: 'month' },
-        { name: 'All-Time', value: 'all' }
+        { name: 'All-Time (Default)', value: 'all' },
+        { name: 'This Month', value: 'month' }
       )
   )
   .addIntegerOption(option =>
@@ -32,7 +32,7 @@ export const data = new SlashCommandBuilder()
   );
 
 export async function execute(interaction) {
-  const timeframe = interaction.options.getString('timeframe') || 'month';
+  const timeframe = interaction.options.getString('timeframe') || 'all';
   const limit = interaction.options.getInteger('limit') || 10;
   const sortBy = interaction.options.getString('sort_by') || 'attendanceRate';
 

@@ -103,7 +103,7 @@ class CrmApiClient {
    * Fetch ranked leaderboard matching the CRM website calculation and date filters exactly
    * 6 events occurred in October, 8 events in total overall
    */
-  async getLeaderboard(limit = 10, sortBy = 'attendanceRate', timeframe = 'month') {
+  async getLeaderboard(limit = 10, sortBy = 'attendanceRate', timeframe = 'all') {
     try {
       const [membersRes, settingsRes, dbEventsRes] = await Promise.all([
         this.supabase
