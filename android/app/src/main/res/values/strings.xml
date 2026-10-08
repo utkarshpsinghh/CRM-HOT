@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">HOT Command Center</string>
+    <string name="title_activity_main">HOT Command Center</string>
+    <string name="package_name">online.kingdom1391.hotcrm</string>
+    <string name="custom_url_scheme">online.kingdom1391.hotcrm</string>
+</resources>
