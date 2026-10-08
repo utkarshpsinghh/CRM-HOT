@@ -133,7 +133,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const { admin, logout, updateCurrentAdmin } = useAuth();
   const [members, setMembers] = useState<Member[]>(() => {
     storageService.purgeMockJunk();
-    return deduplicateMembers(storageService.getMembers().filter(m => !/^mem-\d+$/.test(m.id)));
+    return deduplicateMembers(storageService.getMembers());
   });
   const [events, setEvents] = useState<AllianceEvent[]>(() => {
     const bundle = storageService.getMigratedOrStoredEvents();
@@ -395,7 +395,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           const allData = await apiService.getAllData(currentSettings);
           if (allData && typeof allData === 'object') {
             let remoteMembers = Array.isArray(allData.members)
-              ? deduplicateMembers(allData.members.filter((m: Member) => !/^mem-\d+$/.test(m.id)))
+              ? deduplicateMembers(allData.members)
               : [];
 
             if (remoteMembers.length === 0) {
@@ -534,7 +534,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           console.warn('Supabase sync warning:', err);
           setSyncStatus('error');
           setSyncMessage('Using cached alliance records.');
-          const rawLocal = storageService.getMembers().filter(m => !/^mem-\d+$/.test(m.id));
+          const rawLocal = storageService.getMembers();
           const cleanLocal = deduplicateMembers(rawLocal.length > 0 ? rawLocal : initialMembers);
           setMembers(cleanLocal);
           const cachedBundle = storageService.getMigratedOrStoredEvents();
@@ -550,7 +550,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       } else {
         setSyncStatus('demo');
         setSyncMessage('Local Mode (HOT Command Center)');
-        const rawRoster = storageService.getMembers().filter(m => !/^mem-\d+$/.test(m.id));
+        const rawRoster = storageService.getMembers();
         const currentRoster = deduplicateMembers(rawRoster.length > 0 ? rawRoster : initialMembers);
         setMembers(currentRoster);
         const localBundle = storageService.getMigratedOrStoredEvents();
@@ -602,7 +602,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       );
 
       // Refresh memory & state strictly with clean members
-      const cleanRoster = storageService.getMembers().filter(m => !/^mem-\d+$/.test(m.id));
+      const cleanRoster = storageService.getMembers();
       setMembers(cleanRoster);
 
       sounds.playSuccess();

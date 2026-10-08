@@ -369,7 +369,7 @@ export const kingshotApiService = {
       updatedCount = 0;
     } else {
       // Smart merge: Update ranks of existing members, add new ones
-      const currentMembers = storageService.getMembers().filter(m => !/^mem-\d+$/.test(m.id));
+      const currentMembers = storageService.getMembers();
       const existingMap = new Map(currentMembers.map(m => [m.name.toLowerCase(), m]));
       finalRoster = [...currentMembers];
 

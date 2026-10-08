@@ -71,10 +71,7 @@ export const storageService = {
         ]);
 
         const filtered = deduplicateMembers(
-          mems.filter(m =>
-            !/^mem-\d+$/i.test(m.id) &&
-            !legacyMockNames.has(m.name)
-          )
+          mems.filter(m => !legacyMockNames.has(m.name))
         );
         localStorage.setItem(STORAGE_KEYS.MEMBERS, JSON.stringify(filtered));
       }
