@@ -131,9 +131,9 @@ export async function checkAndBroadcastVote(client) {
       try {
         await guild.channels.fetch().catch(() => {});
         let targetChannel =
+          guild.channels.cache.find(c => c.isTextBased() && c.name.toLowerCase().includes('event')) ||
           guild.channels.cache.find(c => c.isTextBased() && c.name.toLowerCase().includes('bear')) ||
           guild.channels.cache.find(c => c.isTextBased() && c.name.toLowerCase().includes('announc')) ||
-          guild.channels.cache.find(c => c.isTextBased() && (c.name.toLowerCase().includes('war-room') || c.name.toLowerCase().includes('general'))) ||
           guild.systemChannel ||
           guild.channels.cache.find(c => c.isTextBased());
 

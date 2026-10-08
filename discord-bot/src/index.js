@@ -115,8 +115,92 @@ client.on('guildCreate', async (guild) => {
   }
 });
 
+/**
+ * Verifies if an interaction is executed in an authorized channel:
+ * - bot-commands (or boy-commands)
+ * - council-chat (or council)
+ * - events (or bear-hunt / voting)
+ */
+function isChannelAllowed(channel, guild) {
+  if (!guild) return true;
+  if (!channel || !channel.name) return true;
+
+  let target = channel;
+  if (typeof channel.isThread === 'function' && channel.isThread() && channel.parent) {
+    target = channel.parent;
+  }
+
+  const cleanName = (target.name || '').toLowerCase().replace(/[^a-z0-9-]/g, '');
+
+  const isBotCommands =
+    cleanName.includes('bot-command') ||
+    cleanName.includes('boy-command') ||
+    cleanName.includes('botcommand') ||
+    cleanName.includes('commands');
+  const isCouncil = cleanName.includes('council');
+  const isEvents =
+    cleanName.includes('event') ||
+    cleanName.includes('bear-hunt') ||
+    cleanName.includes('beartrap') ||
+    cleanName.includes('voting');
+
+  if (isBotCommands || isCouncil || isEvents) {
+    return true;
+  }
+
+  // Fallback: If guild does not have any of these channels configured, allow
+  const hasDesignatedChannels = guild.channels.cache.some(c => {
+    if (!c.isTextBased()) return false;
+    const cClean = c.name.toLowerCase().replace(/[^a-z0-9-]/g, '');
+    return (
+      cClean.includes('bot-command') ||
+      cClean.includes('boy-command') ||
+      cClean.includes('commands') ||
+      cClean.includes('council') ||
+      cClean.includes('event') ||
+      cClean.includes('bear-hunt')
+    );
+  });
+
+  if (!hasDesignatedChannels) {
+    return true;
+  }
+
+  return false;
+}
+
+function getAllowedChannelsMention(guild) {
+  if (!guild) return 'designated bot channels';
+  const matches = guild.channels.cache.filter(c => {
+    if (!c.isTextBased()) return false;
+    const clean = c.name.toLowerCase().replace(/[^a-z0-9-]/g, '');
+    return (
+      clean.includes('bot-command') ||
+      clean.includes('boy-command') ||
+      clean.includes('commands') ||
+      clean.includes('council') ||
+      clean.includes('event') ||
+      clean.includes('bear-hunt')
+    );
+  });
+
+  if (matches.size > 0) {
+    return matches.map(c => `<#${c.id}>`).join(', ');
+  }
+  return '#bot-commands, #council-chat, or #events';
+}
+
 // Interaction handling
 client.on('interactionCreate', async interaction => {
+  // Channel whitelist enforcement: Only allow in bot-commands, council-chat, and events
+  if (interaction.guild && !isChannelAllowed(interaction.channel, interaction.guild)) {
+    const allowedText = getAllowedChannelsMention(interaction.guild);
+    return await interaction.reply({
+      content: `⚠️ The bot can only be used in ${allowedText}.`,
+      ephemeral: true,
+    });
+  }
+
   // 1. BUTTON INTERACTIONS
   if (interaction.isButton()) {
     // 1A. Link Button Trigger (Direct user to upload screenshot with /link)
