@@ -15,7 +15,11 @@ export default async function handler(req: any, res: any) {
 
     // Fetch members, settings cache, and dynamic events
     const [membersRes, settingsRes, dbEventsRes] = await Promise.all([
-      supabase.from('members').select('id, name, current_rank, status, strikes, communication_note').neq('status', 'Archived'),
+      supabase
+        .from('members')
+        .select('id, name, current_rank, status, strikes, communication_note, created_at')
+        .neq('status', 'Archived')
+        .order('created_at', { ascending: false }),
       supabase.from('settings').select('*').in('key', ['crm_event_participations_cache']),
       supabase.from('events').select('id, event_name, event_type, date, status'),
     ]);

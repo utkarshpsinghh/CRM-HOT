@@ -108,8 +108,9 @@ class CrmApiClient {
       const [membersRes, settingsRes, dbEventsRes] = await Promise.all([
         this.supabase
           .from('members')
-          .select('id, name, current_rank, status, strikes, communication_note')
-          .neq('status', 'Archived'),
+          .select('id, name, current_rank, status, strikes, communication_note, created_at')
+          .neq('status', 'Archived')
+          .order('created_at', { ascending: false }),
         this.supabase
           .from('settings')
           .select('*')
