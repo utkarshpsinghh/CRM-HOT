@@ -4,32 +4,32 @@ import { createBaseEmbed, COLORS, formatRank } from '../utils/embedBuilder.js';
 
 export const data = new SlashCommandBuilder()
   .setName('strike')
-  .setDescription('Alliance officer command to issue or remove disciplinary strikes')
+  .setDescription('Officer command to issue or remove strikes')
   .addSubcommand(sub =>
     sub
       .setName('add')
-      .setDescription('Issue a strike to a player for attendance or rule violation')
+      .setDescription('Issue a strike to a member')
       .addStringOption(opt =>
         opt
           .setName('player')
-          .setDescription('Player in-game Name or Player ID')
+          .setDescription('Player Name or in-game ID')
           .setRequired(true)
       )
       .addStringOption(opt =>
         opt
           .setName('reason')
-          .setDescription('Reason for the strike (e.g. Unexcused absence at Bear Trap #46)')
+          .setDescription('Reason for the strike (e.g. Missed Bear Trap)')
           .setRequired(true)
       )
   )
   .addSubcommand(sub =>
     sub
       .setName('remove')
-      .setDescription('Remove/waive a strike from a player')
+      .setDescription('Remove a strike from a member')
       .addStringOption(opt =>
         opt
           .setName('player')
-          .setDescription('Player in-game Name or Player ID')
+          .setDescription('Player Name or in-game ID')
           .setRequired(true)
       )
   );
@@ -48,7 +48,7 @@ export async function execute(interaction) {
     return await interaction.reply({
       embeds: [
         createBaseEmbed('Permission Denied', COLORS.CRIMSON).setDescription(
-          '⛔ Only **Alliance Officers (R4/R5)** or Server Administrators are authorized to issue or remove disciplinary strikes.'
+          'Only **Alliance Officers (R4/R5)** or Administrators can manage strikes.'
         ),
       ],
       ephemeral: true,
@@ -68,7 +68,7 @@ export async function execute(interaction) {
       return await interaction.editReply({
         embeds: [
           createBaseEmbed('Player Not Found', COLORS.CRIMSON).setDescription(
-            `Could not find any member matching **"${playerQuery}"** in the roster.`
+            `Could not find any member matching **"${playerQuery}"** in the [HOT] OneForAll roster.`
           ),
         ],
       });
@@ -90,33 +90,33 @@ export async function execute(interaction) {
 
       const isCritical = result.newStrikes >= 3;
       const statusTitle = isCritical
-        ? '🚨 DISCIPLINARY ALERT: 3/3 STRIKES REACHED'
-        : '⚠️ Disciplinary Action: Strike Issued';
+        ? 'Notice: 3/3 Strikes Reached'
+        : 'Notice: Strike Added';
 
       const embed = createBaseEmbed(statusTitle, COLORS.CRIMSON)
         .setDescription(
           isCritical
-            ? `**WARRIOR HAS REACHED CRITICAL 3/3 STRIKES!**\nRecommend leadership review for dismissal or demotion.`
-            : `A disciplinary penalty strike has been issued to **${member.name}**.`
+            ? `**Member has reached 3/3 strikes.** Please review member status.`
+            : `A strike has been issued to **${member.name}**.`
         )
         .addFields(
           {
-            name: '👤 Member',
+            name: 'Member',
             value: `**${member.name}** (${formatRank(member.rank)})\nPlayer ID: \`${member.gameId || 'N/A'}\``,
             inline: true,
           },
           {
-            name: '📊 Updated Strikes',
+            name: 'Updated Strikes',
             value: `**${result.newStrikes} / 3 Strikes**`,
             inline: true,
           },
           {
-            name: '📝 Violation Reason',
+            name: 'Reason',
             value: `*${reason}*`,
             inline: false,
           },
           {
-            name: '🛡️ Enforcing Officer',
+            name: 'Issued By',
             value: `<@${interaction.user.id}> (${officerName})`,
             inline: true,
           }
@@ -136,21 +136,21 @@ export async function execute(interaction) {
         });
       }
 
-      const embed = createBaseEmbed('⚖️ Disciplinary Action: Strike Waived', COLORS.EMERALD)
-        .setDescription(`Successfully waived 1 penalty strike for **${member.name}**.`)
+      const embed = createBaseEmbed('Notice: Strike Removed', COLORS.EMERALD)
+        .setDescription(`Successfully removed 1 strike for **${member.name}**.`)
         .addFields(
           {
-            name: '👤 Member',
+            name: 'Member',
             value: `**${member.name}** (${formatRank(member.rank)})`,
             inline: true,
           },
           {
-            name: '📊 Remaining Strikes',
+            name: 'Remaining Strikes',
             value: `**${result.newStrikes} / 3 Strikes**`,
             inline: true,
           },
           {
-            name: '🛡️ Authorized By',
+            name: 'Removed By',
             value: `<@${interaction.user.id}> (${officerName})`,
             inline: true,
           }

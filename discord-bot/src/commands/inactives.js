@@ -29,20 +29,20 @@ export async function execute(interaction) {
 
     if (filter === 'inactive') {
       filtered = members.filter(m => m.status === 'Inactive' || m.status === 'Needs Attention');
-      title = '💤 Inactive Alliance Members';
+      title = 'Inactive Members';
     } else if (filter === 'strikes') {
       filtered = members.filter(m => (m.strikes || 0) >= 1);
-      title = '⚠️ Members with Active Strikes (1+)';
+      title = 'Members with Active Strikes (1+)';
     } else if (filter === 'critical') {
       filtered = members.filter(m => (m.strikes || 0) >= 2);
-      title = '🚨 Members at Critical Strike Risk (2+)';
+      title = 'Members at Critical Risk (2+ Strikes)';
     }
 
     if (filtered.length === 0) {
       return await interaction.editReply({
         embeds: [
-          createBaseEmbed('All Clear! 🎉', COLORS.EMERALD).setDescription(
-            `No members found matching the **${filter}** filter criteria. The alliance is in great standing!`
+          createBaseEmbed('All Clear', COLORS.EMERALD).setDescription(
+            `No members found matching the **${filter}** filter criteria.`
           ),
         ],
       });
@@ -55,14 +55,13 @@ export async function execute(interaction) {
       return `• **${m.name}** ${gameId} (${formatRank(m.rank)})\n  ↳ ${statusTag} ${strikeTag}`;
     });
 
-    const embed = createBaseEmbed(title, filter === 'critical' ? COLORS.CRIMSON : COLORS.GOLD)
+    const embed = createBaseEmbed(`[HOT] OneForAll • ${title}`, filter === 'critical' ? COLORS.CRIMSON : COLORS.GOLD)
       .setDescription(
         `Found **${filtered.length}** members matching criteria:\n\n` +
         lines.join('\n\n')
-      );
-
-      embed.setFooter({
-        text: `Showing first 20 of ${filtered.length} members • Kingdom #1391 [HOT] Alliance`,
+      )
+      .setFooter({
+        text: `Showing first 20 of ${filtered.length} members • Kingdom #1391 • [HOT] OneForAll`,
       });
 
     await interaction.editReply({ embeds: [embed] });

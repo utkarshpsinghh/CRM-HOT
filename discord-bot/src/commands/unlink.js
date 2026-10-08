@@ -4,7 +4,7 @@ import { createBaseEmbed, COLORS } from '../utils/embedBuilder.js';
 
 export const data = new SlashCommandBuilder()
   .setName('unlink')
-  .setDescription('Disconnect your Discord account from your in-game Kingdom #1391 profile')
+  .setDescription('Disconnect your Discord account from your in-game profile')
   .addUserOption(opt =>
     opt
       .setName('user')
@@ -20,7 +20,6 @@ export async function execute(interaction) {
     const isUnlinkingOther = Boolean(targetUser && targetUser.id !== interaction.user.id);
 
     if (isUnlinkingOther) {
-      // Check officer / admin permission to unlink someone else
       const isOfficer =
         interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild) ||
         interaction.memberPermissions?.has(PermissionFlagsBits.Administrator) ||
@@ -33,7 +32,7 @@ export async function execute(interaction) {
         return await interaction.editReply({
           embeds: [
             createBaseEmbed('Permission Denied', COLORS.CRIMSON).setDescription(
-              '⛔ Only **Alliance Officers (R4/R5)** or Server Administrators can unlink another member.'
+              'Only **Alliance Officers (R4/R5)** or Administrators can unlink another member.'
             ),
           ],
         });
@@ -55,26 +54,26 @@ export async function execute(interaction) {
       });
     }
 
-    const embed = createBaseEmbed('🔓 Account Disconnected', COLORS.EMERALD)
+    const embed = createBaseEmbed('Account Unlinked', COLORS.EMERALD)
       .setDescription(
         isUnlinkingOther
-          ? `Officer <@${interaction.user.id}> has successfully unlinked ${targetMention} from **${result.memberName}**.`
-          : `Successfully disconnected your Discord account from **${result.memberName}**!`
+          ? `Officer <@${interaction.user.id}> has unlinked ${targetMention} from **${result.memberName}**.`
+          : `Successfully disconnected your Discord account from **${result.memberName}**.`
       )
       .addFields(
         {
-          name: '👤 Previous Profile',
-          value: `• **Name:** ${result.memberName}\n• **Game ID:** \`${result.gameId || 'N/A'}\``,
+          name: 'Previous Profile',
+          value: `• **Name:** ${result.memberName}\n• **Player ID:** \`${result.gameId || 'N/A'}\``,
           inline: true,
         },
         {
-          name: '🔄 Next Steps',
-          value: 'You can link to a new or different in-game identity anytime by typing **/link** or **/start**.',
+          name: 'Next Steps',
+          value: 'You can link your account again anytime by typing **/link**.',
           inline: true,
         }
       )
       .setFooter({
-        text: 'Kingdom #1391 • House of Titans • Identity Management',
+        text: 'Kingdom #1391 • [HOT] OneForAll',
       });
 
     await interaction.editReply({ embeds: [embed] });

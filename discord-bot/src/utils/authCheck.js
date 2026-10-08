@@ -9,31 +9,31 @@ export function createLinkButton() {
   return new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId('btn_open_link_modal')
-      .setLabel('🔗 Link In-Game Account')
+      .setLabel('Link Account')
       .setStyle(ButtonStyle.Success)
   );
 }
 
 /**
- * Creates smooth quick-action buttons for verified alliance warriors
+ * Creates smooth quick-action buttons for verified alliance members
  */
 export function createWarRoomButtons() {
   return new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId('btn_action_vote')
-      .setLabel('🗳️ Cast Vote')
+      .setLabel('Cast Vote')
       .setStyle(ButtonStyle.Success),
     new ButtonBuilder()
       .setCustomId('btn_action_beartrap')
-      .setLabel('🐻 Battle Status')
+      .setLabel('Bear Trap')
       .setStyle(ButtonStyle.Primary),
     new ButtonBuilder()
       .setCustomId('btn_action_me')
-      .setLabel('📊 My Dossier')
+      .setLabel('My Profile')
       .setStyle(ButtonStyle.Secondary),
     new ButtonBuilder()
       .setCustomId('btn_action_rank')
-      .setLabel('🏆 My Rank')
+      .setLabel('My Rank')
       .setStyle(ButtonStyle.Secondary)
   );
 }
@@ -42,18 +42,17 @@ export function createWarRoomButtons() {
  * Standard structured embed prompting user to link their account
  */
 export function createUnlinkedEmbed(commandName = 'this command') {
-  return createBaseEmbed('🛡️ Step 1: Verification Required', COLORS.GOLD)
+  return createBaseEmbed('Verification Required', COLORS.GOLD)
     .setDescription(
-      `**Welcome to Kingdom #1391 • House of Titans [HOT]**\n\n` +
-      `🔒 Access to **/${commandName}** is locked until your in-game identity is verified.\n\n` +
-      `### 📸 How to Complete Verification:\n` +
-      `1. Open King's Shot and tap your avatar in the top-left corner.\n` +
-      `2. Take a screenshot of your **Governor Profile** screen (showing name, ID, and Settings tab).\n` +
-      `3. Tap the command link below to upload your screenshot:\n\n` +
-      `👉 **</link:1557524738736267364>**\n\n` +
-      `*(All alliance combat tools, Bear Trap voting, and records will unlock automatically once verified!)*`
+      `**Welcome to [HOT] OneForAll (Kingdom #1391)**\n\n` +
+      `To use **/${commandName}**, please link your in-game profile first.\n\n` +
+      `**How to link:**\n` +
+      `1. In King's Shot, tap your avatar (top-left) to open your Governor Profile.\n` +
+      `2. Take a screenshot of your profile screen.\n` +
+      `3. Click the button below or type **/link** and attach your screenshot.\n\n` +
+      `Once linked, voting, rankings, and battle attendance will unlock automatically.`
     )
-    .setFooter({ text: 'Kingdom #1391 • House of Titans • Identity Verification' });
+    .setFooter({ text: 'Kingdom #1391 • [HOT] OneForAll' });
 }
 
 /**

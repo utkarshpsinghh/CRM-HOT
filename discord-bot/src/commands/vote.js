@@ -10,11 +10,8 @@ import { createBaseEmbed, COLORS } from '../utils/embedBuilder.js';
 
 export const data = new SlashCommandBuilder()
   .setName('vote')
-  .setDescription('Cast or view the official Bear Trap battle slot vote');
+  .setDescription('Vote for your Bear Trap battle slot');
 
-/**
- * Formats a slot start time string into a clean date, time, and Discord relative timestamp
- */
 function formatSlotTime(startTimeStr) {
   if (!startTimeStr) return 'TBD';
   const d = new Date(startTimeStr);
@@ -37,27 +34,24 @@ function formatSlotTime(startTimeStr) {
   return `${dateFormatted} • \`${timeFormatted} UTC\` (<t:${unixSec}:R>)`;
 }
 
-/**
- * Checks whether an event slot has already completed based on current time or event status
- */
 function checkSlotStatus(slot, eventStatus) {
-  if (!slot) return { isCompleted: true, label: 'Not Available', badge: '⚪ N/A' };
+  if (!slot) return { isCompleted: true, label: 'Not Available', badge: 'Closed' };
   if (eventStatus === 'Completed') {
-    return { isCompleted: true, label: 'COMPLETED — Entries Closed', badge: '🔴 CLOSED' };
+    return { isCompleted: true, label: 'Finished', badge: 'Closed' };
   }
   if (!slot.startTime) {
-    return { isCompleted: false, label: 'OPEN FOR VOTING', badge: '🟢 OPEN' };
+    return { isCompleted: false, label: 'Open for Voting', badge: 'Open' };
   }
   const slotDate = new Date(slot.startTime);
   if (isNaN(slotDate.getTime())) {
-    return { isCompleted: false, label: 'OPEN FOR VOTING', badge: '🟢 OPEN' };
+    return { isCompleted: false, label: 'Open for Voting', badge: 'Open' };
   }
 
   const now = new Date();
   if (slotDate.getTime() <= now.getTime()) {
-    return { isCompleted: true, label: 'COMPLETED — Entries Closed', badge: '🔴 COMPLETED' };
+    return { isCompleted: true, label: 'Finished', badge: 'Closed' };
   }
-  return { isCompleted: false, label: 'OPEN FOR VOTING', badge: '🟢 OPEN' };
+  return { isCompleted: false, label: 'Open for Voting', badge: 'Open' };
 }
 
 export async function execute(interaction) {
@@ -98,48 +92,46 @@ export async function execute(interaction) {
       const allCompleted = s1Status.isCompleted && s2Status.isCompleted;
 
       const embedTitle = allCompleted
-        ? `🏁 [HOT] Bear Trap Concluded: ${targetEvent.eventName}`
-        : `🐻 [HOT] Bear Trap Slot Vote: ${targetEvent.eventName}`;
+        ? `[HOT] OneForAll • Bear Trap Finished: ${targetEvent.eventName}`
+        : `[HOT] OneForAll • Bear Trap Vote: ${targetEvent.eventName}`;
 
       const embedColor = allCompleted ? COLORS.BRONZE : COLORS.GOLD;
 
       return createBaseEmbed(embedTitle, embedColor)
         .setDescription(
-          `**Kingdom #1391 • House of Titans [HOT]**\n` +
-          (allCompleted
-            ? `🏁 **Battle Concluded:** All deployment slots for **${targetEvent.eventName}** have finished. Entries are closed.\n\n`
-            : `Alliance Leadership has scheduled **${targetEvent.eventName}**. Select your battle deployment slot below!\n\n`) +
-          `🛡️ **Rule:** Warriors must attend at least **1 slot** per 48-hour battle cycle.`
+          allCompleted
+            ? `All battle slots for **${targetEvent.eventName}** have ended. Voting is closed.`
+            : `Select your battle slot for **${targetEvent.eventName}** below.\n\n• Please attend at least 1 slot per 48-hour cycle.`
         )
         .addFields(
           {
-            name: `⚔️ Slot 1: BT1 [${s1Status.badge}] — ${bt1Votes} Votes`,
+            name: `Slot 1: BT1 [${s1Status.badge}] — ${bt1Votes} Votes`,
             value: [
-              `• **Date & Time:** ${formatSlotTime(bt1Slot?.startTime)}`,
-              `• **Status:** ${s1Status.isCompleted ? '🛑 **BT1 is completed! No more entries allowed.**' : '🟢 **Open for Voting** *(EU / Asia Primetime)*'}`,
-              `• **Turnout:** **${bt1Votes}** registered warriors`,
+              `• **Time:** ${formatSlotTime(bt1Slot?.startTime)}`,
+              `• **Status:** ${s1Status.isCompleted ? 'BT1 is finished (closed)' : 'Open for voting (16:00 UTC)'}`,
+              `• **Turnout:** **${bt1Votes}** members`,
             ].join('\n'),
             inline: false,
           },
           {
-            name: `🛡️ Slot 2: BT2 [${s2Status.badge}] — ${bt2Votes} Votes`,
+            name: `Slot 2: BT2 [${s2Status.badge}] — ${bt2Votes} Votes`,
             value: [
-              `• **Date & Time:** ${formatSlotTime(bt2Slot?.startTime)}`,
-              `• **Status:** ${s2Status.isCompleted ? '🛑 **BT2 is completed! No more entries allowed.**' : '🟢 **Open for Voting** *(Americas Primetime)*'}`,
-              `• **Turnout:** **${bt2Votes}** registered warriors`,
+              `• **Time:** ${formatSlotTime(bt2Slot?.startTime)}`,
+              `• **Status:** ${s2Status.isCompleted ? 'BT2 is finished (closed)' : 'Open for voting (00:30 UTC)'}`,
+              `• **Turnout:** **${bt2Votes}** members`,
             ].join('\n'),
             inline: false,
           },
           {
-            name: '📊 Turnout Overview',
-            value: `Total Registered Votes: **${totalVoted}** / **${eventParts.length || 80}** alliance warriors`,
+            name: 'Total Votes',
+            value: `**${totalVoted}** / **${eventParts.length || 80}** members registered`,
             inline: false,
           }
         )
         .setFooter({
           text: allCompleted
-            ? 'Battle Concluded • Voting Expired • Kingdom #1391 Battle Command'
-            : 'Click an active button below to vote • Kingdom #1391 Battle Command',
+            ? 'Kingdom #1391 • [HOT] OneForAll • Closed'
+            : 'Click a button below to vote • Kingdom #1391 • [HOT] OneForAll',
         });
     };
 
@@ -150,12 +142,12 @@ export async function execute(interaction) {
       return new ActionRowBuilder().addComponents(
         new ButtonBuilder()
           .setCustomId(`vote_bt1_${targetEvent.id}`)
-          .setLabel(s1Status.isCompleted ? '⚔️ BT1 (16:00 UTC) [COMPLETED]' : '⚔️ Vote BT1 (16:00 UTC)')
+          .setLabel(s1Status.isCompleted ? 'BT1 (16:00 UTC) [Closed]' : 'Vote BT1 (16:00 UTC)')
           .setStyle(s1Status.isCompleted ? ButtonStyle.Secondary : ButtonStyle.Success)
           .setDisabled(disabled || !bt1Slot || s1Status.isCompleted),
         new ButtonBuilder()
           .setCustomId(`vote_bt2_${targetEvent.id}`)
-          .setLabel(s2Status.isCompleted ? '🛡️ BT2 (00:30 UTC) [COMPLETED]' : '🛡️ Vote BT2 (00:30 UTC)')
+          .setLabel(s2Status.isCompleted ? 'BT2 (00:30 UTC) [Closed]' : 'Vote BT2 (00:30 UTC)')
           .setStyle(s2Status.isCompleted ? ButtonStyle.Secondary : ButtonStyle.Primary)
           .setDisabled(disabled || !bt2Slot || s2Status.isCompleted)
       );
@@ -166,18 +158,16 @@ export async function execute(interaction) {
       components: [buildButtons()],
     });
 
-    // 4-hour live component collector for instant vote updating
     const collector = response.createMessageComponentCollector({
       componentType: ComponentType.Button,
       time: 4 * 60 * 60 * 1000,
     });
 
     collector.on('collect', async btnInteraction => {
-      // 1. Check if user is linked
       const linked = await crmApi.getLinkedMember(btnInteraction.user.id);
       if (!linked) {
         return await btnInteraction.reply({
-          content: '⛔ You must link your in-game identity first using `/link` before you can cast a vote!',
+          content: 'Please link your account first using `/link` before voting.',
           ephemeral: true,
         });
       }
@@ -187,34 +177,30 @@ export async function execute(interaction) {
 
       if (!targetSlot) {
         return await btnInteraction.reply({
-          content: '⚠️ Selected slot is not available.',
+          content: 'Selected slot is not available.',
           ephemeral: true,
         });
       }
 
-      // Check slot completion
       const slotStatus = checkSlotStatus(targetSlot, targetEvent.status);
       if (slotStatus.isCompleted) {
         return await btnInteraction.reply({
-          content: `⛔ **${targetSlot.slotName}** is completed! No more entries allowed for this slot.`,
+          content: `**${targetSlot.slotName}** has ended. Entries are closed.`,
           ephemeral: true,
         });
       }
 
-      // 2. Cast vote directly in attendance ledger
       const result = await crmApi.castVote(linked.id, targetEvent.id, targetSlot.id);
 
       if (!result.success) {
         return await btnInteraction.reply({
-          content: `❌ Failed to record vote: ${result.message}`,
+          content: `Failed to record vote: ${result.message}`,
           ephemeral: true,
         });
       }
 
-      // 3. Reload latest data
       const { participations: freshParts } = await crmApi.getCachedParentData();
 
-      // 4. Update the embed
       await btnInteraction.update({
         embeds: [buildEmbed(freshParts)],
         components: [buildButtons()],
@@ -222,7 +208,7 @@ export async function execute(interaction) {
 
       const slotLabel = isBt1 ? 'BT1 (16:00 UTC)' : 'BT2 (00:30 UTC)';
       await btnInteraction.followUp({
-        content: `✅ **Vote Confirmed!** **${linked.name}** is registered for **${slotLabel}**. Prepare for battle!`,
+        content: `Vote confirmed: **${linked.name}** is registered for **${slotLabel}**.`,
         ephemeral: true,
       }).catch(() => {});
     });
@@ -231,7 +217,7 @@ export async function execute(interaction) {
     await interaction.editReply({
       embeds: [
         createBaseEmbed('Command Error', COLORS.CRIMSON).setDescription(
-          `Failed to load Bear Trap vote: \`${err.message}\``
+          `Failed to load vote: \`${err.message}\``
         ),
       ],
     });

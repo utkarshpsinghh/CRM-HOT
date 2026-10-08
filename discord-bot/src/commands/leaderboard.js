@@ -4,18 +4,18 @@ import { createBaseEmbed, COLORS } from '../utils/embedBuilder.js';
 
 export const data = new SlashCommandBuilder()
   .setName('leaderboard')
-  .setDescription('View the Kingdom #1391 [HOT] alliance attendance leaderboard')
+  .setDescription('View the [HOT] OneForAll attendance leaderboard')
   .addIntegerOption(option =>
     option
       .setName('limit')
-      .setDescription('Number of top members to display (default: 10, max: 25)')
+      .setDescription('Number of members to display (default: 10, max: 25)')
       .setMinValue(3)
       .setMaxValue(25)
   )
   .addStringOption(option =>
     option
       .setName('sort_by')
-      .setDescription('Sorting criteria')
+      .setDescription('Sort by criteria')
       .addChoices(
         { name: 'Attendance Rate % (Default)', value: 'attendanceRate' },
         { name: 'Most Battles Attended', value: 'attended' }
@@ -47,16 +47,16 @@ export async function execute(interaction) {
 
     const leaderLines = leaders.map((m, idx) => {
       const medal = medals[idx] || `\`#${m.rank}\``;
-      const rankTag = `[${m.allianceRank || 'R1'}]`;
+      const rankTag = `[${m.allianceRank || 'Member'}]`;
       const rateText = `**${m.attendanceRate.toFixed(1)}%**`;
       const battleCount = `(${m.attendedCount}/${m.totalEvents} events)`;
 
       return `${medal} **${m.name}** ${rankTag} — ${rateText} ${battleCount}`;
     });
 
-    const embed = createBaseEmbed('🏆 [HOT] Alliance Attendance Leaderboard')
+    const embed = createBaseEmbed('[HOT] OneForAll • Attendance Leaderboard')
       .setDescription(
-        `Top **${leaders.length}** Warriors in Kingdom #1391 sorted by **${sortBy === 'attended' ? 'Total Battles Attended' : 'Attendance Rate'}**\n` +
+        `Top **${leaders.length}** members sorted by **${sortBy === 'attended' ? 'Total Battles Attended' : 'Attendance Rate'}**\n` +
         `Total Completed Battles: **${totalCompleted}**\n\n` +
         leaderLines.join('\n\n')
       );

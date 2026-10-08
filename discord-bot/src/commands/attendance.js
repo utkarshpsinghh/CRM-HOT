@@ -4,11 +4,11 @@ import { createBaseEmbed, COLORS, renderProgressBar } from '../utils/embedBuilde
 
 export const data = new SlashCommandBuilder()
   .setName('attendance')
-  .setDescription('View detailed battle attendance ledger & votes for a member')
+  .setDescription('View battle attendance and votes for a member')
   .addStringOption(option =>
     option
       .setName('player')
-      .setDescription('Player in-game Name or Player ID')
+      .setDescription('Player Name or in-game ID')
       .setRequired(true)
   );
 
@@ -23,7 +23,7 @@ export async function execute(interaction) {
       return await interaction.editReply({
         embeds: [
           createBaseEmbed('Player Not Found', COLORS.CRIMSON).setDescription(
-            `No member found matching **"${query}"** in the HOT Alliance roster.`
+            `No member found matching **"${query}"** in the [HOT] OneForAll roster.`
           ),
         ],
       });
@@ -38,15 +38,14 @@ export async function execute(interaction) {
     const leaderboard = lbRes.data || [];
     const stats = leaderboard.find(l => l.memberId === member.id);
 
-    const embed = createBaseEmbed(`📋 Attendance Ledger: ${member.name}`)
-      .setDescription(`Detailed participation history for **${member.name}** [${member.rank || 'R1'}]`);
+    const embed = createBaseEmbed(`[HOT] OneForAll • Attendance: ${member.name}`)
+      .setDescription(`Participation history for **${member.name}** [${member.rank || 'Member'}]`);
 
     if (stats) {
       embed.addFields({
-        name: '📈 Attendance Summary',
+        name: 'Attendance Summary',
         value: [
           `• **Attendance Rate:** ${renderProgressBar(stats.attendanceRate)}`,
-          `• **Reliability Score:** **${stats.reliabilityScore.toFixed(1)}%**`,
           `• **Battles Attended:** **${stats.attendedCount}** / **${stats.totalEvents}**`,
           `• **Battles Missed:** **${stats.missedCount}**`,
         ].join('\n'),
@@ -56,7 +55,7 @@ export async function execute(interaction) {
 
     if (records.length === 0) {
       embed.addFields({
-        name: '🕒 Attendance Records',
+        name: 'Attendance Records',
         value: 'No recorded battle participations found for this member yet.',
         inline: false,
       });
@@ -65,7 +64,7 @@ export async function execute(interaction) {
         const isAttended = r.attendanceStatus === 'ATTENDED';
         const icon = isAttended ? '✅' : '❌';
         const dateStr = r.eventDate ? new Date(r.eventDate).toLocaleDateString() : '';
-        const eventName = r.eventName || r.eventType || 'Battle Event';
+        const eventName = r.eventName || r.eventType || 'Event';
         const slotVoted = r.votedSlot ? `Voted: \`${r.votedSlot}\`` : `Vote: \`${r.voteStatus}\``;
         const slotAttended = isAttended && r.attendedSlot ? `| Joined: \`${r.attendedSlot}\`` : '';
 
@@ -73,7 +72,7 @@ export async function execute(interaction) {
       });
 
       embed.addFields({
-        name: `🕒 Battle History (Last ${records.length} Events)`,
+        name: `Battle History (Last ${records.length} Events)`,
         value: recordLines.join('\n\n'),
         inline: false,
       });

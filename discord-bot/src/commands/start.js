@@ -5,7 +5,7 @@ import { createLinkButton, createWarRoomButtons } from '../utils/authCheck.js';
 
 export const data = new SlashCommandBuilder()
   .setName('start')
-  .setDescription('Alliance onboarding console and War Room quick actions');
+  .setDescription('Alliance menu and quick actions');
 
 export async function execute(interaction) {
   await interaction.deferReply();
@@ -13,22 +13,19 @@ export async function execute(interaction) {
   try {
     const member = await crmApi.getLinkedMember(interaction.user.id);
 
-    // 1. NEW USER (NOT LINKED YET) - CLEAN STEP 1 ONBOARDING
+    // 1. UNLINKED USER
     if (!member) {
-      const embed = createBaseEmbed('👋 Welcome to Kingdom #1391 [HOT] Alliance Command', COLORS.GOLD)
+      const embed = createBaseEmbed('Welcome to [HOT] OneForAll', COLORS.GOLD)
         .setDescription(
-          `Hail warrior! You have entered the official Discord command center of **House of Titans [HOT]**.\n\n` +
-          `### 🛡️ Step 1: In-Game Identity Verification\n` +
-          `To keep alliance operations secure, commands unlock in a structured sequence.\n` +
-          `Before accessing the War Room, you must verify your in-game identity.\n\n` +
-          `📸 **How to Verify:**\n` +
-          `1. Open King's Shot and tap your avatar to open your **Governor Profile** screen.\n` +
-          `2. Take a screenshot (showing your name, ID, and the bottom **Settings** tab).\n` +
-          `3. Click the command button below to attach your screenshot:\n\n` +
-          `👉 **</link:1557524738736267364>**\n\n` +
-          `*(All alliance combat tools and commands will unlock automatically upon verification!)*`
-        )
-        .setFooter({ text: 'Kingdom #1391 • House of Titans • Identity Verification' });
+          `Welcome! This is the official bot for **[HOT] OneForAll** (Kingdom #1391).\n\n` +
+          `**Step 1: Link your account**\n` +
+          `To vote and view your stats, please link your in-game profile first.\n\n` +
+          `**How to link:**\n` +
+          `1. Open King's Shot and tap your avatar to open your profile screen.\n` +
+          `2. Take a screenshot.\n` +
+          `3. Click the button below or use **/link** to attach your screenshot.\n\n` +
+          `Your profile, voting, and attendance will be unlocked once linked.`
+        );
 
       return await interaction.editReply({
         embeds: [embed],
@@ -36,7 +33,7 @@ export async function execute(interaction) {
       });
     }
 
-    // 2. VERIFIED WARRIOR - STRUCTURED SEQUENTIAL WAR ROOM CONSOLE
+    // 2. VERIFIED MEMBER
     const [attRes, leaderboardRes] = await Promise.all([
       crmApi.getAttendance(member.id, '', 5).catch(() => ({ data: [] })),
       crmApi.getLeaderboard(100).catch(() => ({ data: [] })),
@@ -46,26 +43,25 @@ export async function execute(interaction) {
     const lbEntry = leaderboard.find(l => l.memberId === member.id);
     const attendanceRate = lbEntry ? lbEntry.attendanceRate : 0;
 
-    const embed = createBaseEmbed(`👑 Welcome back, ${member.name}!`, COLORS.EMERALD)
+    const embed = createBaseEmbed(`Welcome, ${member.name}!`, COLORS.EMERALD)
       .setDescription(
-        `Your Discord identity is verified and bound to **${member.name}** [${formatRank(member.rank)}].\n\n` +
-        `**Status:** \`${member.status || 'Active'}\` • 🏆 **Standing:** **#${lbEntry ? lbEntry.rank : 'Unranked'}** of **${leaderboard.length || 80}** warriors\n` +
-        `**Turnout Score:** ${renderProgressBar(attendanceRate)}`
+        `Linked account: **${member.name}** [${formatRank(member.rank)}]\n\n` +
+        `• **Status:** \`${member.status || 'Active'}\`\n` +
+        `• **Leaderboard Rank:** **#${lbEntry ? lbEntry.rank : 'Unranked'}** of **${leaderboard.length || 80}** members\n` +
+        `• **Attendance Rate:** ${renderProgressBar(attendanceRate)}`
       )
-      .addFields(
-        {
-          name: '⚔️ War Room Command Sequence',
-          value: [
-            '`1.` 🗳️ **/vote** — Cast active Bear Trap slot vote',
-            '`2.` 🐻 **/beartrap** — Live countdown & slot turnout status',
-            '`3.` 🏆 **/myrank** — Check your alliance leaderboard standing & tier',
-            '`4.` 📊 **/me** — View personal combat dossier & battle history',
-            '`5.` 🏆 **/leaderboard** — Global attendance rankings',
-          ].join('\n'),
-          inline: false,
-        }
-      )
-      .setFooter({ text: 'Click any button below for instant action, or type /help for the full manual.' });
+      .addFields({
+        name: 'Available Commands',
+        value: [
+          '`/vote` — Vote for your Bear Trap slot',
+          '`/beartrap` — Bear Trap schedule and turnout',
+          '`/myrank` — Check your leaderboard standing',
+          '`/me` — View your profile and stats',
+          '`/leaderboard` — View alliance attendance rankings',
+        ].join('\n'),
+        inline: false,
+      })
+      .setFooter({ text: 'Select an option below or type /help for all commands' });
 
     await interaction.editReply({
       embeds: [embed],
@@ -76,7 +72,7 @@ export async function execute(interaction) {
     await interaction.editReply({
       embeds: [
         createBaseEmbed('Command Error', COLORS.CRIMSON).setDescription(
-          `Failed to initialize start menu: \`${err.message}\``
+          `Failed to load menu: \`${err.message}\``
         ),
       ],
     });

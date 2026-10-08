@@ -88,7 +88,7 @@ client.once('ready', () => {
   client.user.setPresence({
     activities: [
       {
-        name: 'Kingdom #1391 [HOT] Roster • /help',
+        name: 'Kingdom #1391 • [HOT] OneForAll • /help',
         type: ActivityType.Watching,
       },
     ],
@@ -133,13 +133,12 @@ client.on('interactionCreate', async interaction => {
       }
 
       return await interaction.reply({
-        content: `👉 **Click here to link immediately:** ${linkTag}`,
+        content: `Click here to link: ${linkTag}`,
         embeds: [
-          createBaseEmbed('🛡️ Profile Security Verification', COLORS.GOLD).setDescription(
-            `Click the command pill above to launch **\`/link\`** automatically:\n\n` +
-            `👉 **${linkTag}**\n\n` +
-            `• Simply attach your in-game **Governor Profile** screenshot and press enter.\n` +
-            `• The scanner will automatically detect your Player ID and verify profile ownership!`
+          createBaseEmbed('Profile Verification', COLORS.GOLD).setDescription(
+            `Click **${linkTag}** to verify your account:\n\n` +
+            `• Attach your in-game **Governor Profile** screenshot.\n` +
+            `• The bot will confirm your name and Player ID.`
           ),
         ],
         ephemeral: true,
@@ -171,7 +170,7 @@ client.on('interactionCreate', async interaction => {
       const linked = await crmApi.getLinkedMember(interaction.user.id);
       if (!linked) {
         return await interaction.editReply({
-          content: '⛔ You must link your in-game identity first using `/link` before you can cast a vote!',
+          content: 'You must link your in-game account first using `/link` before you can vote.',
         });
       }
 
@@ -184,7 +183,7 @@ client.on('interactionCreate', async interaction => {
 
       if (!targetSlot) {
         return await interaction.editReply({
-          content: '⚠️ Battle slot is not available or event not found.',
+          content: 'Battle slot is not available or event not found.',
         });
       }
 
@@ -193,7 +192,7 @@ client.on('interactionCreate', async interaction => {
         const slotDate = new Date(targetSlot.startTime);
         if (!isNaN(slotDate.getTime()) && slotDate.getTime() <= Date.now()) {
           return await interaction.editReply({
-            content: `⛔ **${targetSlot.slotName}** is completed! No more entries allowed for this slot.`,
+            content: `**${targetSlot.slotName}** has ended. No more entries allowed for this slot.`,
           });
         }
       }
@@ -201,13 +200,13 @@ client.on('interactionCreate', async interaction => {
       const result = await crmApi.castVote(linked.id, eventId, targetSlot.id);
       if (!result.success) {
         return await interaction.editReply({
-          content: `❌ Failed to record vote: ${result.message}`,
+          content: `Failed to record vote: ${result.message}`,
         });
       }
 
       const slotLabel = isBt1 ? 'BT1 (16:00 UTC)' : 'BT2 (00:30 UTC)';
       return await interaction.editReply({
-        content: `✅ **Vote Confirmed!** **${linked.name}** is registered for **${slotLabel}**. Prepare for battle!`,
+        content: `Vote confirmed: **${linked.name}** is registered for **${slotLabel}**.`,
       });
     }
   }
@@ -217,9 +216,8 @@ client.on('interactionCreate', async interaction => {
     if (interaction.customId === 'modal_link_account') {
       return await interaction.reply({
         embeds: [
-          createBaseEmbed('🛡️ Screenshot Verification Required', COLORS.GOLD).setDescription(
-            'To protect players from account impersonation, all account linking requires an in-game Governor Profile screenshot.\n\n' +
-            'Please run **`/link player:<name_or_id> screenshot:<file>`** to verify and link your account.'
+          createBaseEmbed('Profile Verification', COLORS.GOLD).setDescription(
+            'Please run **/link** and attach your in-game Governor Profile screenshot to verify your account.'
           ),
         ],
         ephemeral: true,

@@ -4,7 +4,7 @@ import { createBaseEmbed, COLORS } from '../utils/embedBuilder.js';
 
 export const data = new SlashCommandBuilder()
   .setName('events')
-  .setDescription('View upcoming and recent Kingdom #1391 [HOT] battle events & Bear Trap schedules')
+  .setDescription('View upcoming and recent [HOT] OneForAll events and Bear Trap schedules')
   .addStringOption(option =>
     option
       .setName('status')
@@ -35,10 +35,10 @@ export async function execute(interaction) {
       });
     }
 
-    const embed = createBaseEmbed('⚔️ [HOT] Alliance Battle Events & Bear Traps');
+    const embed = createBaseEmbed('[HOT] OneForAll • Alliance Events');
 
     events.forEach(evt => {
-      const statusIcon = evt.status === 'Completed' ? '✅' : evt.status === 'Live' ? '🔴 LIVE' : '⏳';
+      const statusIcon = evt.status === 'Completed' ? '✅' : evt.status === 'Live' ? '🔴 Live' : '⏳';
       const eventDate = evt.date ? new Date(evt.date).toUTCString() : 'TBD';
 
       const slotDetails = (evt.slots || []).map(s => {
@@ -52,10 +52,10 @@ export async function execute(interaction) {
       embed.addFields({
         name: `${statusIcon} ${evt.eventName || evt.eventType}`,
         value: [
-          `📅 **Date:** ${eventDate}`,
-          slotDetails ? `🕒 **Slots:** ${slotDetails}` : '',
+          `• **Date:** ${eventDate}`,
+          slotDetails ? `• **Slots:** ${slotDetails}` : '',
           turnoutText,
-          evt.notes ? `📝 *${evt.notes}*` : '',
+          evt.notes ? `• **Notes:** *${evt.notes}*` : '',
         ].filter(Boolean).join('\n'),
         inline: false,
       });

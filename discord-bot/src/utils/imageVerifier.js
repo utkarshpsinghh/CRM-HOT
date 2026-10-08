@@ -45,19 +45,19 @@ export async function verifyGovernorProfileScreenshot(imageUrl, member) {
     // 1. Check for Discord / Chat screenshots
     const discordTokens = [
       'hot alliance bot',
+      'oneforall',
       'discord',
       'only you can see this',
       'dismiss message',
       '@everyone',
       'profile linked & verified',
       'bear trap scheduled',
-      'vote synchronized',
       'vote confirmed',
     ];
     if (discordTokens.some(t => text.includes(t))) {
       return {
         valid: false,
-        reason: 'The uploaded image is a screenshot of Discord or the bot, not an in-game screenshot.\n\nPlease upload a direct screenshot from inside the game showing your **Governor Profile** screen.',
+        reason: 'The uploaded image is a screenshot of Discord or the bot.\n\nPlease upload an in-game screenshot showing your profile screen.',
       };
     }
 
@@ -84,7 +84,7 @@ export async function verifyGovernorProfileScreenshot(imageUrl, member) {
     if (matchedTokens.length < 2) {
       return {
         valid: false,
-        reason: 'The uploaded image does not appear to be an in-game Governor Profile screen.\n\nPlease ensure your screenshot is taken from inside the game by tapping your avatar in the top-left corner.',
+        reason: 'The uploaded image does not appear to be an in-game profile screen.\n\nPlease ensure your screenshot is taken from inside the game by tapping your avatar in the top-left corner.',
       };
     }
 
@@ -108,13 +108,13 @@ export async function verifyGovernorProfileScreenshot(imageUrl, member) {
       if (!hasId && !hasName) {
         return {
           valid: false,
-          reason: `The screenshot does not match Governor **${member.name}** (ID: \`${member.gameId || 'Unknown'}\`).\n\nPlease ensure your in-game name or numeric Player ID is clearly visible.`,
+          reason: `The screenshot does not match **${member.name}** (ID: \`${member.gameId || 'Unknown'}\`).\n\nPlease ensure your in-game name or numeric Player ID is clearly visible.`,
         };
       }
     } else if (!extractedId) {
       return {
         valid: false,
-        reason: 'Could not detect your numeric Player ID from the screenshot.\n\nPlease ensure your Governor Profile ID is clearly visible, or provide the `player` option.',
+        reason: 'Could not detect your Player ID from the screenshot.\n\nPlease make sure your Player ID is clearly visible, or provide the `player` option.',
       };
     }
 
@@ -144,7 +144,7 @@ export async function verifyGovernorProfileScreenshot(imageUrl, member) {
     if (!hasOwnershipMarker) {
       return {
         valid: false,
-        reason: 'This screenshot appears to be another player\'s profile.\n\nPlease open your **own** profile (tap your avatar) where the **Settings** and **Mood** buttons are visible at the bottom.',
+        reason: 'This screenshot appears to be another player\'s profile.\n\nPlease open your **own** profile (tap your avatar) where the **Settings** button is visible.',
       };
     }
 
@@ -159,7 +159,7 @@ export async function verifyGovernorProfileScreenshot(imageUrl, member) {
     console.error('[OCR ERROR] Image verification failed:', err);
     return {
       valid: false,
-      reason: `Could not analyze image: ${err.message}. Please try re-uploading a clear PNG or JPG.`,
+      reason: 'Could not read the image clearly. Please try uploading a clear PNG or JPG screenshot.',
     };
   }
 }

@@ -24,12 +24,12 @@ export function renderProgressBar(percentage, length = 10) {
  */
 export function formatRank(rank) {
   switch (rank?.toUpperCase()) {
-    case 'R5': return '👑 **R5 (Leader)**';
-    case 'R4': return '🛡️ **R4 (Officer)**';
-    case 'R3': return '⚔️ **R3 (Elite)**';
-    case 'R2': return '🏹 **R2 (Warrior)**';
-    case 'R1': return '🗡️ **R1 (Member)**';
-    default: return rank || 'Unknown';
+    case 'R5': return 'R5 (Leader)';
+    case 'R4': return 'R4 (Officer)';
+    case 'R3': return 'R3 (Elite)';
+    case 'R2': return 'R2 (Member)';
+    case 'R1': return 'R1 (Member)';
+    default: return rank || 'Member';
   }
 }
 
@@ -42,6 +42,6 @@ export function createBaseEmbed(title = '', color = COLORS.GOLD) {
     .setTitle(title)
     .setTimestamp()
     .setFooter({
-      text: 'Kingdom #1391 • HOT Alliance Command Center',
+      text: 'Kingdom #1391 • [HOT] OneForAll',
     });
 }

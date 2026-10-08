@@ -4,11 +4,11 @@ import { createBaseEmbed, COLORS, formatRank, renderProgressBar } from '../utils
 
 export const data = new SlashCommandBuilder()
   .setName('profile')
-  .setDescription('Fetch alliance player dossier, rank, strikes, and battle attendance')
+  .setDescription('View an alliance member profile, rank, and attendance')
   .addStringOption(option =>
     option
       .setName('player')
-      .setDescription('Player in-game Name or Player ID')
+      .setDescription('Player Name or in-game ID')
       .setRequired(true)
   );
 
@@ -23,7 +23,7 @@ export async function execute(interaction) {
       return await interaction.editReply({
         embeds: [
           createBaseEmbed('Player Not Found', COLORS.CRIMSON).setDescription(
-            `Could not find any member matching **"${query}"** in Kingdom #1391 [HOT] roster.\n\n` +
+            `Could not find any member matching **"${query}"** in the [HOT] OneForAll roster.\n\n` +
             `*Tip: Try searching by their exact in-game name or Player ID.*`
           ),
         ],
@@ -40,47 +40,45 @@ export async function execute(interaction) {
     const leaderboard = leaderboardRes.data || [];
     const lbEntry = leaderboard.find(l => l.memberId === member.id);
 
-    // Strikes emoji indicator
     const strikesCount = member.strikes || 0;
     const strikesDisplay = strikesCount === 0
-      ? '🟢 `0 / 3` (Clean Record)'
+      ? '`0 / 3` (None)'
       : strikesCount >= 3
-      ? `🔴 **${strikesCount} / 3 (CRITICAL THRESHOLD)**`
-      : `🟡 **${strikesCount} / 3**`;
+      ? `**${strikesCount} / 3** (Critical)`
+      : `**${strikesCount} / 3**`;
 
-    // Attendance stats
     const attendanceRate = lbEntry ? lbEntry.attendanceRate : 0;
     const attendedCount = lbEntry ? lbEntry.attendedCount : 0;
     const totalEvents = lbEntry ? lbEntry.totalEvents : 0;
 
-    const embed = createBaseEmbed(`🛡️ [HOT] Player Dossier: ${member.name}`)
-      .setDescription(`**Kingdom #1391 Alliance Roster Profile**`)
+    const embed = createBaseEmbed(`[HOT] OneForAll • ${member.name}`)
+      .setDescription(`Member profile for **${member.name}**`)
       .addFields(
         {
-          name: '👤 Identity & Standing',
+          name: 'Player Info',
           value: [
-            `• **Player Name:** ${member.name}`,
-            `• **Game ID:** \`${member.gameId || 'Not Linked'}\``,
+            `• **Name:** ${member.name}`,
+            `• **Player ID:** \`${member.gameId || 'Not Linked'}\``,
             `• **Alliance Rank:** ${formatRank(member.rank)}`,
             `• **Status:** \`${member.status || 'Active'}\``,
           ].join('\n'),
           inline: true,
         },
         {
-          name: '⚠️ Discipline & Standing',
+          name: 'Account Standing',
           value: [
-            `• **Active Strikes:** ${strikesDisplay}`,
+            `• **Strikes:** ${strikesDisplay}`,
             `• **Communication:** \`${member.communication || 'Good'}\``,
-            member.note ? `• **Officer Note:** *${member.note}*` : '',
+            member.note ? `• **Note:** *${member.note}*` : '',
           ].filter(Boolean).join('\n'),
           inline: true,
         },
         {
-          name: '📊 Battle Attendance Performance',
+          name: 'Attendance',
           value: [
             `• **Turnout Rate:** ${renderProgressBar(attendanceRate)}`,
-            `• **Events Attended:** **${attendedCount}** / **${totalEvents}** Battles`,
-            lbEntry ? `• **Alliance Rank:** **#${lbEntry.rank}** on Leaderboard` : '',
+            `• **Battles Attended:** **${attendedCount}** / **${totalEvents}**`,
+            lbEntry ? `• **Leaderboard Rank:** **#${lbEntry.rank}** of **${leaderboard.length || 80}** members` : '',
           ].filter(Boolean).join('\n'),
           inline: false,
         }
@@ -91,13 +89,13 @@ export async function execute(interaction) {
       const historyText = recentRecords.map(r => {
         const isAttended = r.attendanceStatus === 'ATTENDED';
         const icon = isAttended ? '✅' : '❌';
-        const eventName = r.eventName || r.eventType || 'Battle Event';
+        const eventName = r.eventName || r.eventType || 'Event';
         const slotText = r.attendedSlot ? `(${r.attendedSlot})` : '';
         return `${icon} **${eventName}**: \`${r.attendanceStatus}\` ${slotText}`;
       }).join('\n');
 
       embed.addFields({
-        name: '🕒 Recent Event History (Last 5)',
+        name: 'Recent Events (Last 5)',
         value: historyText,
         inline: false,
       });
@@ -109,7 +107,7 @@ export async function execute(interaction) {
     await interaction.editReply({
       embeds: [
         createBaseEmbed('Command Error', COLORS.CRIMSON).setDescription(
-          `Failed to fetch player data: \`${err.message}\``
+          `Failed to load player profile: \`${err.message}\``
         ),
       ],
     });

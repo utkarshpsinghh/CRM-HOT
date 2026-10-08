@@ -85,44 +85,43 @@ export async function checkAndBroadcastVote(client) {
     const bt1Completed = isSlotPast(bt1Slot);
     const bt2Completed = isSlotPast(bt2Slot);
 
-    const embed = createBaseEmbed(`🚨 [HOT] Bear Trap Scheduled: Vote Initiated!`, COLORS.GOLD)
+    const embed = createBaseEmbed(`[HOT] OneForAll • Bear Trap Scheduled`, COLORS.GOLD)
       .setDescription(
-        `**Attention Kingdom #1391 [HOT] Warriors!**\n\n` +
-        `A new Bear Trap battle (**${scheduledBT.eventName}**) has been scheduled by Alliance Leadership!\n` +
-        `Please select your preferred battle deployment slot below.\n\n` +
-        `🛡️ **Rule:** Warriors must attend at least **1 slot** per 48-hour battle cycle.`
+        `A new Bear Trap battle (**${scheduledBT.eventName}**) has been scheduled.\n` +
+        `Please select your battle deployment slot below.\n\n` +
+        `**Rule:** Members must attend at least 1 slot per 48-hour battle cycle.`
       )
       .addFields(
         {
-          name: `⚔️ Slot 1: BT1 ${bt1Completed ? '[🔴 COMPLETED]' : '[🟢 OPEN]'}`,
+          name: `Slot 1: BT1 ${bt1Completed ? '(Closed)' : '(Open)'}`,
           value: [
-            `• **Date & Time:** ${formatSlotTime(bt1Slot?.startTime)}`,
-            `• **Status:** ${bt1Completed ? '🛑 **BT1 is completed! No more entries allowed.**' : '🟢 **Open for Voting** *(EU / Asia Primetime)*'}`,
+            `• **Time:** ${formatSlotTime(bt1Slot?.startTime)}`,
+            `• **Status:** ${bt1Completed ? 'Closed (Battle finished)' : 'Open (16:00 UTC)'}`,
           ].join('\n'),
           inline: false,
         },
         {
-          name: `🛡️ Slot 2: BT2 ${bt2Completed ? '[🔴 COMPLETED]' : '[🟢 OPEN]'}`,
+          name: `Slot 2: BT2 ${bt2Completed ? '(Closed)' : '(Open)'}`,
           value: [
-            `• **Date & Time:** ${formatSlotTime(bt2Slot?.startTime)}`,
-            `• **Status:** ${bt2Completed ? '🛑 **BT2 is completed! No more entries allowed.**' : '🟢 **Open for Voting** *(Americas Primetime)*'}`,
+            `• **Time:** ${formatSlotTime(bt2Slot?.startTime)}`,
+            `• **Status:** ${bt2Completed ? 'Closed (Battle finished)' : 'Open (00:30 UTC)'}`,
           ].join('\n'),
           inline: false,
         }
       )
       .setFooter({
-        text: 'Kingdom #1391 • House of Titans • Battle Command',
+        text: 'Kingdom #1391 • [HOT] OneForAll',
       });
 
     const buttons = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
         .setCustomId(`vote_bt1_${scheduledBT.id}`)
-        .setLabel(bt1Completed ? '⚔️ BT1 (16:00 UTC) [COMPLETED]' : '⚔️ Vote BT1 (16:00 UTC)')
+        .setLabel(bt1Completed ? 'BT1 (16:00 UTC) [Closed]' : 'Vote BT1 (16:00 UTC)')
         .setStyle(bt1Completed ? ButtonStyle.Secondary : ButtonStyle.Success)
         .setDisabled(!bt1Slot || bt1Completed),
       new ButtonBuilder()
         .setCustomId(`vote_bt2_${scheduledBT.id}`)
-        .setLabel(bt2Completed ? '🛡️ BT2 (00:30 UTC) [COMPLETED]' : '🛡️ Vote BT2 (00:30 UTC)')
+        .setLabel(bt2Completed ? 'BT2 (00:30 UTC) [Closed]' : 'Vote BT2 (00:30 UTC)')
         .setStyle(bt2Completed ? ButtonStyle.Secondary : ButtonStyle.Primary)
         .setDisabled(!bt2Slot || bt2Completed)
     );
@@ -141,7 +140,7 @@ export async function checkAndBroadcastVote(client) {
         if (!targetChannel) continue;
 
         await targetChannel.send({
-          content: '📢 **@everyone Bear Trap battle scheduled! Cast your slot vote below:**',
+          content: '@everyone **Bear Trap scheduled! Please select your battle slot below:**',
           embeds: [embed],
           components: [buttons],
         });

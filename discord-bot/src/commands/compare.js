@@ -4,7 +4,7 @@ import { createBaseEmbed, COLORS, formatRank, renderProgressBar } from '../utils
 
 export const data = new SlashCommandBuilder()
   .setName('compare')
-  .setDescription('Head-to-head battle showdown comparing two alliance members')
+  .setDescription('Compare attendance records between two alliance members')
   .addStringOption(opt =>
     opt
       .setName('player1')
@@ -35,7 +35,7 @@ export async function execute(interaction) {
       return await interaction.editReply({
         embeds: [
           createBaseEmbed('Player 1 Not Found', COLORS.CRIMSON).setDescription(
-            `Could not find player **"${p1Query}"** in the roster.`
+            `Could not find player **"${p1Query}"** in the [HOT] OneForAll roster.`
           ),
         ],
       });
@@ -45,7 +45,7 @@ export async function execute(interaction) {
       return await interaction.editReply({
         embeds: [
           createBaseEmbed('Player 2 Not Found', COLORS.CRIMSON).setDescription(
-            `Could not find player **"${p2Query}"** in the roster.`
+            `Could not find player **"${p2Query}"** in the [HOT] OneForAll roster.`
           ),
         ],
       });
@@ -57,55 +57,50 @@ export async function execute(interaction) {
       attendedCount: 0,
       totalEvents: 0,
       rank: '-',
-      reliabilityScore: 0,
     };
     const lb2 = leaderboard.find(l => l.memberId === p2.id) || {
       attendanceRate: 0,
       attendedCount: 0,
       totalEvents: 0,
       rank: '-',
-      reliabilityScore: 0,
     };
 
-    // Determine who leads
     let verdict = '';
     if (lb1.attendanceRate > lb2.attendanceRate) {
       const diff = (lb1.attendanceRate - lb2.attendanceRate).toFixed(1);
-      verdict = `🏆 **${p1.name}** holds the battle advantage by **+${diff}%** attendance turnout!`;
+      verdict = `**${p1.name}** has a higher attendance rate by **+${diff}%**.`;
     } else if (lb2.attendanceRate > lb1.attendanceRate) {
       const diff = (lb2.attendanceRate - lb1.attendanceRate).toFixed(1);
-      verdict = `🏆 **${p2.name}** holds the battle advantage by **+${diff}%** attendance turnout!`;
+      verdict = `**${p2.name}** has a higher attendance rate by **+${diff}%**.`;
     } else {
-      verdict = `⚖️ **Deadlock Draw!** Both warriors have an identical **${lb1.attendanceRate}%** attendance record!`;
+      verdict = `Both members have an identical **${lb1.attendanceRate}%** attendance rate.`;
     }
 
-    const embed = createBaseEmbed(`⚔️ Head-to-Head Showdown`, COLORS.GOLD)
+    const embed = createBaseEmbed('[HOT] OneForAll • Member Comparison', COLORS.GOLD)
       .setDescription(
-        `Comparing battle records for **${p1.name}** vs **${p2.name}**\n\n${verdict}`
+        `Comparing attendance for **${p1.name}** vs **${p2.name}**\n\n${verdict}`
       )
       .addFields(
         {
-          name: `🛡️ ${p1.name}`,
+          name: p1.name,
           value: [
-            `• **Rank:** ${formatRank(p1.rank)}`,
-            `• **ID:** \`${p1.gameId || 'N/A'}\``,
+            `• **Alliance Rank:** ${formatRank(p1.rank)}`,
+            `• **Player ID:** \`${p1.gameId || 'N/A'}\``,
             `• **Leaderboard:** **#${lb1.rank}**`,
-            `• **Attendance:** ${renderProgressBar(lb1.attendanceRate)}`,
-            `• **Battles:** **${lb1.attendedCount}** / ${lb1.totalEvents}`,
-            `• **Reliability:** **${lb1.reliabilityScore} / 100**`,
+            `• **Attendance Rate:** ${renderProgressBar(lb1.attendanceRate)}`,
+            `• **Battles Attended:** **${lb1.attendedCount}** / ${lb1.totalEvents}`,
             `• **Strikes:** \`${p1.strikes || 0} / 3\``,
           ].join('\n'),
           inline: true,
         },
         {
-          name: `⚔️ ${p2.name}`,
+          name: p2.name,
           value: [
-            `• **Rank:** ${formatRank(p2.rank)}`,
-            `• **ID:** \`${p2.gameId || 'N/A'}\``,
+            `• **Alliance Rank:** ${formatRank(p2.rank)}`,
+            `• **Player ID:** \`${p2.gameId || 'N/A'}\``,
             `• **Leaderboard:** **#${lb2.rank}**`,
-            `• **Attendance:** ${renderProgressBar(lb2.attendanceRate)}`,
-            `• **Battles:** **${lb2.attendedCount}** / ${lb2.totalEvents}`,
-            `• **Reliability:** **${lb2.reliabilityScore} / 100**`,
+            `• **Attendance Rate:** ${renderProgressBar(lb2.attendanceRate)}`,
+            `• **Battles Attended:** **${lb2.attendedCount}** / ${lb2.totalEvents}`,
             `• **Strikes:** \`${p2.strikes || 0} / 3\``,
           ].join('\n'),
           inline: true,
@@ -118,7 +113,7 @@ export async function execute(interaction) {
     await interaction.editReply({
       embeds: [
         createBaseEmbed('Command Error', COLORS.CRIMSON).setDescription(
-          `Failed to compare warriors: \`${err.message}\``
+          `Failed to compare members: \`${err.message}\``
         ),
       ],
     });
