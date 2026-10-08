@@ -130,7 +130,6 @@ export async function execute(interaction) {
           inline: false,
         }
       )
-      .setImage(screenshot.url)
       .setFooter({
         text: 'Kingdom #1391 • House of Titans • Identity Verified',
       });
