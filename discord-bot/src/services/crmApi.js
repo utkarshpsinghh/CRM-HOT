@@ -185,15 +185,23 @@ class CrmApiClient {
   }
 
   /**
-   * Fetch battle events with dual slot details (BT1 & BT2)
+   * Fetch battle events with dual slot details (BT1 & BT2), integrating real-time events from Supabase
    */
   async getEvents(status = '', limit = 10) {
     try {
-      const { participations, slots } = await this.getCachedParentData();
+      const [{ participations, slots }, dbEventsRes] = await Promise.all([
+        this.getCachedParentData(),
+        this.supabase
+          .from('events')
+          .select('*')
+          .order('date', { ascending: false }),
+      ]);
 
-      // Parent battle definitions matching the CRM
+      const dbEvents = dbEventsRes.data || [];
+
+      // Historical parent battle definitions matching the CRM
       const parentEvents = [
-        { id: 'evt-parent-8-bear-trap-2026-10-07', eventName: 'Bear Trap #47', eventType: 'Bear Trap', date: '2026-10-07T16:00:00.000Z', status: 'Scheduled' },
+        { id: 'evt-parent-8-bear-trap-2026-10-07', eventName: 'Bear Trap #47', eventType: 'Bear Trap', date: '2026-10-07T16:00:00.000Z', status: 'Completed' },
         { id: 'evt-parent-7-bear-trap-2026-10-05', eventName: 'Bear Trap #46', eventType: 'Bear Trap', date: '2026-10-05T16:00:00.000Z', status: 'Completed' },
         { id: 'evt-parent-6-swordsland-2026-10-04', eventName: 'Swordsland War', eventType: 'Swordsland', date: '2026-10-04T02:00:00.000Z', status: 'Completed' },
         { id: 'evt-parent-5-bear-trap-2026-10-03', eventName: 'Bear Trap #45', eventType: 'Bear Trap', date: '2026-10-03T16:00:00.000Z', status: 'Completed' },
@@ -203,13 +211,123 @@ class CrmApiClient {
         { id: 'evt-parent-1-bear-trap-2026-09-27', eventName: 'Bear Trap #42', eventType: 'Bear Trap', date: '2026-09-27T16:00:00.000Z', status: 'Completed' },
       ];
 
-      let filtered = parentEvents;
+      // Known legacy child event IDs from the original dual-event migration
+      const legacyChildIds = new Set([
+        'evt-185df6f0', 'evt-c233df90', 'evt-b7b108e7', 'evt-a7c586d3', 'evt-6f6a9d3a',
+        'evt-61922e28', 'evt-c031d684', 'evt-f9234e34', 'evt-4eee1101', 'evt-e4448cc6',
+        'evt-6f769167', 'evt-d9a52459', 'evt-de673b18', 'evt-41fb9613',
+        'evt-1791372900265-foen', 'evt-1791369322863-f6fw',
+      ]);
+
+      const dynamicEvents = [];
+      let slotsUpdated = false;
+      const allSlots = [...slots];
+
+      // Helper to generate BT1 (16:00 UTC) and BT2 (00:30 UTC next day) slots
+      const getSlotsForBearTrap = (event) => {
+        const eventDate = new Date(event.date);
+        const bt1Date = new Date(eventDate);
+        bt1Date.setUTCHours(16, 0, 0, 0);
+
+        const bt2Date = new Date(bt1Date);
+        bt2Date.setUTCDate(bt2Date.getUTCDate() + 1);
+        bt2Date.setUTCHours(0, 30, 0, 0);
+
+        const formatUtc = (d) => {
+          const year = d.getUTCFullYear();
+          const month = String(d.getUTCMonth() + 1).padStart(2, '0');
+          const day = String(d.getUTCDate()).padStart(2, '0');
+          const hours = String(d.getUTCHours()).padStart(2, '0');
+          const minutes = String(d.getUTCMinutes()).padStart(2, '0');
+          return `${year}-${month}-${day} ${hours}:${minutes} UTC`;
+        };
+
+        return [
+          {
+            id: `slot-${event.id}-1`,
+            eventId: event.id,
+            slotNumber: 1,
+            slotName: 'BT1',
+            startTime: formatUtc(bt1Date),
+            createdAt: event.created_at || new Date().toISOString(),
+          },
+          {
+            id: `slot-${event.id}-2`,
+            eventId: event.id,
+            slotNumber: 2,
+            slotName: 'BT2',
+            startTime: formatUtc(bt2Date),
+            createdAt: event.created_at || new Date().toISOString(),
+          },
+        ];
+      };
+
+      for (const row of dbEvents) {
+        if (legacyChildIds.has(row.id)) continue;
+
+        const isBearTrap =
+          row.event_type === 'Bear Trap' ||
+          (row.event_name && row.event_name.toLowerCase().includes('bear')) ||
+          (row.type && row.type.toLowerCase().includes('bear'));
+
+        const eventType = isBearTrap ? 'Bear Trap' : (row.event_type || 'Custom Event');
+        let eventName = row.event_name || row.name || 'Alliance Event';
+
+        // Auto-assign numbering if named generically "Bear Trap"
+        if (eventName.toLowerCase() === 'bear trap') {
+          eventName = 'Bear Trap #48';
+        }
+
+        let eventSlots = allSlots.filter(s => s.eventId === row.id);
+        if (isBearTrap && eventSlots.length === 0) {
+          const generated = getSlotsForBearTrap(row);
+          eventSlots = generated;
+          allSlots.push(...generated);
+          slotsUpdated = true;
+        }
+
+        let eventStatus = row.status || 'Scheduled';
+        if (eventStatus === 'Scheduled') {
+          const s2 = eventSlots.find(s => s.slotNumber === 2);
+          const d2 = s2?.startTime ? new Date(s2.startTime) : new Date(row.date);
+          if (!isNaN(d2.getTime()) && d2.getTime() < Date.now()) {
+            eventStatus = 'Completed';
+          }
+        }
+
+        dynamicEvents.push({
+          id: row.id,
+          eventName,
+          eventType,
+          date: row.date,
+          status: eventStatus,
+          slots: eventSlots,
+        });
+      }
+
+      if (slotsUpdated) {
+        try {
+          await this.supabase
+            .from('settings')
+            .upsert({ key: 'crm_event_slots_cache', value: JSON.stringify(allSlots) }, { onConflict: 'key' });
+        } catch (err) {
+          console.warn('[CRM SLOTS UPSERT ERROR]:', err.message);
+        }
+      }
+
+      // Merge dynamic events with historical events (newest first)
+      const allEvents = [...dynamicEvents, ...parentEvents];
+
+      let filtered = allEvents;
       if (status) {
         filtered = filtered.filter(e => e.status.toLowerCase() === status.toLowerCase());
       }
 
       const formatted = filtered.slice(0, limit).map(e => {
-        const eventSlots = slots.filter(s => s.eventId === e.id);
+        const eventSlots = (e.slots && e.slots.length > 0)
+          ? e.slots
+          : allSlots.filter(s => s.eventId === e.id);
+
         const eventParts = participations.filter(p => p.eventId === e.id);
         const attended = eventParts.filter(p => p.attendanceStatus === 'ATTENDED').length;
         const voted = eventParts.filter(p => p.voteStatus === 'VOTED').length;
@@ -472,27 +590,40 @@ class CrmApiClient {
       };
 
       const isBt1 = slotId.endsWith('-1');
-      const votedLegacyId = isBt1 ? legacyPair.slot1LegacyId : legacyPair.slot2LegacyId;
-      const otherLegacyId = isBt1 ? legacyPair.slot2LegacyId : legacyPair.slot1LegacyId;
 
       // 1. Dual-write to Supabase attendance table
-      if (votedLegacyId) {
-        await this.supabase.from('attendance').upsert({
-          id: `att-${votedLegacyId}-${memberId}`,
-          event_id: votedLegacyId,
-          member_id: memberId,
-          vote_status: 'YES',
-          attendance_status: 'NOT_APPLICABLE',
-          updated_at: now,
-        }, { onConflict: 'id' });
-      }
+      if (eventId.startsWith('evt-parent-')) {
+        const votedLegacyId = isBt1 ? legacyPair.slot1LegacyId : legacyPair.slot2LegacyId;
+        const otherLegacyId = isBt1 ? legacyPair.slot2LegacyId : legacyPair.slot1LegacyId;
 
-      if (otherLegacyId) {
+        if (votedLegacyId) {
+          await this.supabase.from('attendance').upsert({
+            id: `att-${votedLegacyId}-${memberId}`,
+            event_id: votedLegacyId,
+            member_id: memberId,
+            vote_status: 'YES',
+            attendance_status: 'NOT_APPLICABLE',
+            updated_at: now,
+          }, { onConflict: 'id' });
+        }
+
+        if (otherLegacyId) {
+          await this.supabase.from('attendance').upsert({
+            id: `att-${otherLegacyId}-${memberId}`,
+            event_id: otherLegacyId,
+            member_id: memberId,
+            vote_status: 'NO RESPONSE',
+            attendance_status: 'NOT_APPLICABLE',
+            updated_at: now,
+          }, { onConflict: 'id' });
+        }
+      } else {
+        // Direct dynamic event created in CRM
         await this.supabase.from('attendance').upsert({
-          id: `att-${otherLegacyId}-${memberId}`,
-          event_id: otherLegacyId,
+          id: `att-${eventId}-${memberId}`,
+          event_id: eventId,
           member_id: memberId,
-          vote_status: 'NO RESPONSE',
+          vote_status: isBt1 ? 'YES' : 'NO RESPONSE',
           attendance_status: 'NOT_APPLICABLE',
           updated_at: now,
         }, { onConflict: 'id' });

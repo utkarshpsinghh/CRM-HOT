@@ -175,8 +175,9 @@ client.on('interactionCreate', async interaction => {
         });
       }
 
-      const { slots } = await crmApi.getCachedParentData();
-      const eventSlots = slots.filter(s => s.eventId === eventId);
+      const eventsRes = await crmApi.getEvents();
+      const targetEvent = eventsRes.data.find(e => e.id === eventId);
+      const eventSlots = targetEvent?.slots || [];
       const targetSlot = isBt1
         ? eventSlots.find(s => s.slotName === 'BT1' || s.slotNumber === 1)
         : eventSlots.find(s => s.slotName === 'BT2' || s.slotNumber === 2);

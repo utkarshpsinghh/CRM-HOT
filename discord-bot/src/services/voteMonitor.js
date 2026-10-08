@@ -13,25 +13,44 @@ export function startBearTrapVoteMonitor(client) {
 
   console.log('[MONITOR] Bear Trap battle vote monitor active.');
 
-  // Run initial check after 10 seconds, then every 2 minutes
-  setTimeout(() => checkAndBroadcastVote(client), 10000);
-  setInterval(() => checkAndBroadcastVote(client), 2 * 60 * 1000);
+  // 1. Instant trigger via Supabase Realtime WebSocket
+  try {
+    crmApi.supabase
+      .channel('events-vote-monitor')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'events' }, async (payload) => {
+        console.log(`[REALTIME] Detected event change (${payload.eventType}) in CRM database! Checking vote status...`);
+        await checkAndBroadcastVote(client);
+      })
+      .subscribe((status) => {
+        console.log(`[REALTIME] Supabase events subscription status: ${status}`);
+      });
+  } catch (err) {
+    console.warn('[REALTIME] Supabase subscription warning:', err.message);
+  }
+
+  // 2. Ironclad background polling: Initial check in 2 seconds, then every 15 seconds
+  setTimeout(() => checkAndBroadcastVote(client), 2000);
+  setInterval(() => checkAndBroadcastVote(client), 15 * 1000);
 }
 
-async function checkAndBroadcastVote(client) {
+export async function checkAndBroadcastVote(client) {
   try {
     const eventsRes = await crmApi.getEvents('', 5);
     const events = eventsRes.data || [];
     const bearTraps = events.filter(e => e.eventType === 'Bear Trap');
     const scheduledBT = bearTraps.find(e => e.status === 'Scheduled');
 
-    if (!scheduledBT) return;
+    if (!scheduledBT) {
+      return;
+    }
 
     // Check if we have already broadcasted this event's vote
     const lastBroadcastedEventId = await crmApi.getSetting('bot_last_broadcasted_vote_id', null);
     if (lastBroadcastedEventId === scheduledBT.id) {
       return;
     }
+
+    console.log(`[MONITOR] New scheduled Bear Trap detected: ${scheduledBT.eventName} (${scheduledBT.id}). Initiating broadcast...`);
 
     const bt1Slot = scheduledBT.slots?.find(s => s.slotName === 'BT1' || s.slotNumber === 1);
     const bt2Slot = scheduledBT.slots?.find(s => s.slotName === 'BT2' || s.slotNumber === 2);
@@ -111,9 +130,13 @@ async function checkAndBroadcastVote(client) {
     let broadcastCount = 0;
     for (const guild of client.guilds.cache.values()) {
       try {
-        let targetChannel = guild.channels.cache.find(
-          c => c.isTextBased() && (c.name.includes('bear-hunt') || c.name.includes('bear-trap') || c.name.includes('bear') || c.name.includes('announc') || c.name.includes('war-room') || c.name.includes('general-chat') || c.name.includes('general'))
-        ) || guild.systemChannel || guild.channels.cache.find(c => c.isTextBased());
+        await guild.channels.fetch().catch(() => {});
+        let targetChannel =
+          guild.channels.cache.find(c => c.isTextBased() && c.name.toLowerCase().includes('bear')) ||
+          guild.channels.cache.find(c => c.isTextBased() && c.name.toLowerCase().includes('announc')) ||
+          guild.channels.cache.find(c => c.isTextBased() && (c.name.toLowerCase().includes('war-room') || c.name.toLowerCase().includes('general'))) ||
+          guild.systemChannel ||
+          guild.channels.cache.find(c => c.isTextBased());
 
         if (!targetChannel) continue;
 

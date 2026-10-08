@@ -24,7 +24,7 @@ export async function execute(interaction) {
 
     const events = eventsRes.data || [];
     const bearTraps = events.filter(e => e.eventType === 'Bear Trap');
-    const latestBT = bearTraps[0];
+    const latestBT = bearTraps.find(e => e.status === 'Scheduled') || bearTraps[0];
 
     const embed = createBaseEmbed('🐻 [HOT] Bear Trap Battle Protocol', COLORS.GOLD)
       .setDescription(
