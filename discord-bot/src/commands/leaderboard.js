@@ -5,6 +5,15 @@ import { createBaseEmbed, COLORS } from '../utils/embedBuilder.js';
 export const data = new SlashCommandBuilder()
   .setName('leaderboard')
   .setDescription('View the [HOT] OneForAll attendance leaderboard')
+  .addStringOption(option =>
+    option
+      .setName('timeframe')
+      .setDescription('Time period (default: This Month, matching CRM)')
+      .addChoices(
+        { name: 'This Month (Default)', value: 'month' },
+        { name: 'All-Time', value: 'all' }
+      )
+  )
   .addIntegerOption(option =>
     option
       .setName('limit')
@@ -23,15 +32,17 @@ export const data = new SlashCommandBuilder()
   );
 
 export async function execute(interaction) {
+  const timeframe = interaction.options.getString('timeframe') || 'month';
   const limit = interaction.options.getInteger('limit') || 10;
   const sortBy = interaction.options.getString('sort_by') || 'attendanceRate';
 
   await interaction.deferReply();
 
   try {
-    const res = await crmApi.getLeaderboard(limit, sortBy);
+    const res = await crmApi.getLeaderboard(limit, sortBy, timeframe);
     const leaders = res.data || [];
     const totalCompleted = res.totalCompletedEvents || 0;
+    const timeframeLabel = res.timeframeLabel || (timeframe === 'all' ? 'All-Time' : 'This Month');
 
     if (leaders.length === 0) {
       return await interaction.editReply({
@@ -56,8 +67,8 @@ export async function execute(interaction) {
 
     const embed = createBaseEmbed('[HOT] OneForAll • Attendance Leaderboard')
       .setDescription(
-        `Top **${leaders.length}** members sorted by **${sortBy === 'attended' ? 'Total Battles Attended' : 'Attendance Rate'}**\n` +
-        `Total Completed Battles: **${totalCompleted}**\n\n` +
+        `**Period:** ${timeframeLabel} • **${totalCompleted} Battles Evaluated**\n` +
+        `Sorted by **${sortBy === 'attended' ? 'Total Battles Attended' : 'Attendance Rate'}**\n\n` +
         leaderLines.join('\n\n')
       );
 

@@ -13,21 +13,35 @@ export default async function handler(req: any, res: any) {
   try {
     const supabase = getSupabase();
 
-    // Fetch members, completed events, and participations concurrently
-    const [membersRes, eventsRes, participationsRes, legacyAttendanceRes] = await Promise.all([
+    // Fetch members, events, and participations
+    const [membersRes, eventsRes, participationsRes] = await Promise.all([
       supabase.from('members').select('id, name, current_rank, status, strikes, communication_note'),
       supabase.from('events').select('id, event_name, event_type, date, status'),
       supabase.from('event_participations').select('event_id, member_id, attendance_status, vote_status'),
-      supabase.from('attendance').select('event_id, member_id, attendance_status, vote_status'),
     ]);
 
     if (membersRes.error) {
       return res.status(500).json({ success: false, error: membersRes.error.message });
     }
 
+    // Fetch all attendance records with full pagination
+    let allAttendance: any[] = [];
+    let from = 0;
+    while (true) {
+      const { data, error } = await supabase
+        .from('attendance')
+        .select('event_id, member_id, attendance_status, vote_status')
+        .range(from, from + 999);
+      if (error || !data || data.length === 0) break;
+      allAttendance = allAttendance.concat(data);
+      if (data.length < 1000) break;
+      from += 1000;
+    }
+
     const members = membersRes.data || [];
     const allEvents = eventsRes.data || [];
-    // Only count completed events or past scheduled events
+
+    // Filter completed or past events
     const completedEvents = allEvents.filter(e => {
       if (e.status === 'Completed') return true;
       if (e.date) {
@@ -37,37 +51,52 @@ export default async function handler(req: any, res: any) {
       return false;
     });
 
-    const completedEventIds = new Set(completedEvents.map(e => e.id));
+    // Timeframe handling (default: 'month', matching CRM website LeaderboardView)
+    const timeframe = req.query?.timeframe === 'all' ? 'all' : 'month';
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth();
+
+    let eligibleEvents = completedEvents;
+    if (timeframe === 'month') {
+      const thisMonthEvents = completedEvents.filter(e => {
+        const d = new Date(e.date);
+        if (isNaN(d.getTime())) return false;
+        return d.getFullYear() === currentYear && d.getMonth() === currentMonth;
+      });
+      if (thisMonthEvents.length >= 2) {
+        eligibleEvents = thisMonthEvents;
+      }
+    }
+
+    const eligibleEventIds = new Set(eligibleEvents.map(e => e.id));
 
     // Combine participations and legacy attendance (participations take priority)
     const participationMap = new Map<string, { attended: boolean; voted: boolean }>();
 
-    // Process legacy attendance rows
-    (legacyAttendanceRes.data || []).forEach(row => {
-      if (!completedEventIds.has(row.event_id)) return;
+    allAttendance.forEach(row => {
+      if (!eligibleEventIds.has(row.event_id)) return;
       const key = `${row.event_id}_${row.member_id}`;
       const attended = row.attendance_status === 'JOINED' || row.attendance_status === 'ATTENDED';
       const voted = row.vote_status === 'YES' || row.vote_status === 'VOTED';
       participationMap.set(key, { attended, voted });
     });
 
-    // Override with modern participations if present
     (participationsRes.data || []).forEach(row => {
-      if (!completedEventIds.has(row.event_id)) return;
+      if (!eligibleEventIds.has(row.event_id)) return;
       const key = `${row.event_id}_${row.member_id}`;
       const attended = row.attendance_status === 'ATTENDED';
       const voted = row.vote_status === 'VOTED';
       participationMap.set(key, { attended, voted });
     });
 
-    // Build member stats
-    const totalEventsCount = completedEvents.length;
+    const totalEventsCount = eligibleEvents.length;
 
     const stats = members.map(m => {
       let attendedCount = 0;
       let votedCount = 0;
 
-      for (const evt of completedEvents) {
+      for (const evt of eligibleEvents) {
         const record = participationMap.get(`${evt.id}_${m.id}`);
         if (record) {
           if (record.attended) attendedCount++;
@@ -101,12 +130,13 @@ export default async function handler(req: any, res: any) {
         attendedCount,
         missedCount: Math.max(0, totalEventsCount - attendedCount),
         attendanceRate,
+        voteRate,
         reliabilityScore,
         strikes: m.strikes || 0,
       };
     });
 
-    // Optional status filter (default excludes Archived unless specified)
+    // Optional status filter (default excludes Archived)
     const statusFilter = req.query?.status;
     let filtered = stats;
     if (typeof statusFilter === 'string' && statusFilter.trim()) {
@@ -115,7 +145,7 @@ export default async function handler(req: any, res: any) {
       filtered = filtered.filter(s => s.status !== 'Archived');
     }
 
-    // Sorting
+    // Sorting matching CRM LeaderboardView
     const sortBy = req.query?.sortBy || 'attendanceRate';
     filtered.sort((a, b) => {
       if (sortBy === 'attended') {
@@ -124,14 +154,16 @@ export default async function handler(req: any, res: any) {
       if (sortBy === 'name') {
         return a.name.localeCompare(b.name);
       }
-      // Default: attendanceRate descending, then attendedCount, then name
       if (b.attendanceRate !== a.attendanceRate) {
         return b.attendanceRate - a.attendanceRate;
       }
       if (b.attendedCount !== a.attendedCount) {
         return b.attendedCount - a.attendedCount;
       }
-      return a.name.localeCompare(b.name);
+      if (b.voteRate !== a.voteRate) {
+        return b.voteRate - a.voteRate;
+      }
+      return (a.strikes || 0) - (b.strikes || 0);
     });
 
     // Assign ranking positions
@@ -140,19 +172,22 @@ export default async function handler(req: any, res: any) {
       ...item,
     }));
 
-    const limit = Math.min(Math.max(parseInt(req.query?.limit, 10) || 100, 1), 500);
-    const paginated = ranked.slice(0, limit);
+    const limit = parseInt(req.query?.limit, 10);
+    const finalData = (!isNaN(limit) && limit > 0) ? ranked.slice(0, limit) : ranked;
 
-    return res.status(200).json({
+    const monthLabel = now.toLocaleString('en-US', { month: 'long', year: 'numeric' });
+
+    res.status(200).json({
       success: true,
-      count: paginated.length,
-      total: ranked.length,
+      timeframe,
+      timeframeLabel: timeframe === 'month' ? `This Month (${monthLabel})` : 'All-Time',
       totalCompletedEvents: totalEventsCount,
-      limit,
-      data: paginated,
+      count: finalData.length,
+      total: stats.length,
+      data: finalData,
     });
-  } catch (err: any) {
-    console.error('API /v1/leaderboard error:', err);
-    return res.status(500).json({ success: false, error: 'Internal server error computing leaderboard.' });
+  } catch (error: any) {
+    console.error('API /v1/leaderboard error:', error);
+    res.status(500).json({ success: false, error: error.message || 'Internal Server Error' });
   }
 }

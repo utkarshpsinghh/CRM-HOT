@@ -92,9 +92,11 @@ export async function execute(interaction) {
       });
     }
 
+    const timeframeLabel = lbRes.timeframeLabel || 'This Month';
+
     const embed = createBaseEmbed(`[HOT] OneForAll • ${targetMember.name}`, tierColor)
       .setDescription(
-        `Leaderboard rank and stats for **${targetMember.name}**\n\n` +
+        `Leaderboard rank and stats for **${targetMember.name}** (${timeframeLabel})\n\n` +
         `• **Rank:** **#${rankNum}** of **${totalMembers}** members (${tierBadge})\n` +
         `• **Attendance Rate:** ${renderProgressBar(attendanceRate)}`
       )

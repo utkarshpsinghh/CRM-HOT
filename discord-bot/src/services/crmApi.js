@@ -99,33 +99,109 @@ class CrmApiClient {
   /**
    * Fetch ranked leaderboard matching the CRM website calculation exactly
    */
-  async getLeaderboard(limit = 10, sortBy = 'attendanceRate') {
+  /**
+   * Fetch ranked leaderboard matching the CRM website calculation and date filters exactly
+   */
+  async getLeaderboard(limit = 10, sortBy = 'attendanceRate', timeframe = 'month') {
     try {
-      const [{ participations, slots }, membersRes] = await Promise.all([
-        this.getCachedParentData(),
+      const [membersRes, eventsRes, participationsRes] = await Promise.all([
         this.supabase
           .from('members')
           .select('id, name, current_rank, status, strikes, communication_note')
           .neq('status', 'Archived'),
+        this.supabase
+          .from('events')
+          .select('id, event_name, event_type, date, status')
+          .order('date', { ascending: false }),
+        this.supabase
+          .from('event_participations')
+          .select('event_id, member_id, attendance_status, vote_status'),
       ]);
 
       const members = membersRes.data || [];
+      const allEvents = eventsRes.data || [];
 
-      // Distinct parent battle event IDs from cache
-      const distinctEventIds = Array.from(new Set(participations.map(p => p.eventId)));
-      const totalBattles = distinctEventIds.length;
+      // Fetch all attendance records with full pagination
+      let allAttendance = [];
+      let from = 0;
+      while (true) {
+        const { data, error } = await this.supabase
+          .from('attendance')
+          .select('event_id, member_id, attendance_status, vote_status')
+          .range(from, from + 999);
+        if (error || !data || data.length === 0) break;
+        allAttendance = allAttendance.concat(data);
+        if (data.length < 1000) break;
+        from += 1000;
+      }
+
+      // Filter completed or past events
+      const completedEvents = allEvents.filter(e => {
+        if (e.status === 'Completed') return true;
+        if (e.date) {
+          const evtTime = new Date(e.date).getTime();
+          return !isNaN(evtTime) && evtTime < Date.now();
+        }
+        return false;
+      });
+
+      // Filter by timeframe (default 'month' matching CRM website LeaderboardView)
+      const now = new Date();
+      const currentYear = now.getFullYear();
+      const currentMonth = now.getMonth();
+
+      let eligibleEvents = completedEvents;
+      if (timeframe === 'month') {
+        const thisMonthEvents = completedEvents.filter(e => {
+          const d = new Date(e.date);
+          if (isNaN(d.getTime())) return false;
+          return d.getFullYear() === currentYear && d.getMonth() === currentMonth;
+        });
+        if (thisMonthEvents.length >= 2) {
+          eligibleEvents = thisMonthEvents;
+        }
+      }
+
+      const eligibleEventIds = new Set(eligibleEvents.map(e => e.id));
+      const totalEventsCount = eligibleEvents.length;
+
+      // Participation map (modern participations take priority)
+      const participationMap = new Map();
+
+      allAttendance.forEach(row => {
+        if (!eligibleEventIds.has(row.event_id)) return;
+        const key = `${row.event_id}_${row.member_id}`;
+        const attended = row.attendance_status === 'JOINED' || row.attendance_status === 'ATTENDED';
+        const voted = row.vote_status === 'YES' || row.vote_status === 'VOTED';
+        participationMap.set(key, { attended, voted });
+      });
+
+      (participationsRes.data || []).forEach(row => {
+        if (!eligibleEventIds.has(row.event_id)) return;
+        const key = `${row.event_id}_${row.member_id}`;
+        const attended = row.attendance_status === 'ATTENDED';
+        const voted = row.vote_status === 'VOTED';
+        participationMap.set(key, { attended, voted });
+      });
 
       const stats = members.map(m => {
-        const mParts = participations.filter(p => p.memberId === m.id);
-        const attended = mParts.filter(p => p.attendanceStatus === 'ATTENDED').length;
-        const voted = mParts.filter(p => p.voteStatus === 'VOTED').length;
+        let attendedCount = 0;
+        let votedCount = 0;
 
-        const attendanceRate = totalBattles > 0
-          ? Math.round((attended / totalBattles) * 1000) / 10
+        for (const evt of eligibleEvents) {
+          const record = participationMap.get(`${evt.id}_${m.id}`);
+          if (record) {
+            if (record.attended) attendedCount++;
+            if (record.voted) votedCount++;
+          }
+        }
+
+        const attendanceRate = totalEventsCount > 0
+          ? Math.round((attendedCount / totalEventsCount) * 1000) / 10
           : 0;
 
-        const voteRate = totalBattles > 0
-          ? Math.round((voted / totalBattles) * 1000) / 10
+        const voteRate = totalEventsCount > 0
+          ? Math.round((votedCount / totalEventsCount) * 1000) / 10
           : 0;
 
         const reliabilityScore = Math.round((attendanceRate * 0.7 + voteRate * 0.3) * 10) / 10;
@@ -142,9 +218,9 @@ class CrmApiClient {
           gameId: gameId || null,
           allianceRank: m.current_rank || 'R1',
           status: m.status || 'Active',
-          totalEvents: totalBattles,
-          attendedCount: attended,
-          missedCount: Math.max(0, totalBattles - attended),
+          totalEvents: totalEventsCount,
+          attendedCount,
+          missedCount: Math.max(0, totalEventsCount - attendedCount),
           attendanceRate,
           voteRate,
           reliabilityScore,
@@ -152,7 +228,7 @@ class CrmApiClient {
         };
       });
 
-      // Sorting
+      // Sorting matching CRM LeaderboardView
       stats.sort((a, b) => {
         if (sortBy === 'attended') {
           return b.attendedCount - a.attendedCount || b.attendanceRate - a.attendanceRate;
@@ -163,20 +239,23 @@ class CrmApiClient {
         if (b.attendedCount !== a.attendedCount) {
           return b.attendedCount - a.attendedCount;
         }
-        if (b.reliabilityScore !== a.reliabilityScore) {
-          return b.reliabilityScore - a.reliabilityScore;
+        if (b.voteRate !== a.voteRate) {
+          return b.voteRate - a.voteRate;
         }
         return (a.strikes || 0) - (b.strikes || 0);
       });
 
-      const ranked = stats.map((item, idx) => ({ rank: idx + 1, ...item })).slice(0, limit);
+      const ranked = stats.map((item, idx) => ({ rank: idx + 1, ...item }));
+      const monthLabel = now.toLocaleString('en-US', { month: 'long', year: 'numeric' });
 
       return {
         success: true,
-        count: ranked.length,
+        timeframe,
+        timeframeLabel: timeframe === 'month' ? `This Month (${monthLabel})` : 'All-Time',
+        count: limit ? Math.min(limit, ranked.length) : ranked.length,
         total: stats.length,
-        totalCompletedEvents: totalBattles,
-        data: ranked,
+        totalCompletedEvents: totalEventsCount,
+        data: limit ? ranked.slice(0, limit) : ranked,
       };
     } catch (err) {
       console.error('[getLeaderboard ERROR]:', err.message);
@@ -363,45 +442,44 @@ class CrmApiClient {
   /**
    * Fetch attendance history records for a member from parent battle ledger
    */
+  /**
+   * Fetch attendance history records for a member from live database
+   */
   async getAttendance(memberId = '', eventId = '', limit = 10) {
     try {
-      const { participations, slots } = await this.getCachedParentData();
-      const slotMap = new Map(slots.map(s => [s.id, s.slotName]));
+      const [eventsRes, attRes] = await Promise.all([
+        this.supabase.from('events').select('id, event_name, event_type, date').order('date', { ascending: false }),
+        (async () => {
+          let query = this.supabase.from('attendance').select('*');
+          if (memberId) query = query.eq('member_id', memberId);
+          if (eventId) query = query.eq('event_id', eventId);
+          const { data } = await query;
+          return data || [];
+        })(),
+      ]);
 
-      const eventNames = {
-        'evt-parent-8-bear-trap-2026-10-07': { name: 'Bear Trap #47', date: '2026-10-07' },
-        'evt-parent-7-bear-trap-2026-10-05': { name: 'Bear Trap #46', date: '2026-10-05' },
-        'evt-parent-6-swordsland-2026-10-04': { name: 'Swordsland War', date: '2026-10-04' },
-        'evt-parent-5-bear-trap-2026-10-03': { name: 'Bear Trap #45', date: '2026-10-03' },
-        'evt-parent-4-tri-alliance-2026-10-03': { name: 'Tri Alliance Clash', date: '2026-10-03' },
-        'evt-parent-3-bear-trap-2026-10-01': { name: 'Bear Trap #44', date: '2026-10-01' },
-        'evt-parent-2-bear-trap-2026-09-29': { name: 'Bear Trap #43', date: '2026-09-29' },
-        'evt-parent-1-bear-trap-2026-09-27': { name: 'Bear Trap #42', date: '2026-09-27' },
-      };
+      const events = eventsRes.data || [];
+      const eventMap = new Map(events.map(e => [e.id, e]));
 
-      let filtered = participations;
-      if (memberId) filtered = filtered.filter(p => p.memberId === memberId);
-      if (eventId) filtered = filtered.filter(p => p.eventId === eventId);
-
-      // Sort recent first
-      filtered.reverse();
-
-      const records = filtered.slice(0, limit).map(p => {
-        const evt = eventNames[p.eventId] || { name: 'Battle Event', date: p.createdAt };
+      const records = attRes.map(r => {
+        const evt = eventMap.get(r.event_id);
+        const isAttended = r.attendance_status === 'JOINED' || r.attendance_status === 'ATTENDED';
         return {
-          id: p.id,
-          eventId: p.eventId,
-          eventName: evt.name,
-          eventDate: evt.date,
-          memberId: p.memberId,
-          voteStatus: p.voteStatus,
-          votedSlot: p.selectedSlotId ? slotMap.get(p.selectedSlotId) || p.selectedSlotId : null,
-          attendanceStatus: p.attendanceStatus,
-          attendedSlot: p.attendanceSlotId ? slotMap.get(p.attendanceSlotId) || p.attendanceSlotId : null,
+          id: r.id,
+          eventId: r.event_id,
+          eventName: evt?.event_name || evt?.event_type || 'Battle Event',
+          eventDate: evt?.date || r.created_at || r.updated_at,
+          memberId: r.member_id,
+          voteStatus: r.vote_status || 'NO_VOTE',
+          votedSlot: r.voted_slot || null,
+          attendanceStatus: isAttended ? 'ATTENDED' : (r.attendance_status === 'ABSENT' || r.attendance_status === 'DIDNT_JOIN' ? 'ABSENT' : r.attendance_status || 'NOT_MARKED'),
+          attendedSlot: r.attended_slot || null,
         };
       });
 
-      return { success: true, count: records.length, data: records };
+      records.sort((a, b) => new Date(b.eventDate || 0).getTime() - new Date(a.eventDate || 0).getTime());
+
+      return { success: true, count: records.length, data: records.slice(0, limit) };
     } catch (err) {
       console.error('[getAttendance ERROR]:', err.message);
       return { success: false, data: [] };
