@@ -13,55 +13,68 @@ export default async function handler(req: any, res: any) {
   try {
     const supabase = getSupabase();
 
-    // Fetch members, events, and participations
-    const [membersRes, eventsRes, participationsRes] = await Promise.all([
-      supabase.from('members').select('id, name, current_rank, status, strikes, communication_note'),
+    // Fetch members, settings cache, and dynamic events
+    const [membersRes, settingsRes, dbEventsRes] = await Promise.all([
+      supabase.from('members').select('id, name, current_rank, status, strikes, communication_note').neq('status', 'Archived'),
+      supabase.from('settings').select('*').in('key', ['crm_event_participations_cache']),
       supabase.from('events').select('id, event_name, event_type, date, status'),
-      supabase.from('event_participations').select('event_id, member_id, attendance_status, vote_status'),
     ]);
 
     if (membersRes.error) {
       return res.status(500).json({ success: false, error: membersRes.error.message });
     }
 
-    // Fetch all attendance records with full pagination
-    let allAttendance: any[] = [];
-    let from = 0;
-    while (true) {
-      const { data, error } = await supabase
-        .from('attendance')
-        .select('event_id, member_id, attendance_status, vote_status')
-        .range(from, from + 999);
-      if (error || !data || data.length === 0) break;
-      allAttendance = allAttendance.concat(data);
-      if (data.length < 1000) break;
-      from += 1000;
-    }
-
     const members = membersRes.data || [];
-    const allEvents = eventsRes.data || [];
 
-    // Filter completed or past events
-    const completedEvents = allEvents.filter(e => {
+    // Parse participations from verified cache
+    let participations: any[] = [];
+    (settingsRes.data || []).forEach(r => {
+      if (r.key === 'crm_event_participations_cache') {
+        try { participations = JSON.parse(r.value); } catch {}
+      }
+    });
+
+    // Canonical 8 parent battle events (each cycle has dual slots BT1/BT2, but is 1 event)
+    const parentEvents = [
+      { id: 'evt-parent-8-bear-trap-2026-10-07', eventName: 'Bear Trap #47', eventType: 'Bear Trap', date: '2026-10-07T16:00:00.000Z', status: 'Completed' },
+      { id: 'evt-parent-7-bear-trap-2026-10-05', eventName: 'Bear Trap #46', eventType: 'Bear Trap', date: '2026-10-05T16:00:00.000Z', status: 'Completed' },
+      { id: 'evt-parent-6-swordsland-2026-10-04', eventName: 'Swordsland War', eventType: 'Swordsland', date: '2026-10-04T02:00:00.000Z', status: 'Completed' },
+      { id: 'evt-parent-5-bear-trap-2026-10-03', eventName: 'Bear Trap #45', eventType: 'Bear Trap', date: '2026-10-03T16:00:00.000Z', status: 'Completed' },
+      { id: 'evt-parent-4-tri-alliance-2026-10-03', eventName: 'Tri Alliance Clash', eventType: 'Tri Alliance', date: '2026-10-03T02:00:00.000Z', status: 'Completed' },
+      { id: 'evt-parent-3-bear-trap-2026-10-01', eventName: 'Bear Trap #44', eventType: 'Bear Trap', date: '2026-10-01T16:00:00.000Z', status: 'Completed' },
+      { id: 'evt-parent-2-bear-trap-2026-09-29', eventName: 'Bear Trap #43', eventType: 'Bear Trap', date: '2026-09-29T16:00:00.000Z', status: 'Completed' },
+      { id: 'evt-parent-1-bear-trap-2026-09-27', eventName: 'Bear Trap #42', eventType: 'Bear Trap', date: '2026-09-27T16:00:00.000Z', status: 'Completed' },
+    ];
+
+    const legacyChildIds = new Set([
+      'evt-185df6f0', 'evt-c233df90', 'evt-b7b108e7', 'evt-a7c586d3', 'evt-6f6a9d3a',
+      'evt-61922e28', 'evt-c031d684', 'evt-f9234e34', 'evt-4eee1101', 'evt-e4448cc6',
+      'evt-6f769167', 'evt-d9a52459', 'evt-de673b18', 'evt-41fb9613',
+      'evt-1791372900265-foen', 'evt-1791369322863-f6fw',
+    ]);
+
+    const dynamicCompleted = (dbEventsRes.data || []).filter(e => {
+      if (legacyChildIds.has(e.id)) return false;
       if (e.status === 'Completed') return true;
       if (e.date) {
-        const evtTime = new Date(e.date).getTime();
-        return !isNaN(evtTime) && evtTime < Date.now();
+        const t = new Date(e.date).getTime();
+        return !isNaN(t) && t < Date.now();
       }
       return false;
     });
 
-    // Timeframe handling (default: 'month', matching CRM website LeaderboardView)
+    const allCanonicalEvents = [...dynamicCompleted, ...parentEvents];
+
+    // Timeframe handling: 'month' (October 2026 -> 6 events) or 'all' (8 events in total)
     const timeframe = req.query?.timeframe === 'all' ? 'all' : 'month';
     const now = new Date();
     const currentYear = now.getFullYear();
     const currentMonth = now.getMonth();
 
-    let eligibleEvents = completedEvents;
+    let eligibleEvents = allCanonicalEvents;
     if (timeframe === 'month') {
-      const thisMonthEvents = completedEvents.filter(e => {
+      const thisMonthEvents = allCanonicalEvents.filter(e => {
         const d = new Date(e.date);
-        if (isNaN(d.getTime())) return false;
         return d.getFullYear() === currentYear && d.getMonth() === currentMonth;
       });
       if (thisMonthEvents.length >= 2) {
@@ -70,39 +83,12 @@ export default async function handler(req: any, res: any) {
     }
 
     const eligibleEventIds = new Set(eligibleEvents.map(e => e.id));
-
-    // Combine participations and legacy attendance (participations take priority)
-    const participationMap = new Map<string, { attended: boolean; voted: boolean }>();
-
-    allAttendance.forEach(row => {
-      if (!eligibleEventIds.has(row.event_id)) return;
-      const key = `${row.event_id}_${row.member_id}`;
-      const attended = row.attendance_status === 'JOINED' || row.attendance_status === 'ATTENDED';
-      const voted = row.vote_status === 'YES' || row.vote_status === 'VOTED';
-      participationMap.set(key, { attended, voted });
-    });
-
-    (participationsRes.data || []).forEach(row => {
-      if (!eligibleEventIds.has(row.event_id)) return;
-      const key = `${row.event_id}_${row.member_id}`;
-      const attended = row.attendance_status === 'ATTENDED';
-      const voted = row.vote_status === 'VOTED';
-      participationMap.set(key, { attended, voted });
-    });
-
     const totalEventsCount = eligibleEvents.length;
 
     const stats = members.map(m => {
-      let attendedCount = 0;
-      let votedCount = 0;
-
-      for (const evt of eligibleEvents) {
-        const record = participationMap.get(`${evt.id}_${m.id}`);
-        if (record) {
-          if (record.attended) attendedCount++;
-          if (record.voted) votedCount++;
-        }
-      }
+      const mParts = participations.filter(p => p.memberId === m.id && eligibleEventIds.has(p.eventId));
+      const attendedCount = mParts.filter(p => p.attendanceStatus === 'ATTENDED').length;
+      const votedCount = mParts.filter(p => p.voteStatus === 'VOTED').length;
 
       const attendanceRate = totalEventsCount > 0
         ? Math.round((attendedCount / totalEventsCount) * 1000) / 10
@@ -136,18 +122,9 @@ export default async function handler(req: any, res: any) {
       };
     });
 
-    // Optional status filter (default excludes Archived)
-    const statusFilter = req.query?.status;
-    let filtered = stats;
-    if (typeof statusFilter === 'string' && statusFilter.trim()) {
-      filtered = filtered.filter(s => s.status.toLowerCase() === statusFilter.trim().toLowerCase());
-    } else {
-      filtered = filtered.filter(s => s.status !== 'Archived');
-    }
-
     // Sorting matching CRM LeaderboardView
     const sortBy = req.query?.sortBy || 'attendanceRate';
-    filtered.sort((a, b) => {
+    stats.sort((a, b) => {
       if (sortBy === 'attended') {
         return b.attendedCount - a.attendedCount || b.attendanceRate - a.attendanceRate;
       }
@@ -166,12 +143,7 @@ export default async function handler(req: any, res: any) {
       return (a.strikes || 0) - (b.strikes || 0);
     });
 
-    // Assign ranking positions
-    const ranked = filtered.map((item, idx) => ({
-      rank: idx + 1,
-      ...item,
-    }));
-
+    const ranked = stats.map((item, idx) => ({ rank: idx + 1, ...item }));
     const limit = parseInt(req.query?.limit, 10);
     const finalData = (!isNaN(limit) && limit > 0) ? ranked.slice(0, limit) : ranked;
 
