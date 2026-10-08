@@ -20,7 +20,25 @@ async function getWorker() {
 export async function verifyGovernorProfileScreenshot(imageUrl, member) {
   try {
     const worker = await getWorker();
-    const ret = await worker.recognize(imageUrl);
+
+    let imageInput = imageUrl;
+    if (typeof imageUrl === 'string' && imageUrl.startsWith('http')) {
+      try {
+        const response = await fetch(imageUrl, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          },
+        });
+        if (response.ok) {
+          const arrayBuf = await response.arrayBuffer();
+          imageInput = Buffer.from(arrayBuf);
+        }
+      } catch (fetchErr) {
+        console.warn('[OCR] Remote fetch fallback to direct URL:', fetchErr.message);
+      }
+    }
+
+    const ret = await worker.recognize(imageInput);
     const rawText = ret.data.text || '';
     const text = rawText.toLowerCase();
 
@@ -52,12 +70,15 @@ export async function verifyGovernorProfileScreenshot(imageUrl, member) {
       'alliance',
       'hot',
       'skins',
+      'skin',
       'squad',
       'leaderboard',
       'settings',
+      'setting',
       'gear',
       'kills:',
       'healing',
+      'mood',
     ];
     const matchedTokens = gameTokens.filter(t => text.includes(t));
     if (matchedTokens.length < 2) {
@@ -98,13 +119,32 @@ export async function verifyGovernorProfileScreenshot(imageUrl, member) {
     }
 
     // 5. Verify Ownership (Must be viewing OWN profile, not another player's profile)
-    // Viewing your own profile displays 'Settings' and 'Skins' at the bottom
-    const ownershipTokens = ['settings', 'skins', 'squad'];
-    const hasOwnershipMarker = ownershipTokens.some(t => text.includes(t));
+    // Negative check: another player's profile has social action buttons
+    const otherPlayerTokens = ['send message', 'blacklist', 'add friend', 'block governor'];
+    const isOtherPlayerScreen = otherPlayerTokens.some(t => text.includes(t));
+
+    // Positive check: Own profile displays Settings, Skins, Squad, Leaderboard, +Mood, Gear, stamina counter
+    const ownershipTokens = [
+      'settings',
+      'setting',
+      'settin',
+      'sett',
+      'skins',
+      'skin',
+      'squad',
+      'leaderboard',
+      'leader',
+      'mood',
+      'gear',
+    ];
+    const hasStaminaPattern = /\d+\s*\/\s*\d+/.test(rawText);
+    const hasOwnershipToken = ownershipTokens.some(t => text.includes(t));
+    const hasOwnershipMarker = !isOtherPlayerScreen && (hasOwnershipToken || hasStaminaPattern || matchedTokens.length >= 3);
+
     if (!hasOwnershipMarker) {
       return {
         valid: false,
-        reason: 'This screenshot appears to be another player\'s profile.\n\nPlease open your **own** profile (tap your avatar) where the **Settings** tab is visible at the bottom.',
+        reason: 'This screenshot appears to be another player\'s profile.\n\nPlease open your **own** profile (tap your avatar) where the **Settings** and **Mood** buttons are visible at the bottom.',
       };
     }
 

@@ -56,7 +56,10 @@ export async function execute(interaction) {
     }
 
     // 3. Authenticate Governor Profile Screenshot via OCR Analysis
+    console.log(`[LINK] Processing /link for Discord user ${interaction.user.tag} (${interaction.user.id}). Query: "${query || ''}"`);
     const verification = await verifyGovernorProfileScreenshot(screenshot.url, targetMember);
+    console.log(`[LINK] Verification result: valid=${verification.valid}, extractedId=${verification.extractedId}, reason=${verification.reason || 'None'}`);
+
     if (!verification.valid) {
       return await interaction.editReply({
         embeds: [
@@ -79,6 +82,7 @@ export async function execute(interaction) {
         ],
       });
     }
+    console.log(`[LINK] Resolved member: ${member.name} (${member.id}, GID: ${member.gameId})`);
 
     // 4. Link account with verified screenshot proof
     const result = await crmApi.linkDiscordUser(interaction.user.id, member, screenshot.url);

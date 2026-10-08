@@ -43,13 +43,18 @@ class CrmApiClient {
    */
   async searchMember(query) {
     if (!query) return null;
-    const clean = query.trim();
+    let clean = query.trim();
+    // Strip alliance tag e.g. [HOT]Sage or HOT Sage
+    const tagStripped = clean.replace(/^\[.*?\]\s*/, '').replace(/^HOT\s+/i, '').trim();
+    if (tagStripped) clean = tagStripped;
+    const sanitized = clean.replace(/[,%()\[\]]/g, '').trim();
+    if (!sanitized) return null;
 
     try {
       const { data: members, error } = await this.supabase
         .from('members')
         .select('*')
-        .or(`name.ilike.%${clean}%,communication_note.ilike.%${clean}%,id.eq.${clean}`)
+        .or(`name.ilike.%${sanitized}%,communication_note.ilike.%${sanitized}%,id.eq.${sanitized}`)
         .limit(5);
 
       if (error || !members || members.length === 0) {
