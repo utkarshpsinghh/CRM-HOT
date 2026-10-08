@@ -4,7 +4,11 @@ dotenv.config();
 export const config = {
   discordToken: process.env.DISCORD_TOKEN || '',
   clientId: process.env.DISCORD_CLIENT_ID || '',
-  guildId: process.env.DISCORD_GUILD_ID || '',
+  guildId: (process.env.DISCORD_GUILD_ID || '').split(',')[0].trim(),
+  guildIds: (process.env.DISCORD_GUILD_ID || '')
+    .split(',')
+    .map(s => s.trim())
+    .filter(Boolean),
   crmBaseUrl: (process.env.CRM_API_BASE_URL || 'https://crm.1391.online/api/v1').replace(/\/$/, ''),
   crmApiKey: process.env.CRM_API_KEY || '',
   officerRoleName: process.env.OFFICER_ROLE_NAME || 'R4 Officer',

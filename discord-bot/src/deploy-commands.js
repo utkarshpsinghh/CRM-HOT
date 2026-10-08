@@ -46,13 +46,15 @@ async function deploy() {
   try {
     console.log(`[DEPLOY] Started refreshing ${commands.length} application (/) commands...`);
 
-    if (config.guildId) {
-      console.log(`[DEPLOY] Registering commands to Guild: ${config.guildId}`);
-      await rest.put(
-        Routes.applicationGuildCommands(config.clientId, config.guildId),
-        { body: commands }
-      );
-      console.log(`[DEPLOY] Successfully registered ${commands.length} commands to Guild: ${config.guildId}`);
+    if (config.guildIds && config.guildIds.length > 0) {
+      for (const gId of config.guildIds) {
+        console.log(`[DEPLOY] Registering commands to Guild: ${gId}`);
+        await rest.put(
+          Routes.applicationGuildCommands(config.clientId, gId),
+          { body: commands }
+        );
+        console.log(`[DEPLOY] Successfully registered ${commands.length} commands to Guild: ${gId}`);
+      }
     } else {
       console.log(`[DEPLOY] Registering commands globally...`);
       await rest.put(

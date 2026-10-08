@@ -7,6 +7,8 @@ import {
   TextInputBuilder,
   TextInputStyle,
   ActionRowBuilder,
+  REST,
+  Routes,
 } from 'discord.js';
 import { config, validateConfig } from './config.js';
 import { crmApi } from './services/crmApi.js';
@@ -97,18 +99,45 @@ client.once('ready', () => {
   startBearTrapVoteMonitor(client);
 });
 
+// Auto-register slash commands when bot joins any new guild
+client.on('guildCreate', async (guild) => {
+  console.log(`[GUILD JOIN] Joined new server: ${guild.name} (${guild.id})`);
+  try {
+    const rest = new REST({ version: '10' }).setToken(config.discordToken);
+    const commandsData = Array.from(client.commands.values()).map(cmd => cmd.data.toJSON());
+    await rest.put(
+      Routes.applicationGuildCommands(config.clientId, guild.id),
+      { body: commandsData }
+    );
+    console.log(`[GUILD JOIN] Registered ${commandsData.length} commands to ${guild.name} (${guild.id})`);
+  } catch (err) {
+    console.error(`[GUILD JOIN ERROR] Failed to deploy commands to ${guild.name}:`, err.message);
+  }
+});
+
 // Interaction handling
 client.on('interactionCreate', async interaction => {
   // 1. BUTTON INTERACTIONS
   if (interaction.isButton()) {
     // 1A. Link Button Trigger (Direct user to upload screenshot with /link)
     if (interaction.customId === 'btn_open_link_modal') {
+      let linkTag = '`/link`';
+      try {
+        const guildCmds = await interaction.guild?.commands?.fetch();
+        const linkCmd = guildCmds?.find(c => c.name === 'link');
+        if (linkCmd) {
+          linkTag = `</link:${linkCmd.id}>`;
+        }
+      } catch (err) {
+        // Fallback to default tag
+      }
+
       return await interaction.reply({
-        content: `👉 **Click here to link immediately:** </link:1557524738736267364>`,
+        content: `👉 **Click here to link immediately:** ${linkTag}`,
         embeds: [
           createBaseEmbed('🛡️ Profile Security Verification', COLORS.GOLD).setDescription(
             `Click the command pill above to launch **\`/link\`** automatically:\n\n` +
-            `👉 **</link:1557524738736267364>**\n\n` +
+            `👉 **${linkTag}**\n\n` +
             `• Simply attach your in-game **Governor Profile** screenshot and press enter.\n` +
             `• The scanner will automatically detect your Player ID and verify profile ownership!`
           ),

@@ -33,19 +33,6 @@ async function checkAndBroadcastVote(client) {
       return;
     }
 
-    // Find target channel to post
-    const guild = client.guilds.cache.first();
-    if (!guild) return;
-
-    let targetChannel = guild.systemChannel;
-    if (!targetChannel) {
-      targetChannel = guild.channels.cache.find(
-        c => c.isTextBased() && (c.name.includes('announc') || c.name.includes('bear-trap') || c.name.includes('general') || c.name.includes('war-room'))
-      ) || guild.channels.cache.find(c => c.isTextBased());
-    }
-
-    if (!targetChannel) return;
-
     const bt1Slot = scheduledBT.slots?.find(s => s.slotName === 'BT1' || s.slotNumber === 1);
     const bt2Slot = scheduledBT.slots?.find(s => s.slotName === 'BT2' || s.slotNumber === 2);
 
@@ -121,16 +108,32 @@ async function checkAndBroadcastVote(client) {
         .setDisabled(!bt2Slot || bt2Completed)
     );
 
-    await targetChannel.send({
-      content: '📢 **@everyone Bear Trap battle scheduled! Cast your slot vote below:**',
-      embeds: [embed],
-      components: [buttons],
-    });
+    let broadcastCount = 0;
+    for (const guild of client.guilds.cache.values()) {
+      try {
+        let targetChannel = guild.channels.cache.find(
+          c => c.isTextBased() && (c.name.includes('bear-hunt') || c.name.includes('bear-trap') || c.name.includes('bear') || c.name.includes('announc') || c.name.includes('war-room') || c.name.includes('general-chat') || c.name.includes('general'))
+        ) || guild.systemChannel || guild.channels.cache.find(c => c.isTextBased());
 
-    console.log(`[MONITOR] Successfully initiated automated vote for ${scheduledBT.eventName} in #${targetChannel.name}!`);
+        if (!targetChannel) continue;
 
-    // Record that we broadcasted this event
-    await crmApi.setSetting('bot_last_broadcasted_vote_id', scheduledBT.id);
+        await targetChannel.send({
+          content: '📢 **@everyone Bear Trap battle scheduled! Cast your slot vote below:**',
+          embeds: [embed],
+          components: [buttons],
+        });
+
+        console.log(`[MONITOR] Successfully initiated automated vote for ${scheduledBT.eventName} in ${guild.name} #${targetChannel.name}!`);
+        broadcastCount++;
+      } catch (err) {
+        console.warn(`[MONITOR] Failed to send vote to ${guild.name}:`, err.message);
+      }
+    }
+
+    if (broadcastCount > 0) {
+      // Record that we broadcasted this event
+      await crmApi.setSetting('bot_last_broadcasted_vote_id', scheduledBT.id);
+    }
   } catch (err) {
     console.warn('[MONITOR] Error checking Bear Trap vote:', err.message);
   }
