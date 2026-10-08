@@ -1,7 +1,7 @@
 import { SlashCommandBuilder } from 'discord.js';
 import { crmApi } from '../services/crmApi.js';
 import { createBaseEmbed, COLORS } from '../utils/embedBuilder.js';
-import { createLinkButton } from '../utils/authCheck.js';
+import { createLinkButton, createWarRoomButtons } from '../utils/authCheck.js';
 
 export const data = new SlashCommandBuilder()
   .setName('help')
@@ -13,33 +13,20 @@ export async function execute(interaction) {
   try {
     const linkedMember = await crmApi.getLinkedMember(interaction.user.id);
 
-    // 1. UNLINKED USER: REQUIRE LINK FIRST
+    // 1. UNLINKED USER: CLEAN STEP 1 ONBOARDING
     if (!linkedMember) {
-      const embed = createBaseEmbed('🛡️ [HOT] Alliance Verification Required', COLORS.GOLD)
+      const embed = createBaseEmbed('🛡️ Step 1: Verification Required', COLORS.GOLD)
         .setDescription(
           `**Welcome to Kingdom #1391 • House of Titans [HOT] Bot!**\n\n` +
-          `⚠️ **Step 1: Link Your In-Game Account First**\n` +
-          `All alliance combat data and voting tools are secured behind in-game profile verification.\n\n` +
-          `You must link your Discord identity with an in-game **Governor Profile screenshot** (showing your name, ID, and Settings tab) before accessing alliance commands.\n\n` +
-          `👉 **Click the button below or tap </link:1557524738736267364> to upload your screenshot.**\n\n` +
-          `*(Once verified, type \`/help\` again to unlock the full command console!)*`
-        )
-        .addFields(
-          {
-            name: '🔒 Locked Features (Unlocked Upon Verification)',
-            value: [
-              '• 🐻 Bear Trap Schedule, Countdown & Status (`/beartrap`)',
-              '• 🗳️ Bear Trap Battle Slot Voting (`/vote`)',
-              '• 📊 Personal Combat Dossier & Turnout Rating (`/me`)',
-              '• 🏆 Global Alliance Leaderboards & MVP (`/leaderboard`, `/mvp`)',
-              '• 🏰 Full 80-Member Roster & Census (`/roster`)',
-              '• ⚔️ Battle Records & Head-to-Head Comparison (`/compare`, `/attendance`)',
-            ].join('\n'),
-            inline: false,
-          }
+          `To keep alliance operations secure, all commands are structured and unlock in sequence.\n\n` +
+          `### 📸 Step 1: Verify Your In-Game Account\n` +
+          `1. Open King's Shot and tap your avatar to open your **Governor Profile** screen.\n` +
+          `2. Take a screenshot (showing name, ID, and bottom **Settings** tab).\n` +
+          `3. Click the button below or tap **</link:1557524738736267364>** to upload your screenshot.\n\n` +
+          `*(Once verified, type \`/help\` or \`/start\` to unlock the full command console!)*`
         )
         .setFooter({
-          text: 'Upload your Governor Profile screenshot with /link to complete verification.',
+          text: 'Kingdom #1391 • House of Titans • Identity Verification',
         });
 
       return await interaction.editReply({
@@ -48,43 +35,49 @@ export async function execute(interaction) {
       });
     }
 
-    // 2. VERIFIED USER: CLEAN & FOCUSED COMMAND DIRECTORY
+    // 2. VERIFIED USER: STRUCTURED & SEQUENTIAL COMMAND DIRECTORY
     const embed = createBaseEmbed('🛡️ [HOT] Alliance Bot — Command Directory', COLORS.GOLD)
       .setDescription(
         `Welcome back, **${linkedMember.name}** [${linkedMember.rank}]!\n` +
-        `Your identity is verified. Here is your official command console for **Kingdom #1391 [HOT]**:`
+        `Your identity is verified. Here are your alliance commands grouped in sequence:`
       )
       .addFields(
         {
-          name: '👤 Identity & Account Management',
+          name: '⚔️ 1. Battle Coordination & Voting',
           value: [
-            '• `/start` — Onboarding portal & quick action console.',
-            '• `/link <player> <screenshot>` — Link in-game account with Governor Profile screenshot verification.',
-            '• `/unlink [user]` — Disconnect linked profile (or officer unlinks a member).',
-            '• `/me` — View your personal combat dossier, strikes, and battle turnout.',
-            '• `/profile <player>` — Look up any alliance member dossier by Name or Player ID.',
+            '`/vote` — Cast your Bear Trap battle deployment slot vote.',
+            '`/beartrap` — Next battle countdown, live dual slot status, and turnouts.',
+            '`/attendance [player]` — Detailed battle ledger showing voted and attended slots.',
+            '`/events [status]` — Schedule for Bear Traps, Swordsland War, and Tri Alliance.',
           ].join('\n'),
           inline: false,
         },
         {
-          name: '⚔️ Battle Coordination & Bear Trap Voting',
+          name: '👤 2. Personal Dossiers & Records',
           value: [
-            '• `/vote` — Cast your Bear Trap battle deployment slot vote.',
-            '• `/beartrap` — Next battle countdown, live dual slot status (`16:00 UTC` / `00:30 UTC`), and turnouts.',
-            '• `/attendance <player>` — Detailed battle ledger showing voted and attended slots.',
-            '• `/events [status]` — Schedule for Bear Traps, Swordsland War, and Tri Alliance battles.',
+            '`/me` — View your personal combat dossier, strikes, and battle turnout.',
+            '`/profile <player>` — Look up any alliance member dossier by Name or Player ID.',
+            '`/start` — War Room quick-action portal.',
           ].join('\n'),
           inline: false,
         },
         {
-          name: '🏆 Rankings & Alliance Roster',
+          name: '🏰 3. Alliance Census & Leaderboards',
           value: [
-            '• `/leaderboard [limit] [sort_by]` — Global alliance leaderboard (attendance rate or battle count).',
-            '• `/mvp` — Spotlight the #1 reigning battle MVP and top elite contenders.',
-            '• `/roster [rank]` — Alliance census summary & division lists (All 80 members, R5, R4, R3, R2, R1).',
-            '• `/compare <player1> <player2>` — Head-to-head attendance and rank showdown.',
-            '• `/inactives [filter]` — Spot inactive members or players with warning strikes.',
-            '• `/strike <add|remove>` — *(Officers only)* Issue or waive disciplinary strikes.',
+            '`/roster [rank]` — Alliance census summary & division lists (All 80 members, R5, R4, R3, R2, R1).',
+            '`/leaderboard [limit] [sort_by]` — Global attendance leaderboard and rankings.',
+            '`/mvp` — Spotlight the #1 reigning battle MVP and top contenders.',
+            '`/compare <player1> <player2>` — Head-to-head attendance and rank showdown.',
+            '`/inactives [filter]` — Spot inactive members or players with warning strikes.',
+          ].join('\n'),
+          inline: false,
+        },
+        {
+          name: '⚙️ 4. Identity & Officer Admin',
+          value: [
+            '`/link [screenshot] [player]` — Link account with Governor Profile verification.',
+            '`/unlink [user]` — Disconnect linked profile (or officer unlinks a member).',
+            '`/strike <add|remove>` — *(Officers only)* Issue or waive disciplinary strikes.',
           ].join('\n'),
           inline: false,
         }
@@ -93,7 +86,10 @@ export async function execute(interaction) {
         text: 'Kingdom #1391 • House of Titans • Powered by HOT Alliance Command',
       });
 
-    await interaction.editReply({ embeds: [embed] });
+    await interaction.editReply({
+      embeds: [embed],
+      components: [createWarRoomButtons()],
+    });
   } catch (err) {
     console.error('Execute /help error:', err);
     await interaction.editReply({

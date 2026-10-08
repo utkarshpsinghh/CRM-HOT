@@ -115,7 +115,21 @@ client.on('interactionCreate', async interaction => {
       });
     }
 
-    // 1B. Automated Broadcast Vote Buttons (vote_bt1_<eventId> and vote_bt2_<eventId>)
+    // 1B. War Room Quick-Action Navigation Buttons
+    if (interaction.customId === 'btn_action_vote') {
+      return await voteCmd.execute(interaction);
+    }
+    if (interaction.customId === 'btn_action_beartrap') {
+      return await beartrapCmd.execute(interaction);
+    }
+    if (interaction.customId === 'btn_action_me') {
+      return await meCmd.execute(interaction);
+    }
+    if (interaction.customId === 'btn_action_roster') {
+      return await rosterCmd.execute(interaction);
+    }
+
+    // 1C. Automated Broadcast Vote Buttons (vote_bt1_<eventId> and vote_bt2_<eventId>)
     if (interaction.customId.startsWith('vote_bt1_') || interaction.customId.startsWith('vote_bt2_')) {
       await interaction.deferReply({ ephemeral: true });
 

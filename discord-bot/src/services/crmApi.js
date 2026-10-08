@@ -389,6 +389,25 @@ class CrmApiClient {
         try { links = JSON.parse(data.value); } catch {}
       }
 
+      // Check if this member or gameId is ALREADY linked to another Discord user
+      const existingDiscordId = Object.keys(links).find(dId => {
+        if (dId === discordUserId) return false;
+        const link = links[dId];
+        if (!link) return false;
+        const sameMemberId = link.memberId === member.id;
+        const sameGameId = member.gameId && link.gameId && String(link.gameId).trim() === String(member.gameId).trim();
+        return sameMemberId || sameGameId;
+      });
+
+      if (existingDiscordId) {
+        return {
+          success: false,
+          alreadyBound: true,
+          existingDiscordId,
+          message: `Governor **${member.name}** (ID: \`${member.gameId || 'N/A'}\`) is already linked to another Discord user (<@${existingDiscordId}>).\n\nTo prevent account duplication, each in-game identity can only be bound to one Discord account. If this is an error, please ask an Alliance Officer to unlink it.`,
+        };
+      }
+
       links[discordUserId] = {
         memberId: member.id,
         memberName: member.name,
@@ -401,10 +420,10 @@ class CrmApiClient {
         .from('settings')
         .upsert({ key: 'discord_member_links', value: JSON.stringify(links) }, { onConflict: 'key' });
 
-      return true;
+      return { success: true };
     } catch (err) {
       console.error('[linkDiscordUser ERROR]:', err.message);
-      return false;
+      return { success: false, message: err.message };
     }
   }
 

@@ -3,7 +3,7 @@ import { crmApi } from '../services/crmApi.js';
 import { createBaseEmbed, COLORS } from './embedBuilder.js';
 
 /**
- * Creates an interactive "Link Account" button that triggers the Discord modal
+ * Creates an interactive "Link Account" button that triggers the Discord link guide
  */
 export function createLinkButton() {
   return new ActionRowBuilder().addComponents(
@@ -15,18 +15,43 @@ export function createLinkButton() {
 }
 
 /**
+ * Creates smooth quick-action buttons for verified alliance warriors
+ */
+export function createWarRoomButtons() {
+  return new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId('btn_action_vote')
+      .setLabel('🗳️ Cast Vote')
+      .setStyle(ButtonStyle.Success),
+    new ButtonBuilder()
+      .setCustomId('btn_action_beartrap')
+      .setLabel('🐻 Battle Status')
+      .setStyle(ButtonStyle.Primary),
+    new ButtonBuilder()
+      .setCustomId('btn_action_me')
+      .setLabel('📊 My Dossier')
+      .setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder()
+      .setCustomId('btn_action_roster')
+      .setLabel('🏰 Roster')
+      .setStyle(ButtonStyle.Secondary)
+  );
+}
+
+/**
  * Standard structured embed prompting user to link their account
  */
 export function createUnlinkedEmbed(commandName = 'this command') {
-  return createBaseEmbed('🛡️ Identity Verification Required', COLORS.GOLD)
+  return createBaseEmbed('🛡️ Step 1: Verification Required', COLORS.GOLD)
     .setDescription(
-      `Hail warrior! Before accessing **/${commandName}**, you must link your Discord account to your in-game **Kingdom #1391 [HOT]** identity.\n\n` +
-      `**Why link your account?**\n` +
-      `• 🗳️ Cast Bear Trap deployment votes with \`/vote\`\n` +
-      `• 📊 Inspect personal combat dossiers with \`/me\`\n` +
-      `• ⏳ Track live Bear Trap countdowns with \`/beartrap\`\n` +
-      `• 🏆 Check alliance rankings with \`/leaderboard\`\n\n` +
-      `👉 **Click the button below or tap </link:1557524738736267364> to upload your Governor Profile screenshot.**`
+      `**Welcome to Kingdom #1391 • House of Titans [HOT]**\n\n` +
+      `🔒 Access to **/${commandName}** is locked until your in-game identity is verified.\n\n` +
+      `### 📸 How to Complete Verification:\n` +
+      `1. Open King's Shot and tap your avatar in the top-left corner.\n` +
+      `2. Take a screenshot of your **Governor Profile** screen (showing name, ID, and Settings tab).\n` +
+      `3. Tap the command link below to upload your screenshot:\n\n` +
+      `👉 **</link:1557524738736267364>**\n\n` +
+      `*(All alliance combat tools, Bear Trap voting, and records will unlock automatically once verified!)*`
     )
     .setFooter({ text: 'Kingdom #1391 • House of Titans • Identity Verification' });
 }

@@ -22,7 +22,7 @@ export const data = new SlashCommandBuilder()
   );
 
 export async function execute(interaction) {
-  const rankFilter = interaction.options.getString('rank') || 'CENSUS';
+  const rankFilter = interaction.options?.getString?.('rank') || 'CENSUS';
   await interaction.deferReply();
 
   try {

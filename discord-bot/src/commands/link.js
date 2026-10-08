@@ -2,6 +2,7 @@ import { SlashCommandBuilder } from 'discord.js';
 import { crmApi } from '../services/crmApi.js';
 import { createBaseEmbed, COLORS, formatRank } from '../utils/embedBuilder.js';
 import { verifyGovernorProfileScreenshot } from '../utils/imageVerifier.js';
+import { createWarRoomButtons } from '../utils/authCheck.js';
 
 export const data = new SlashCommandBuilder()
   .setName('link')
@@ -80,13 +81,13 @@ export async function execute(interaction) {
     }
 
     // 4. Link account with verified screenshot proof
-    const success = await crmApi.linkDiscordUser(interaction.user.id, member, screenshot.url);
+    const result = await crmApi.linkDiscordUser(interaction.user.id, member, screenshot.url);
 
-    if (!success) {
+    if (!result.success) {
       return await interaction.editReply({
         embeds: [
-          createBaseEmbed('Linking Failed', COLORS.CRIMSON).setDescription(
-            'Unable to save your account link right now. Please try again later.'
+          createBaseEmbed('Linking Rejected', COLORS.CRIMSON).setDescription(
+            result.message || 'Unable to save your account link right now. Please try again later.'
           ),
         ],
       });
@@ -114,6 +115,15 @@ export async function execute(interaction) {
             `• **Strikes:** \`${member.strikes || 0} / 3\``,
           ].join('\n'),
           inline: true,
+        },
+        {
+          name: '🚀 War Room Activated — Next Steps:',
+          value: [
+            '`1.` Click **[ 🗳️ Cast Vote ]** below to register for active Bear Trap',
+            '`2.` Click **[ 🐻 Battle Status ]** to track real-time countdowns',
+            '`3.` Click **[ 📊 My Dossier ]** to view your combat dossier',
+          ].join('\n'),
+          inline: false,
         }
       )
       .setImage(screenshot.url)
@@ -121,7 +131,10 @@ export async function execute(interaction) {
         text: 'Kingdom #1391 • House of Titans • Identity Verified',
       });
 
-    await interaction.editReply({ embeds: [embed] });
+    await interaction.editReply({
+      embeds: [embed],
+      components: [createWarRoomButtons()],
+    });
   } catch (err) {
     console.error('Execute /link error:', err);
     await interaction.editReply({
