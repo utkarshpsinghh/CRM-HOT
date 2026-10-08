@@ -32,8 +32,8 @@ export function createWarRoomButtons() {
       .setLabel('📊 My Dossier')
       .setStyle(ButtonStyle.Secondary),
     new ButtonBuilder()
-      .setCustomId('btn_action_roster')
-      .setLabel('🏰 Roster')
+      .setCustomId('btn_action_rank')
+      .setLabel('🏆 My Rank')
       .setStyle(ButtonStyle.Secondary)
   );
 }

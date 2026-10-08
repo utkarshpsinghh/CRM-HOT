@@ -12,7 +12,6 @@ import * as beartrapCmd from './commands/beartrap.js';
 import * as voteCmd from './commands/vote.js';
 import * as strikeCmd from './commands/strike.js';
 import * as compareCmd from './commands/compare.js';
-import * as rosterCmd from './commands/roster.js';
 import * as mvpCmd from './commands/mvp.js';
 import * as inactivesCmd from './commands/inactives.js';
 import * as helpCmd from './commands/help.js';
@@ -34,7 +33,6 @@ const commands = [
   voteCmd.data.toJSON(),
   strikeCmd.data.toJSON(),
   compareCmd.data.toJSON(),
-  rosterCmd.data.toJSON(),
   mvpCmd.data.toJSON(),
   inactivesCmd.data.toJSON(),
   helpCmd.data.toJSON(),

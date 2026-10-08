@@ -26,7 +26,6 @@ import * as beartrapCmd from './commands/beartrap.js';
 import * as voteCmd from './commands/vote.js';
 import * as strikeCmd from './commands/strike.js';
 import * as compareCmd from './commands/compare.js';
-import * as rosterCmd from './commands/roster.js';
 import * as mvpCmd from './commands/mvp.js';
 import * as inactivesCmd from './commands/inactives.js';
 import * as helpCmd from './commands/help.js';
@@ -62,7 +61,6 @@ const commandModules = [
   voteCmd,
   strikeCmd,
   compareCmd,
-  rosterCmd,
   mvpCmd,
   inactivesCmd,
   helpCmd,
@@ -129,8 +127,8 @@ client.on('interactionCreate', async interaction => {
     if (interaction.customId === 'btn_action_me') {
       return await meCmd.execute(interaction);
     }
-    if (interaction.customId === 'btn_action_roster') {
-      return await rosterCmd.execute(interaction);
+    if (interaction.customId === 'btn_action_rank') {
+      return await rankCmd.execute(interaction);
     }
 
     // 1C. Automated Broadcast Vote Buttons (vote_bt1_<eventId> and vote_bt2_<eventId>)

@@ -64,9 +64,8 @@ export async function execute(interaction) {
           inline: false,
         },
         {
-          name: '🏰 3. Alliance Census & Leaderboards',
+          name: '🏰 3. Alliance Intel & Leaderboards',
           value: [
-            '`/roster [rank]` — Alliance census summary & division lists (All 80 members, R5, R4, R3, R2, R1).',
             '`/leaderboard [limit] [sort_by]` — Global attendance leaderboard and rankings.',
             '`/mvp` — Spotlight the #1 reigning battle MVP and top contenders.',
             '`/compare <player1> <player2>` — Head-to-head attendance and rank showdown.',

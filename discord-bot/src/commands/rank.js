@@ -142,12 +142,12 @@ export async function execute(interaction) {
         .setLabel('🗳️ Cast Vote')
         .setStyle(ButtonStyle.Success),
       new ButtonBuilder()
+        .setCustomId('btn_action_beartrap')
+        .setLabel('🐻 Battle Status')
+        .setStyle(ButtonStyle.Primary),
+      new ButtonBuilder()
         .setCustomId('btn_action_me')
         .setLabel('📊 Full Dossier')
-        .setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder()
-        .setCustomId('btn_action_roster')
-        .setLabel('🏰 Alliance Roster')
         .setStyle(ButtonStyle.Secondary)
     );
 
