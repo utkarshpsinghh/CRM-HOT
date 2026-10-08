@@ -49,6 +49,36 @@ async function checkAndBroadcastVote(client) {
     const bt1Slot = scheduledBT.slots?.find(s => s.slotName === 'BT1' || s.slotNumber === 1);
     const bt2Slot = scheduledBT.slots?.find(s => s.slotName === 'BT2' || s.slotNumber === 2);
 
+    const formatSlotTime = (startTimeStr) => {
+      if (!startTimeStr) return 'TBD';
+      const d = new Date(startTimeStr);
+      if (isNaN(d.getTime())) return startTimeStr;
+      const dateFormatted = d.toLocaleDateString('en-US', {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        timeZone: 'UTC',
+      });
+      const timeFormatted = d.toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+        timeZone: 'UTC',
+      });
+      const unixSec = Math.floor(d.getTime() / 1000);
+      return `${dateFormatted} • \`${timeFormatted} UTC\` (<t:${unixSec}:R>)`;
+    };
+
+    const isSlotPast = (slot) => {
+      if (!slot?.startTime) return false;
+      const d = new Date(slot.startTime);
+      return !isNaN(d.getTime()) && d.getTime() <= Date.now();
+    };
+
+    const bt1Completed = isSlotPast(bt1Slot);
+    const bt2Completed = isSlotPast(bt2Slot);
+
     const embed = createBaseEmbed(`🚨 [HOT] Bear Trap Scheduled: Vote Initiated!`, COLORS.GOLD)
       .setDescription(
         `**Attention Kingdom #1391 [HOT] Warriors!**\n\n` +
@@ -58,14 +88,20 @@ async function checkAndBroadcastVote(client) {
       )
       .addFields(
         {
-          name: '⚔️ Slot 1: BT1 (16:00 UTC)',
-          value: '• **Time:** `16:00 UTC` *(EU / Asia Primetime)*\n• Click button below to vote',
-          inline: true,
+          name: `⚔️ Slot 1: BT1 ${bt1Completed ? '[🔴 COMPLETED]' : '[🟢 OPEN]'}`,
+          value: [
+            `• **Date & Time:** ${formatSlotTime(bt1Slot?.startTime)}`,
+            `• **Status:** ${bt1Completed ? '🛑 **BT1 is completed! No more entries allowed.**' : '🟢 **Open for Voting** *(EU / Asia Primetime)*'}`,
+          ].join('\n'),
+          inline: false,
         },
         {
-          name: '🛡️ Slot 2: BT2 (00:30 UTC)',
-          value: '• **Time:** `00:30 UTC` *(Americas Primetime)*\n• Click button below to vote',
-          inline: true,
+          name: `🛡️ Slot 2: BT2 ${bt2Completed ? '[🔴 COMPLETED]' : '[🟢 OPEN]'}`,
+          value: [
+            `• **Date & Time:** ${formatSlotTime(bt2Slot?.startTime)}`,
+            `• **Status:** ${bt2Completed ? '🛑 **BT2 is completed! No more entries allowed.**' : '🟢 **Open for Voting** *(Americas Primetime)*'}`,
+          ].join('\n'),
+          inline: false,
         }
       )
       .setFooter({
@@ -75,14 +111,14 @@ async function checkAndBroadcastVote(client) {
     const buttons = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
         .setCustomId(`vote_bt1_${scheduledBT.id}`)
-        .setLabel('⚔️ Vote BT1 (16:00 UTC)')
-        .setStyle(ButtonStyle.Success)
-        .setDisabled(!bt1Slot),
+        .setLabel(bt1Completed ? '⚔️ BT1 (16:00 UTC) [COMPLETED]' : '⚔️ Vote BT1 (16:00 UTC)')
+        .setStyle(bt1Completed ? ButtonStyle.Secondary : ButtonStyle.Success)
+        .setDisabled(!bt1Slot || bt1Completed),
       new ButtonBuilder()
         .setCustomId(`vote_bt2_${scheduledBT.id}`)
-        .setLabel('🛡️ Vote BT2 (00:30 UTC)')
-        .setStyle(ButtonStyle.Primary)
-        .setDisabled(!bt2Slot)
+        .setLabel(bt2Completed ? '🛡️ BT2 (00:30 UTC) [COMPLETED]' : '🛡️ Vote BT2 (00:30 UTC)')
+        .setStyle(bt2Completed ? ButtonStyle.Secondary : ButtonStyle.Primary)
+        .setDisabled(!bt2Slot || bt2Completed)
     );
 
     await targetChannel.send({

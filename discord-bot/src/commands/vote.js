@@ -12,6 +12,54 @@ export const data = new SlashCommandBuilder()
   .setName('vote')
   .setDescription('Cast or view the official Bear Trap battle slot vote');
 
+/**
+ * Formats a slot start time string into a clean date, time, and Discord relative timestamp
+ */
+function formatSlotTime(startTimeStr) {
+  if (!startTimeStr) return 'TBD';
+  const d = new Date(startTimeStr);
+  if (isNaN(d.getTime())) return startTimeStr;
+
+  const dateFormatted = d.toLocaleDateString('en-US', {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    timeZone: 'UTC',
+  });
+  const timeFormatted = d.toLocaleTimeString('en-US', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+    timeZone: 'UTC',
+  });
+  const unixSec = Math.floor(d.getTime() / 1000);
+  return `${dateFormatted} • \`${timeFormatted} UTC\` (<t:${unixSec}:R>)`;
+}
+
+/**
+ * Checks whether an event slot has already completed based on current time or event status
+ */
+function checkSlotStatus(slot, eventStatus) {
+  if (!slot) return { isCompleted: true, label: 'Not Available', badge: '⚪ N/A' };
+  if (eventStatus === 'Completed') {
+    return { isCompleted: true, label: 'COMPLETED — Entries Closed', badge: '🔴 CLOSED' };
+  }
+  if (!slot.startTime) {
+    return { isCompleted: false, label: 'OPEN FOR VOTING', badge: '🟢 OPEN' };
+  }
+  const slotDate = new Date(slot.startTime);
+  if (isNaN(slotDate.getTime())) {
+    return { isCompleted: false, label: 'OPEN FOR VOTING', badge: '🟢 OPEN' };
+  }
+
+  const now = new Date();
+  if (slotDate.getTime() <= now.getTime()) {
+    return { isCompleted: true, label: 'COMPLETED — Entries Closed', badge: '🔴 COMPLETED' };
+  }
+  return { isCompleted: false, label: 'OPEN FOR VOTING', badge: '🟢 OPEN' };
+}
+
 export async function execute(interaction) {
   await interaction.deferReply();
 
@@ -45,46 +93,71 @@ export async function execute(interaction) {
       const bt2Votes = eventParts.filter(p => p.voteStatus === 'VOTED' && p.selectedSlotId === bt2Slot?.id).length;
       const totalVoted = bt1Votes + bt2Votes;
 
-      return createBaseEmbed(`🐻 [HOT] Bear Trap Slot Vote: ${targetEvent.eventName}`, COLORS.GOLD)
+      const s1Status = checkSlotStatus(bt1Slot, targetEvent.status);
+      const s2Status = checkSlotStatus(bt2Slot, targetEvent.status);
+      const allCompleted = s1Status.isCompleted && s2Status.isCompleted;
+
+      const embedTitle = allCompleted
+        ? `🏁 [HOT] Bear Trap Concluded: ${targetEvent.eventName}`
+        : `🐻 [HOT] Bear Trap Slot Vote: ${targetEvent.eventName}`;
+
+      const embedColor = allCompleted ? COLORS.BRONZE : COLORS.GOLD;
+
+      return createBaseEmbed(embedTitle, embedColor)
         .setDescription(
           `**Kingdom #1391 • House of Titans [HOT]**\n` +
-          `A battle has been scheduled by Alliance Leadership. Cast your vote for your preferred battle deployment slot below!\n\n` +
+          (allCompleted
+            ? `🏁 **Battle Concluded:** All deployment slots for **${targetEvent.eventName}** have finished. Entries are closed.\n\n`
+            : `Alliance Leadership has scheduled **${targetEvent.eventName}**. Select your battle deployment slot below!\n\n`) +
           `🛡️ **Rule:** Warriors must attend at least **1 slot** per 48-hour battle cycle.`
         )
         .addFields(
           {
-            name: `⚔️ Slot 1: BT1 (16:00 UTC) [${bt1Votes} Votes]`,
-            value: `• **Time:** \`16:00 UTC\` *(EU / Asia Primetime)*\n• **Registered:** **${bt1Votes}** warriors voted`,
-            inline: true,
+            name: `⚔️ Slot 1: BT1 [${s1Status.badge}] — ${bt1Votes} Votes`,
+            value: [
+              `• **Date & Time:** ${formatSlotTime(bt1Slot?.startTime)}`,
+              `• **Status:** ${s1Status.isCompleted ? '🛑 **BT1 is completed! No more entries allowed.**' : '🟢 **Open for Voting** *(EU / Asia Primetime)*'}`,
+              `• **Turnout:** **${bt1Votes}** registered warriors`,
+            ].join('\n'),
+            inline: false,
           },
           {
-            name: `🛡️ Slot 2: BT2 (00:30 UTC) [${bt2Votes} Votes]`,
-            value: `• **Time:** \`00:30 UTC\` *(Americas Primetime)*\n• **Registered:** **${bt2Votes}** warriors voted`,
-            inline: true,
+            name: `🛡️ Slot 2: BT2 [${s2Status.badge}] — ${bt2Votes} Votes`,
+            value: [
+              `• **Date & Time:** ${formatSlotTime(bt2Slot?.startTime)}`,
+              `• **Status:** ${s2Status.isCompleted ? '🛑 **BT2 is completed! No more entries allowed.**' : '🟢 **Open for Voting** *(Americas Primetime)*'}`,
+              `• **Turnout:** **${bt2Votes}** registered warriors`,
+            ].join('\n'),
+            inline: false,
           },
           {
-            name: '📊 Live Turnout Status',
+            name: '📊 Turnout Overview',
             value: `Total Registered Votes: **${totalVoted}** / **${eventParts.length || 80}** alliance warriors`,
             inline: false,
           }
         )
         .setFooter({
-          text: 'Click a button below to cast or update your vote • Kingdom #1391 Battle Command',
+          text: allCompleted
+            ? 'Battle Concluded • Voting Expired • Kingdom #1391 Battle Command'
+            : 'Click an active button below to vote • Kingdom #1391 Battle Command',
         });
     };
 
     const buildButtons = (disabled = false) => {
+      const s1Status = checkSlotStatus(bt1Slot, targetEvent.status);
+      const s2Status = checkSlotStatus(bt2Slot, targetEvent.status);
+
       return new ActionRowBuilder().addComponents(
         new ButtonBuilder()
           .setCustomId(`vote_bt1_${targetEvent.id}`)
-          .setLabel('⚔️ Vote BT1 (16:00 UTC)')
-          .setStyle(ButtonStyle.Success)
-          .setDisabled(disabled || !bt1Slot),
+          .setLabel(s1Status.isCompleted ? '⚔️ BT1 (16:00 UTC) [COMPLETED]' : '⚔️ Vote BT1 (16:00 UTC)')
+          .setStyle(s1Status.isCompleted ? ButtonStyle.Secondary : ButtonStyle.Success)
+          .setDisabled(disabled || !bt1Slot || s1Status.isCompleted),
         new ButtonBuilder()
           .setCustomId(`vote_bt2_${targetEvent.id}`)
-          .setLabel('🛡️ Vote BT2 (00:30 UTC)')
-          .setStyle(ButtonStyle.Primary)
-          .setDisabled(disabled || !bt2Slot)
+          .setLabel(s2Status.isCompleted ? '🛡️ BT2 (00:30 UTC) [COMPLETED]' : '🛡️ Vote BT2 (00:30 UTC)')
+          .setStyle(s2Status.isCompleted ? ButtonStyle.Secondary : ButtonStyle.Primary)
+          .setDisabled(disabled || !bt2Slot || s2Status.isCompleted)
       );
     };
 
@@ -115,6 +188,15 @@ export async function execute(interaction) {
       if (!targetSlot) {
         return await btnInteraction.reply({
           content: '⚠️ Selected slot is not available.',
+          ephemeral: true,
+        });
+      }
+
+      // Check slot completion
+      const slotStatus = checkSlotStatus(targetSlot, targetEvent.status);
+      if (slotStatus.isCompleted) {
+        return await btnInteraction.reply({
+          content: `⛔ **${targetSlot.slotName}** is completed! No more entries allowed for this slot.`,
           ephemeral: true,
         });
       }

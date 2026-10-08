@@ -102,7 +102,7 @@ export async function execute(interaction) {
           name: `🎯 Current Battle: ${latestBT.eventName}`,
           value: [
             `• **Status:** \`${overallStatus}\``,
-            `• **Battle Date:** \`${new Date(latestBT.date).toUTCString()}\``,
+            `• **Battle Date:** \`${latestBT.slots?.[0]?.startTime?.slice(0, 10) || 'Scheduled'}\``,
             `• **Total Registered:** **${latestBT.turnout?.totalRegistered || 0}** warriors`,
             `• **Total Attended So Far:** **${bt1Attended + bt2Attended}** fighters`,
             `• **Turnout Rate:** ${renderProgressBar(latestBT.turnout?.attendanceRate || 0)}`,

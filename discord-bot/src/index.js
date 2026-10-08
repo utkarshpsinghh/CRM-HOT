@@ -142,6 +142,16 @@ client.on('interactionCreate', async interaction => {
         });
       }
 
+      // Check if slot has already completed
+      if (targetSlot.startTime) {
+        const slotDate = new Date(targetSlot.startTime);
+        if (!isNaN(slotDate.getTime()) && slotDate.getTime() <= Date.now()) {
+          return await interaction.editReply({
+            content: `⛔ **${targetSlot.slotName}** is completed! No more entries allowed for this slot.`,
+          });
+        }
+      }
+
       const result = await crmApi.castVote(linked.id, eventId, targetSlot.id);
       if (!result.success) {
         return await interaction.editReply({
