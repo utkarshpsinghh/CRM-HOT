@@ -20,7 +20,7 @@ export async function execute(interaction) {
           `Greetings warrior! You have entered the official Discord command center of **House of Titans [HOT]**.\n\n` +
           `### 🚀 Step 1: Link Your In-Game Account\n` +
           `To unlock official combat records, Bear Trap voting, and roster verification, link your in-game identity with a **Governor Profile screenshot**.\n\n` +
-          `👉 **Click the button below to link immediately**, or type **\`/link player:<name_or_id> screenshot:<file>\`**.`
+          `👉 **Click the button below or tap </link:1557524738736267364> to link immediately.**`
         )
         .addFields(
           {

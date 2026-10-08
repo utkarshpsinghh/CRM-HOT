@@ -21,7 +21,7 @@ export async function execute(interaction) {
           `⚠️ **Step 1: Link Your In-Game Account First**\n` +
           `All alliance combat data and voting tools are secured behind in-game profile verification.\n\n` +
           `You must link your Discord identity with an in-game **Governor Profile screenshot** (showing your name, ID, and Settings tab) before accessing alliance commands.\n\n` +
-          `👉 **Click the button below or type \`/link <name_or_id>\` to upload your screenshot.**\n\n` +
+          `👉 **Click the button below or tap </link:1557524738736267364> to upload your screenshot.**\n\n` +
           `*(Once verified, type \`/help\` again to unlock the full command console!)*`
         )
         .addFields(

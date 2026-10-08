@@ -26,7 +26,7 @@ export function createUnlinkedEmbed(commandName = 'this command') {
       `• 📊 Inspect personal combat dossiers with \`/me\`\n` +
       `• ⏳ Track live Bear Trap countdowns with \`/beartrap\`\n` +
       `• 🏆 Check alliance rankings with \`/leaderboard\`\n\n` +
-      `👉 **Click the button below to link**, or type **\`/link\`** with your Governor Profile screenshot.`
+      `👉 **Click the button below or tap </link:1557524738736267364> to upload your Governor Profile screenshot.**`
     )
     .setFooter({ text: 'Kingdom #1391 • House of Titans • Identity Verification' });
 }

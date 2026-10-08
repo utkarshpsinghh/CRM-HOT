@@ -67,22 +67,37 @@ export async function verifyGovernorProfileScreenshot(imageUrl, member) {
       };
     }
 
-    // 3. Verify Player ID or In-Game Name match
-    const cleanId = (member.gameId || '').replace(/\D/g, '');
-    const cleanMemberName = member.name.toLowerCase().replace(/[^a-z0-9]/g, '');
-    const textAlphaNum = text.replace(/[^a-z0-9]/g, '');
+    // 3. Extract Player ID from screenshot
+    const idMatch = rawText.match(/(?:id|1d|ld)\s*[:;.\s]?\s*(\d{6,12})/i);
+    const standaloneMatch = rawText.match(/\b\d{7,10}\b/);
+    const extractedId = idMatch ? idMatch[1] : (standaloneMatch ? standaloneMatch[0] : null);
 
-    const hasId = Boolean(cleanId && (text.includes(cleanId) || textAlphaNum.includes(cleanId)));
-    const hasName = Boolean(cleanMemberName && textAlphaNum.includes(cleanMemberName));
+    // 4. If target member is provided, verify match
+    let hasId = false;
+    let hasName = false;
 
-    if (!hasId && !hasName) {
+    if (member) {
+      const cleanId = (member.gameId || '').replace(/\D/g, '');
+      const cleanMemberName = member.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+      const textAlphaNum = text.replace(/[^a-z0-9]/g, '');
+
+      hasId = Boolean(cleanId && (text.includes(cleanId) || textAlphaNum.includes(cleanId)));
+      hasName = Boolean(cleanMemberName && textAlphaNum.includes(cleanMemberName));
+
+      if (!hasId && !hasName) {
+        return {
+          valid: false,
+          reason: `The screenshot does not match Governor **${member.name}** (ID: \`${member.gameId || 'Unknown'}\`).\n\nPlease ensure your in-game name or numeric Player ID is clearly visible.`,
+        };
+      }
+    } else if (!extractedId) {
       return {
         valid: false,
-        reason: `The screenshot does not match Governor **${member.name}** (ID: \`${member.gameId || 'Unknown'}\`).\n\nPlease ensure your in-game name or numeric Player ID is clearly visible.`,
+        reason: 'Could not detect your numeric Player ID from the screenshot.\n\nPlease ensure your Governor Profile ID is clearly visible, or provide the `player` option.',
       };
     }
 
-    // 4. Verify Ownership (Must be viewing OWN profile, not another player's profile)
+    // 5. Verify Ownership (Must be viewing OWN profile, not another player's profile)
     // Viewing your own profile displays 'Settings' and 'Skins' at the bottom
     const ownershipTokens = ['settings', 'skins', 'squad'];
     const hasOwnershipMarker = ownershipTokens.some(t => text.includes(t));
@@ -95,6 +110,7 @@ export async function verifyGovernorProfileScreenshot(imageUrl, member) {
 
     return {
       valid: true,
+      extractedId,
       matchedTokens,
       matchedId: hasId,
       matchedName: hasName,

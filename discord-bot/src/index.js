@@ -102,14 +102,13 @@ client.on('interactionCreate', async interaction => {
     // 1A. Link Button Trigger (Direct user to upload screenshot with /link)
     if (interaction.customId === 'btn_open_link_modal') {
       return await interaction.reply({
+        content: `👉 **Click here to link immediately:** </link:1557524738736267364>`,
         embeds: [
           createBaseEmbed('🛡️ Profile Security Verification', COLORS.GOLD).setDescription(
-            `Hail warrior! To prevent unauthorized account claiming and ensure you only link your own identity, profile verification requires an in-game screenshot.\n\n` +
-            `### 📸 How to Verify & Link:\n` +
-            `1. Open the game and tap your avatar in the top-left to view your **Governor Profile** screen.\n` +
-            `2. Take a screenshot (showing your name, ID, and the bottom **Settings** tab).\n` +
-            `3. Run **\`/link player:<name_or_id> screenshot:<file>\`** in chat.\n\n` +
-            `*Our automated verification scanner will immediately verify your profile ownership.*`
+            `Click the command pill above to launch **\`/link\`** automatically:\n\n` +
+            `👉 **</link:1557524738736267364>**\n\n` +
+            `• Simply attach your in-game **Governor Profile** screenshot and press enter.\n` +
+            `• The scanner will automatically detect your Player ID and verify profile ownership!`
           ),
         ],
         ephemeral: true,

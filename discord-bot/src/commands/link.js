@@ -5,18 +5,18 @@ import { verifyGovernorProfileScreenshot } from '../utils/imageVerifier.js';
 
 export const data = new SlashCommandBuilder()
   .setName('link')
-  .setDescription('Link your Discord account to your in-game profile with Governor Profile screenshot verification')
-  .addStringOption(option =>
-    option
-      .setName('player')
-      .setDescription('Your in-game Name or Player ID (e.g. 202703263)')
-      .setRequired(true)
-  )
+  .setDescription('Link your Discord account with Governor Profile screenshot verification')
   .addAttachmentOption(option =>
     option
       .setName('screenshot')
       .setDescription('In-game Governor Profile screenshot showing your name, ID, and Settings tab')
       .setRequired(true)
+  )
+  .addStringOption(option =>
+    option
+      .setName('player')
+      .setDescription('Optional: Your in-game Name or Player ID (auto-detected from screenshot if omitted)')
+      .setRequired(false)
   );
 
 export async function execute(interaction) {
@@ -38,27 +38,42 @@ export async function execute(interaction) {
       });
     }
 
-    // 2. Resolve member in database
-    const member = await crmApi.searchMember(query);
-
-    if (!member) {
-      return await interaction.editReply({
-        embeds: [
-          createBaseEmbed('Player Not Found', COLORS.CRIMSON).setDescription(
-            `Could not find any member matching **"${query}"** in the Kingdom #1391 [HOT] roster.\n\n` +
-            `*Tip: Please check your spelling or use your exact numeric Player ID (e.g. \`202703263\`).*`
-          ),
-        ],
-      });
+    // 2. Resolve target member if specified
+    let targetMember = null;
+    if (query) {
+      targetMember = await crmApi.searchMember(query);
+      if (!targetMember) {
+        return await interaction.editReply({
+          embeds: [
+            createBaseEmbed('Player Not Found', COLORS.CRIMSON).setDescription(
+              `Could not find any member matching **"${query}"** in the Kingdom #1391 [HOT] roster.\n\n` +
+              `*Tip: Please check your spelling or use your exact numeric Player ID (e.g. \`202703263\`).*`
+            ),
+          ],
+        });
+      }
     }
 
     // 3. Authenticate Governor Profile Screenshot via OCR Analysis
-    const verification = await verifyGovernorProfileScreenshot(screenshot.url, member);
+    const verification = await verifyGovernorProfileScreenshot(screenshot.url, targetMember);
     if (!verification.valid) {
       return await interaction.editReply({
         embeds: [
           createBaseEmbed('Verification Failed', COLORS.CRIMSON).setDescription(
             `⚠️ **Profile Authentication Failed**\n\n${verification.reason}`
+          ),
+        ],
+      });
+    }
+
+    // 4. If player was omitted, resolve member automatically from extracted Player ID
+    const member = targetMember || (await crmApi.searchMember(verification.extractedId));
+    if (!member) {
+      return await interaction.editReply({
+        embeds: [
+          createBaseEmbed('Player Not Found in Roster', COLORS.CRIMSON).setDescription(
+            `Detected Player ID \`${verification.extractedId}\` from screenshot, but could not find this ID in the [HOT] roster.\n\n` +
+            `*If your name was recently changed, please specify your in-game name using the \`player\` option.*`
           ),
         ],
       });
