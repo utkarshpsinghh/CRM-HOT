@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Member, EventParticipation, EventSlot, ParticipationVoteStatus, ParticipationAttendanceStatus, PenaltyStatus } from '../../types/crm';
 import { useCRM } from '../../context/CRMContext';
 import { useAuth } from '../../context/AuthContext';
@@ -27,7 +27,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { sounds } from '../../utils/sound';
-import { safeFormatDate, getComputedEventStatus } from '../../utils/date';
+import { safeFormatDate, getComputedEventStatus, parseDateAsUtc } from '../../utils/date';
 
 interface AttendanceViewProps {
   onOpenAddStrike?: (member: Member, defaultReason: string) => void;
@@ -61,8 +61,19 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
       const found = events.find(e => e.id === selectedEventIdForAttendance);
       if (found) return found;
     }
-    return events[0];
+    const sorted = [...events].sort((a, b) => {
+      const tA = parseDateAsUtc(a.date)?.getTime() || new Date(a.date).getTime() || 0;
+      const tB = parseDateAsUtc(b.date)?.getTime() || new Date(b.date).getTime() || 0;
+      return tB - tA;
+    });
+    return sorted[0];
   }, [events, selectedEventIdForAttendance]);
+
+  useEffect(() => {
+    if (currentEvent && currentEvent.id !== selectedEventIdForAttendance) {
+      setSelectedEventIdForAttendance(currentEvent.id);
+    }
+  }, [currentEvent, selectedEventIdForAttendance, setSelectedEventIdForAttendance]);
 
   // Slots for the active event
   const currentSlots = useMemo(() => {
@@ -384,11 +395,17 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
               }}
               className="w-full sm:w-auto min-w-0 max-w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-amber-300 text-xs font-semibold focus:outline-none focus:border-amber-500 cursor-pointer truncate shadow-sm"
             >
-              {events.map(e => (
-                <option key={e.id} value={e.id}>
-                  {e.eventType} — {safeFormatDate(e.date, { month: 'short', day: 'numeric', year: 'numeric' })}
-                </option>
-              ))}
+              {[...events]
+                .sort((a, b) => {
+                  const tA = parseDateAsUtc(a.date)?.getTime() || new Date(a.date).getTime() || 0;
+                  const tB = parseDateAsUtc(b.date)?.getTime() || new Date(b.date).getTime() || 0;
+                  return tB - tA;
+                })
+                .map(e => (
+                  <option key={e.id} value={e.id}>
+                    {e.eventType} — {safeFormatDate(e.date, { month: 'short', day: 'numeric', year: 'numeric' })}
+                  </option>
+                ))}
             </select>
           </div>
 

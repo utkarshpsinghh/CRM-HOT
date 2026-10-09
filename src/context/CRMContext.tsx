@@ -165,7 +165,24 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Navigation and cross-page state
   const [activeTab, setActiveTab] = useState<string>('dashboard');
   const [selectedMemberForProfile, setSelectedMemberForProfile] = useState<Member | null>(null);
-  const [selectedEventIdForAttendance, setSelectedEventIdForAttendance] = useState<string | null>(null);
+  const [selectedEventIdForAttendance, setSelectedEventIdForAttendanceState] = useState<string | null>(() => {
+    try {
+      return localStorage.getItem('crm_hot_selected_event_id') || null;
+    } catch {
+      return null;
+    }
+  });
+
+  const setSelectedEventIdForAttendance = useCallback((id: string | null) => {
+    setSelectedEventIdForAttendanceState(id);
+    try {
+      if (id) {
+        localStorage.setItem('crm_hot_selected_event_id', id);
+      } else {
+        localStorage.removeItem('crm_hot_selected_event_id');
+      }
+    } catch {}
+  }, []);
 
   // Security guard: Non-MainAdmin cannot view Settings or Contributions
   useEffect(() => {
@@ -582,11 +599,12 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               })().catch(() => {});
             }
 
-            if (scheduledBundle.prunedEventIds.length > 0) {
-              apiService.deleteEventsByIds(scheduledBundle.prunedEventIds, allData.settings || settings).catch(err => {
-                console.warn('Background deleteEventsByIds error:', err);
-              });
-            }
+            // Sort processed events newest first so latest war events always appear first
+            processedEvents.sort((a, b) => {
+              const tA = parseDateAsUtc(a.date)?.getTime() || new Date(a.date).getTime() || 0;
+              const tB = parseDateAsUtc(b.date)?.getTime() || new Date(b.date).getTime() || 0;
+              return tB - tA;
+            });
 
             storageService.saveAllData({
               ...allData,
@@ -1834,6 +1852,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return;
     }
     sounds.playClick();
+    setSelectedEventIdForAttendance(eventId);
     const now = new Date().toISOString();
 
     setEventParticipations(prev => {
@@ -1923,6 +1942,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return;
     }
     sounds.playClick();
+    setSelectedEventIdForAttendance(eventId);
     const now = new Date().toISOString();
 
     setEventParticipations(prev => {
@@ -2048,6 +2068,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return;
     }
     sounds.playSuccess();
+    setSelectedEventIdForAttendance(eventId);
     const updateMap = new Map(updates.map(u => [u.memberId, u]));
     setEventParticipations(prev => {
       const handledMemberIds = new Set<string>();
