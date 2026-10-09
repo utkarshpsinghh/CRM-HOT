@@ -282,11 +282,39 @@ const MainAppContent: React.FC = () => {
   );
 };
 
+import { GameApp } from './game/GameApp';
+
 export function App() {
+  const [appMode, setAppMode] = useState<'GAME' | 'CRM'>('CRM');
+
+  if (appMode === 'GAME') {
+    return (
+      <div className="relative h-screen w-screen overflow-hidden">
+        <GameApp />
+        {/* Discreet switcher in the bottom corner */}
+        <button
+          onClick={() => setAppMode('CRM')}
+          className="fixed bottom-1 right-1 z-50 rounded bg-slate-900/40 px-1.5 py-0.5 text-[8px] text-slate-400 hover:text-white backdrop-blur-sm"
+          title="Switch to Alliance CRM"
+        >
+          Alliance CRM ⚙️
+        </button>
+      </div>
+    );
+  }
+
   return (
     <AuthProvider>
       <CRMProvider>
-        <MainAppContent />
+        <div className="relative">
+          <button
+            onClick={() => setAppMode('GAME')}
+            className="fixed top-2 right-2 z-50 rounded-xl bg-sky-600 px-3 py-1.5 text-xs font-bold text-white shadow-lg hover:bg-sky-500"
+          >
+            🏰 Return to Game
+          </button>
+          <MainAppContent />
+        </div>
       </CRMProvider>
     </AuthProvider>
   );

@@ -406,17 +406,107 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
             // Synthesize canonical 2-slot parent events from raw Supabase events and attendance
             const deletedIds = storageService.getDeletedEventIds();
-            const rawEvents = (Array.isArray(allData.events) && allData.events.length > 0 ? allData.events : storageService.getEvents())
-              .filter((e: AllianceEvent) => !deletedIds.includes(e.id));
+            const deletedSet = new Set(deletedIds);
+
+            // 1. Union of remote events and local events, strictly filtering out tombstoned deleted events
+            const remoteEvents = (Array.isArray(allData.events) ? allData.events : []).filter((e: AllianceEvent) => !deletedSet.has(e.id));
+            const localEvents = storageService.getEvents().filter((e: AllianceEvent) => !deletedSet.has(e.id));
+            const eventsMap = new Map<string, AllianceEvent>();
+            remoteEvents.forEach((e: AllianceEvent) => eventsMap.set(e.id, e));
+            localEvents.forEach((e: AllianceEvent) => {
+              if (!eventsMap.has(e.id)) eventsMap.set(e.id, e);
+            });
+            const rawEvents = Array.from(eventsMap.values());
+
             const rawAttendance = (Array.isArray(allData.attendance) && allData.attendance.length > 0 ? allData.attendance : storageService.getAttendance())
-              .filter((a: AttendanceRecord) => !deletedIds.includes(a.eventId));
+              .filter((a: AttendanceRecord) => !deletedSet.has(a.eventId));
 
             const bundle = migrateHistoricalEvents(rawEvents, rawAttendance, deletedIds);
             let processedEvents = bundle.events;
             let processedSlots = bundle.slots;
             let processedParticipations = bundle.participations;
 
-            // Enforce strict 48-hour Bear Trap cadence and auto-schedule upcoming Bear Traps (only 24h before event)
+            // 2. Merge remote slots and local slots
+            const slotsMap = new Map<string, EventSlot>();
+            processedSlots.forEach(s => slotsMap.set(s.id, s));
+            ((allData.slots || []) as EventSlot[]).forEach((s: EventSlot) => {
+              if (!deletedSet.has(s.eventId) && !deletedSet.has(s.id)) slotsMap.set(s.id, s);
+            });
+            storageService.getEventSlots().forEach(s => {
+              if (!deletedSet.has(s.eventId) && !deletedSet.has(s.id) && !slotsMap.has(s.id)) slotsMap.set(s.id, s);
+            });
+            processedSlots = Array.from(slotsMap.values());
+
+            // 3. Merge remote participations from Supabase cache/table
+            const partsMap = new Map<string, EventParticipation>();
+            processedParticipations.forEach(p => partsMap.set(`${p.eventId}_${p.memberId}`, p));
+
+            if (Array.isArray(allData.participations)) {
+              ((allData.participations || []) as EventParticipation[]).forEach((rp: EventParticipation) => {
+                if (deletedSet.has(rp.eventId)) return;
+                const k = `${rp.eventId}_${rp.memberId}`;
+                const cur = partsMap.get(k);
+                if (!cur) {
+                  partsMap.set(k, rp);
+                } else {
+                  const rpMarked = rp.attendanceStatus !== 'NOT_MARKED' || rp.voteStatus !== 'NO_VOTE';
+                  const curMarked = cur.attendanceStatus !== 'NOT_MARKED' || cur.voteStatus !== 'NO_VOTE';
+                  if (rpMarked && !curMarked) {
+                    partsMap.set(k, rp);
+                  } else if (new Date(rp.updatedAt).getTime() > new Date(cur.updatedAt).getTime()) {
+                    partsMap.set(k, rp);
+                  }
+                }
+              });
+            }
+
+            // 4. Hydrate from raw attendance table rows for all events (including Bear Trap cycles)
+            rawAttendance.forEach((att: AttendanceRecord) => {
+              const evtId = att.eventId || (att as any).event_id;
+              const memId = att.memberId || (att as any).member_id;
+              if (!evtId || !memId || deletedSet.has(evtId)) return;
+              const k = `${evtId}_${memId}`;
+              const cur = partsMap.get(k);
+              const attStatusRaw = att.attendanceStatus || (att as any).attendance_status;
+              const voteStatusRaw = att.voteStatus || (att as any).vote_status;
+              const hasAtt = attStatusRaw === 'JOINED' || attStatusRaw === 'DIDNT_JOIN';
+              const hasVote = voteStatusRaw === 'YES';
+
+              if (hasAtt || hasVote) {
+                const mappedAttStatus: ParticipationAttendanceStatus =
+                  attStatusRaw === 'JOINED' ? 'ATTENDED' : attStatusRaw === 'DIDNT_JOIN' ? 'ABSENT' : 'NOT_MARKED';
+                const mappedVoteStatus: ParticipationVoteStatus =
+                  voteStatusRaw === 'YES' ? 'VOTED' : 'NO_VOTE';
+
+                if (!cur) {
+                  const evtSlot = processedSlots.find(s => s.eventId === evtId);
+                  partsMap.set(k, {
+                    id: `part-${evtId}-${memId}`,
+                    eventId: evtId,
+                    memberId: memId,
+                    selectedSlotId: mappedVoteStatus === 'VOTED' && evtSlot ? evtSlot.id : null,
+                    voteStatus: mappedVoteStatus,
+                    attendanceStatus: mappedAttStatus,
+                    attendanceSlotId: mappedAttStatus === 'ATTENDED' && evtSlot ? evtSlot.id : null,
+                    penaltyStatus: 'NONE',
+                    penaltyNote: null,
+                    createdAt: att.updatedAt || new Date().toISOString(),
+                    updatedAt: att.updatedAt || new Date().toISOString(),
+                  });
+                } else {
+                  if (cur.attendanceStatus === 'NOT_MARKED' && mappedAttStatus !== 'NOT_MARKED') {
+                    cur.attendanceStatus = mappedAttStatus;
+                  }
+                  if (cur.voteStatus === 'NO_VOTE' && mappedVoteStatus !== 'NO_VOTE') {
+                    cur.voteStatus = mappedVoteStatus;
+                  }
+                }
+              }
+            });
+
+            processedParticipations = Array.from(partsMap.values());
+
+            // 5. Enforce strict 48-hour Bear Trap cadence and auto-schedule upcoming Bear Traps (only 24h before event)
             const scheduledBundle = syncAndAutoScheduleBearTraps(
               processedEvents,
               processedSlots,
@@ -429,32 +519,40 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             processedSlots = scheduledBundle.slots;
             processedParticipations = scheduledBundle.participations;
 
-            // Reconcile and preserve any locally marked attendance/votes so refresh never wipes user changes
-            const localStoredParts = storageService.getEventParticipations().filter(p => !deletedIds.includes(p.eventId));
+            // 6. Reconcile with local storage participations: NEVER wipe local marked attendance/votes
+            const localStoredParts = storageService.getEventParticipations().filter(p => !deletedSet.has(p.eventId));
             if (localStoredParts.length > 0) {
-              const localMap = new Map(localStoredParts.map(p => [`${p.eventId}_${p.memberId}`, p]));
+              const finalPartMap = new Map(processedParticipations.map(p => [`${p.eventId}_${p.memberId}`, p]));
               let hasLocalSyncDifferences = false;
-              processedParticipations = processedParticipations.map(p => {
-                const local = localMap.get(`${p.eventId}_${p.memberId}`);
-                if (local) {
-                  const localHasAttendance = local.attendanceStatus !== 'NOT_MARKED';
-                  const remoteHasAttendance = p.attendanceStatus !== 'NOT_MARKED';
-                  const localHasVote = local.voteStatus !== 'NO_VOTE';
-                  const remoteHasVote = p.voteStatus !== 'NO_VOTE';
-                  const localNewer = new Date(local.updatedAt).getTime() > new Date(p.updatedAt).getTime();
 
-                  if ((localHasAttendance && !remoteHasAttendance) || (localHasVote && !remoteHasVote) || localNewer) {
+              localStoredParts.forEach(local => {
+                const k = `${local.eventId}_${local.memberId}`;
+                const remote = finalPartMap.get(k);
+                if (!remote) {
+                  finalPartMap.set(k, local);
+                  if (local.attendanceStatus !== 'NOT_MARKED' || local.voteStatus !== 'NO_VOTE') {
                     hasLocalSyncDifferences = true;
-                    return local;
+                  }
+                } else {
+                  const localHasAttendance = local.attendanceStatus !== 'NOT_MARKED';
+                  const remoteHasAttendance = remote.attendanceStatus !== 'NOT_MARKED';
+                  const localHasVote = local.voteStatus !== 'NO_VOTE';
+                  const remoteHasVote = remote.voteStatus !== 'NO_VOTE';
+                  const localNewer = new Date(local.updatedAt).getTime() > new Date(remote.updatedAt).getTime();
+
+                  if ((localHasAttendance && !remoteHasAttendance) || (localHasVote && !remoteHasVote) || (localNewer && (localHasAttendance || localHasVote))) {
+                    finalPartMap.set(k, local);
+                    hasLocalSyncDifferences = true;
                   }
                 }
-                return p;
               });
+
+              processedParticipations = Array.from(finalPartMap.values());
 
               // If there were local edits that remote didn't have yet, queue a quiet background sync
               if (hasLocalSyncDifferences) {
                 const updatedDifferences = processedParticipations.filter(p => {
-                  const local = localMap.get(`${p.eventId}_${p.memberId}`);
+                  const local = localStoredParts.find(l => l.eventId === p.eventId && l.memberId === p.memberId);
                   return local && (local.attendanceStatus !== 'NOT_MARKED' || local.voteStatus !== 'NO_VOTE');
                 });
                 if (updatedDifferences.length > 0) {
@@ -468,6 +566,20 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                   })().catch(() => {});
                 }
               }
+            }
+
+            // 7. Background sync auto-scheduled events to Supabase 'events' table
+            const remoteEventIds = new Set(remoteEvents.map((e: AllianceEvent) => e.id));
+            const newEventsToSync = processedEvents.filter(e => !remoteEventIds.has(e.id));
+            if (newEventsToSync.length > 0 && apiService.isSupabase(currentSettings)) {
+              (async () => {
+                const client = (supabaseService as any).getClient?.(currentSettings);
+                if (client) {
+                  for (const ev of newEventsToSync) {
+                    await client.from('events').upsert((supabaseService as any).mapEventToRow(ev), { onConflict: 'id' }).catch(() => {});
+                  }
+                }
+              })().catch(() => {});
             }
 
             if (scheduledBundle.prunedEventIds.length > 0) {
@@ -1938,11 +2050,18 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     sounds.playSuccess();
     const updateMap = new Map(updates.map(u => [u.memberId, u]));
     setEventParticipations(prev => {
+      const handledMemberIds = new Set<string>();
       const next = prev.map(p => {
         if (p.eventId === eventId && updateMap.has(p.memberId)) {
+          handledMemberIds.add(p.memberId);
           return updateMap.get(p.memberId)!;
         }
         return p;
+      });
+      updates.forEach(u => {
+        if (!handledMemberIds.has(u.memberId)) {
+          next.push(u);
+        }
       });
       storageService.setEventParticipations(next);
       return next;

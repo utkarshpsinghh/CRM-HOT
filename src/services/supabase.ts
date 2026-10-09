@@ -217,10 +217,9 @@ export const supabaseService = {
           try {
             const parsed = JSON.parse(partCacheRow.value);
             if (Array.isArray(parsed) && parsed.length > 0) {
-              const filtered = parsed.filter((p: any) => !p.eventId?.startsWith('evt-parent-bt-'));
               // Deduplicate by eventId_memberId
               const dedupMap = new Map<string, EventParticipation>();
-              filtered.forEach((p: EventParticipation) => {
+              parsed.forEach((p: EventParticipation) => {
                 const k = `${p.eventId}_${p.memberId}`;
                 if (!dedupMap.has(k) || (p.attendanceStatus !== 'NOT_MARKED' || p.voteStatus !== 'NO_VOTE')) {
                   dedupMap.set(k, p);
@@ -235,8 +234,7 @@ export const supabaseService = {
           try {
             const parsed = JSON.parse(slotCacheRow.value);
             if (Array.isArray(parsed) && parsed.length > 0) {
-              const filtered = parsed.filter((s: any) => !s.eventId?.startsWith('evt-parent-bt-'));
-              remoteSlots = Array.from(new Map(filtered.map((s: EventSlot) => [s.id, s])).values());
+              remoteSlots = Array.from(new Map(parsed.map((s: EventSlot) => [s.id, s])).values());
             }
           } catch {}
         }
@@ -814,6 +812,17 @@ export const supabaseService = {
     if (!client) return false;
     let anySuccess = false;
 
+    // 0. Ensure parent event exists in Supabase 'events' table to prevent foreign key errors (23503)
+    try {
+      const allEvents = storageService.getEvents();
+      const parentEvent = allEvents.find(e => e.id === participation.eventId);
+      if (parentEvent) {
+        await client.from('events').upsert(this.mapEventToRow(parentEvent), { onConflict: 'id' });
+      }
+    } catch (err) {
+      console.warn('updateParticipation parent event upsert warning:', err);
+    }
+
     // 1. Try to upsert into new 'event_participations' table
     try {
       const row = this.mapEventParticipationToRow(participation);
@@ -840,7 +849,7 @@ export const supabaseService = {
     }
 
     // 3. Shadow-sync to Supabase settings cache
-    this.saveParticipationsCache(client).catch(() => {});
+    this.saveParticipationsCache(client, [participation]).catch(() => {});
 
     return anySuccess;
   },
@@ -853,6 +862,17 @@ export const supabaseService = {
     const client = this.getClient(settings);
     if (!client) return false;
     let anySuccess = false;
+
+    // 0. Ensure parent event exists in Supabase 'events' table to prevent foreign key errors (23503)
+    try {
+      const allEvents = storageService.getEvents();
+      const parentEvent = allEvents.find(e => e.id === eventId);
+      if (parentEvent) {
+        await client.from('events').upsert(this.mapEventToRow(parentEvent), { onConflict: 'id' });
+      }
+    } catch (err) {
+      console.warn('bulkUpdateParticipations parent event upsert warning:', err);
+    }
 
     // 1. Try to upsert chunks into event_participations table
     try {
@@ -884,17 +904,19 @@ export const supabaseService = {
     }
 
     // 3. Shadow-sync to Supabase settings cache
-    this.saveParticipationsCache(client).catch(() => {});
+    this.saveParticipationsCache(client, updates).catch(() => {});
 
     return anySuccess;
   },
 
-  async saveParticipationsCache(client: any): Promise<void> {
+  async saveParticipationsCache(client: any, extraParticipations?: EventParticipation[]): Promise<void> {
     try {
-      const participations = storageService.getEventParticipations().filter(p => !p.eventId.startsWith('evt-parent-bt-'));
-      if (participations.length > 0) {
+      const deletedIds = new Set(storageService.getDeletedEventIds());
+      const stored = storageService.getEventParticipations().filter(p => !deletedIds.has(p.eventId));
+      const allParts = [...stored, ...(extraParticipations || []).filter(p => !deletedIds.has(p.eventId))];
+      if (allParts.length > 0) {
         const dedupMap = new Map<string, EventParticipation>();
-        participations.forEach(p => {
+        allParts.forEach(p => {
           const k = `${p.eventId}_${p.memberId}`;
           if (!dedupMap.has(k) || p.attendanceStatus !== 'NOT_MARKED' || p.voteStatus !== 'NO_VOTE') {
             dedupMap.set(k, p);
@@ -905,7 +927,7 @@ export const supabaseService = {
           value: JSON.stringify(Array.from(dedupMap.values())),
         }, { onConflict: 'key' });
       }
-      const slots = storageService.getEventSlots().filter(s => !s.eventId.startsWith('evt-parent-bt-'));
+      const slots = storageService.getEventSlots().filter(s => !deletedIds.has(s.eventId) && !deletedIds.has(s.id));
       if (slots.length > 0) {
         const uniqueSlots = Array.from(new Map(slots.map(s => [s.id, s])).values());
         await client.from('settings').upsert({
