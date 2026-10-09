@@ -1,21 +1,47 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useCRM } from '../../context/CRMContext';
 import { Member } from '../../types/crm';
-import { AndroidBottomNav, AndroidTab } from './components/AndroidBottomNav';
-import { AndroidBottomSheet } from './components/AndroidBottomSheet';
-import { AndroidWarRoomView } from './views/AndroidWarRoomView';
-import { AndroidLeaderboardView } from './views/AndroidLeaderboardView';
-import { AndroidRosterView } from './views/AndroidRosterView';
-import { AndroidOfficerOpsView } from './views/AndroidOfficerOpsView';
-import { AndroidSettingsView } from './views/AndroidSettingsView';
+import { AndroidLoginView } from './AndroidLoginView';
+
+// Full Web CRM View Components
+import { DashboardView } from '../dashboard/DashboardView';
+import { MembersView } from '../members/MembersView';
+import { EventsView } from '../events/EventsView';
+import { AttendanceView } from '../attendance/AttendanceView';
+import { LeaderboardView } from '../leaderboard/LeaderboardView';
+import { InactivityTrackerView } from '../activity/InactivityTrackerView';
+import { ContributionsView } from '../contributions/ContributionsView';
+import { AdminProfileView } from '../profile/AdminProfileView';
+import { SettingsView } from '../settings/SettingsView';
 
 // Modals
 import { CreateEventModal } from '../events/CreateEventModal';
 import { MemberFormModal } from '../members/MemberFormModal';
 import { AddStrikeModal } from '../members/AddStrikeModal';
+import { MemberProfileModal } from '../members/MemberProfileModal';
 
-import { Shield, Flame, RefreshCw, AlertTriangle, Check, X, Award, User, Volume2, VolumeX } from 'lucide-react';
+import {
+  Flame,
+  RefreshCw,
+  LayoutDashboard,
+  Users,
+  Swords,
+  ClipboardCheck,
+  Trophy,
+  AlertTriangle,
+  Award,
+  User,
+  Settings,
+  LogOut,
+  Monitor,
+  Volume2,
+  VolumeX,
+  CheckCircle2,
+  AlertCircle,
+  Info,
+  X,
+} from 'lucide-react';
 import { sounds } from '../../utils/sound';
 
 interface AndroidAppProps {
@@ -27,19 +53,22 @@ export const AndroidApp: React.FC<AndroidAppProps> = ({
   onToggleForceWeb = () => {},
   isForceWeb = false,
 }) => {
-  const { isMainAdmin, isAuthenticated } = useAuth();
+  const { isAuthenticated, isMainAdmin, admin, logout } = useAuth();
   const {
+    activeTab,
+    setActiveTab,
     members,
     events,
+    stats,
     isSyncing,
     refreshData,
     settings,
     updateSettings,
     selectedMemberForProfile,
     setSelectedMemberForProfile,
+    toasts,
+    removeToast,
   } = useCRM();
-
-  const [currentTab, setCurrentTab] = useState<AndroidTab>('warroom');
 
   // Modals state
   const [isCreateEventOpen, setIsCreateEventOpen] = useState(false);
@@ -47,9 +76,10 @@ export const AndroidApp: React.FC<AndroidAppProps> = ({
   const [memberToEdit, setMemberToEdit] = useState<Member | null>(null);
   const [isAddStrikeOpen, setIsAddStrikeOpen] = useState(false);
   const [strikeMember, setStrikeMember] = useState<Member | null>(null);
+  const [strikeReason, setStrikeReason] = useState<string>('');
 
-  // Bottom Sheet for Member Profile
-  const [profileMember, setProfileMember] = useState<Member | null>(null);
+  const [soundEnabled, setSoundEnabled] = useState(() => settings.soundEnabled ?? true);
+  const navScrollRef = useRef<HTMLDivElement>(null);
 
   const handleOpenAddMember = () => {
     setMemberToEdit(null);
@@ -61,161 +91,194 @@ export const AndroidApp: React.FC<AndroidAppProps> = ({
     setIsMemberFormOpen(true);
   };
 
-  const handleOpenAddStrike = (member: Member) => {
+  const handleOpenAddStrike = (member: Member, defaultReason: string = '') => {
     setStrikeMember(member);
+    setStrikeReason(defaultReason);
     setIsAddStrikeOpen(true);
   };
 
-  const handleSelectMember = (member: Member) => {
-    setProfileMember(member);
+  const handleToggleSound = async () => {
+    sounds.playClick();
+    const next = !soundEnabled;
+    setSoundEnabled(next);
+    await updateSettings({ ...settings, soundEnabled: next });
+    if (next) sounds.playSuccess();
   };
 
+  const handleLogout = () => {
+    sounds.playAlert();
+    logout();
+  };
+
+  // 1. GATEWAY: First login screen then open CRM
+  if (!isAuthenticated) {
+    return (
+      <AndroidLoginView
+        onToggleForceWeb={onToggleForceWeb}
+        isForceWeb={isForceWeb}
+      />
+    );
+  }
+
+  // Navigation Items matching the Web CRM structure exactly
+  const navTabs = [
+    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    {
+      id: 'members',
+      label: 'Members',
+      icon: Users,
+      badge: stats.membersWithStrikes > 0 ? `${stats.membersWithStrikes}` : null,
+    },
+    { id: 'events', label: 'Events', icon: Swords },
+    { id: 'attendance', label: 'Attendance', icon: ClipboardCheck },
+    { id: 'leaderboard', label: 'Leaderboard', icon: Trophy },
+    { id: 'activity', label: 'Activity', icon: AlertTriangle },
+    ...(isMainAdmin ? [{ id: 'contributions', label: 'Contributions', icon: Award, badge: null }] : []),
+    { id: 'profile', label: 'Profile', icon: User, badge: null },
+    ...(isMainAdmin ? [{ id: 'settings', label: 'Settings', icon: Settings, badge: null }] : []),
+  ];
+
   return (
-    <div className="min-h-screen bg-[#02040a] text-slate-100 flex flex-col font-sans select-none overflow-x-hidden pt-safe pb-28">
-      {/* Native App Cyber Top Bar */}
-      <header className="sticky top-0 z-30 bg-[#060913]/90 backdrop-blur-xl border-b border-rose-500/20 px-4 py-2.5 flex items-center justify-between shadow-[0_4px_25px_rgba(225,29,72,0.15)]">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8.5 h-8.5 rounded-xl bg-gradient-to-br from-rose-500 via-rose-600 to-rose-700 flex items-center justify-center text-white font-black shadow-[0_0_15px_rgba(225,29,72,0.6)] android-float">
-            <Flame className="w-5 h-5 fill-white stroke-white" />
+    <div className="min-h-screen bg-[#f8fafc] text-slate-800 flex flex-col font-sans select-none overflow-x-hidden pt-safe pb-safe selection:bg-amber-400 selection:text-slate-950 android-light-theme">
+      {/* 1. TOP MOBILE APP BAR */}
+      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200/90 px-3 sm:px-4 py-2.5 flex items-center justify-between shadow-sm">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="w-8.5 h-8.5 rounded-xl bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center text-slate-950 font-black shadow-md shadow-amber-500/20 shrink-0">
+            <Flame className="w-5 h-5 fill-slate-950 stroke-slate-950" />
           </div>
-          <div>
-            <h1 className="text-sm font-black tracking-wider text-white flex items-center gap-1.5 font-mono">
-              <span className="android-text-gradient-crimson">[HOT]</span>
-              <span className="text-white">WAR MATRIX</span>
+          <div className="min-w-0">
+            <h1 className="text-xs font-black tracking-tight text-slate-900 flex items-center gap-1.5 truncate">
+              <span>[HOT] ONE FOR ALL</span>
             </h1>
-            <div className="text-[10px] text-cyan-400 font-mono font-bold tracking-widest flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping inline-block" />
-              S1391 // TACTICAL HUD
+            <div className="text-[10px] text-amber-600 font-mono font-bold tracking-wider truncate">
+              KINGDOM #1391
             </div>
           </div>
         </div>
 
-        {/* Sync & Refresh Button */}
-        <div className="flex items-center gap-2">
-          {isSyncing && (
-            <span className="flex items-center gap-1 text-[10px] font-mono text-cyan-300 animate-pulse">
-              <RefreshCw className="w-3 h-3 animate-spin" />
-              RECON
-            </span>
-          )}
+        {/* Action Controls */}
+        <div className="flex items-center gap-1.5 shrink-0">
+          {/* Cloud Sync Button */}
           <button
             onClick={() => {
               sounds.playClick();
               refreshData();
             }}
-            className="w-8.5 h-8.5 rounded-xl bg-[#0b1020] border border-cyan-500/30 flex items-center justify-center text-cyan-300 hover:border-cyan-400 active:scale-90 transition-all shadow-[0_0_10px_rgba(6,182,212,0.2)]"
-            aria-label="Refresh"
+            className="h-8 px-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 flex items-center gap-1 text-[11px] font-semibold active:scale-95 transition-all"
+            title="Sync Cloud Ledger"
           >
-            <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin text-cyan-400' : ''}`} />
+            <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin text-amber-600' : 'text-slate-500'}`} />
+            <span className="hidden sm:inline font-mono">{isSyncing ? 'Syncing' : 'Sync'}</span>
           </button>
+
+          {/* Sound Toggle */}
+          <button
+            onClick={handleToggleSound}
+            className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 flex items-center justify-center active:scale-95 transition-all"
+            title={soundEnabled ? 'Mute Sounds' : 'Unmute Sounds'}
+          >
+            {soundEnabled ? (
+              <Volume2 className="w-3.5 h-3.5 text-slate-600" />
+            ) : (
+              <VolumeX className="w-3.5 h-3.5 text-slate-400" />
+            )}
+          </button>
+
+          {/* Officer Profile Badge & Logout */}
+          <div className="flex items-center gap-1 pl-1 border-l border-slate-200">
+            <button
+              onClick={() => {
+                sounds.playClick();
+                setActiveTab('profile');
+              }}
+              className="h-8 px-2 rounded-xl bg-amber-50 text-amber-800 border border-amber-200/80 text-[11px] font-bold font-mono flex items-center gap-1 active:scale-95 transition-all truncate max-w-[90px]"
+              title="View Profile"
+            >
+              <User className="w-3 h-3 text-amber-600 shrink-0" />
+              <span className="truncate">{admin?.username || 'Officer'}</span>
+            </button>
+
+            <button
+              onClick={handleLogout}
+              className="w-8 h-8 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 flex items-center justify-center active:scale-95 transition-all"
+              title="Log Out"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+            </button>
+          </div>
         </div>
       </header>
 
-      {/* Main Screen Content */}
-      <main className="flex-1 px-3.5 pt-3 max-w-lg mx-auto w-full">
-        {currentTab === 'warroom' && <AndroidWarRoomView />}
-        {currentTab === 'leaderboard' && (
-          <AndroidLeaderboardView onSelectMember={handleSelectMember} />
-        )}
-        {currentTab === 'roster' && (
-          <AndroidRosterView
-            onSelectMember={handleSelectMember}
+      {/* 2. SMOOTH HORIZONTAL NAVIGATION BAR (ALIGNED FOR ALL PHONES) */}
+      <nav className="sticky top-[53px] z-30 bg-white/95 backdrop-blur-md border-b border-slate-200 px-2 py-1.5 overflow-x-auto scrollbar-none touch-pan-x shadow-[0_1px_3px_rgba(0,0,0,0.03)]">
+        <div ref={navScrollRef} className="flex items-center gap-1.5 min-w-max px-1">
+          {navTabs.map(tab => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
+
+            return (
+              <button
+                key={tab.id}
+                onClick={() => {
+                  sounds.playClick();
+                  setActiveTab(tab.id);
+                }}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer relative shrink-0 ${
+                  isActive
+                    ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 font-black shadow-md shadow-amber-500/25 scale-[1.02]'
+                    : 'bg-slate-100 hover:bg-slate-200/80 text-slate-600 hover:text-slate-900 border border-slate-200/60 active:scale-95'
+                }`}
+              >
+                <Icon className={`w-3.5 h-3.5 ${isActive ? 'stroke-[2.5px] text-slate-950' : 'text-slate-500'}`} />
+                <span>{tab.label}</span>
+                {tab.badge && (
+                  <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-rose-500 text-white font-bold leading-tight shadow-sm">
+                    {tab.badge}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </nav>
+
+      {/* 3. MAIN SECTION CONTENT (PERFECTLY ALIGNED FOR ALL PHONES) */}
+      <main className="flex-1 max-w-7xl w-full mx-auto px-2.5 sm:px-4 py-3 animate-fade-in overflow-x-hidden">
+        {activeTab === 'dashboard' && (
+          <DashboardView
+            onOpenCreateEvent={() => setIsCreateEventOpen(true)}
             onOpenAddMember={handleOpenAddMember}
           />
         )}
-        {currentTab === 'ops' && (
-          <AndroidOfficerOpsView
-            onOpenCreateEvent={() => setIsCreateEventOpen(true)}
-            onOpenAddStrikePrompt={() => {
-              if (members.length > 0) handleOpenAddStrike(members[0]);
-            }}
+
+        {activeTab === 'members' && (
+          <MembersView
+            onOpenAddMember={handleOpenAddMember}
+            onOpenEditMember={handleOpenEditMember}
+            onOpenAddStrike={m => handleOpenAddStrike(m)}
           />
         )}
-        {currentTab === 'settings' && (
-          <AndroidSettingsView
-            onToggleForceWeb={onToggleForceWeb}
-            isForceWeb={isForceWeb}
-          />
+
+        {activeTab === 'events' && (
+          <EventsView onOpenCreateEvent={() => setIsCreateEventOpen(true)} />
         )}
+
+        {activeTab === 'attendance' && (
+          <AttendanceView onOpenAddStrike={(m, r) => handleOpenAddStrike(m, r)} />
+        )}
+
+        {activeTab === 'leaderboard' && <LeaderboardView />}
+
+        {activeTab === 'activity' && <InactivityTrackerView />}
+
+        {activeTab === 'contributions' && isMainAdmin && <ContributionsView />}
+
+        {activeTab === 'profile' && <AdminProfileView />}
+
+        {activeTab === 'settings' && isMainAdmin && <SettingsView />}
       </main>
 
-      {/* Native Bottom Navigation */}
-      <AndroidBottomNav
-        currentTab={currentTab}
-        onTabChange={setCurrentTab}
-        isMainAdmin={isMainAdmin}
-        upcomingEventCount={events.filter(e => e.status === 'Scheduled').length}
-      />
-
-      {/* MEMBER PROFILE DOSSIER BOTTOM SHEET */}
-      <AndroidBottomSheet
-        isOpen={Boolean(profileMember)}
-        onClose={() => setProfileMember(null)}
-        title={profileMember?.name || 'Agent Dossier'}
-        subtitle={`HOT AGENT // ${profileMember?.currentRank || 'R1'} // S1391`}
-      >
-        {profileMember && (
-          <div className="space-y-4">
-            {/* Holographic Agent Card */}
-            <div className="p-4 rounded-2xl bg-[#0b1020]/90 border border-cyan-500/30 space-y-2.5 shadow-[0_4px_20px_rgba(6,182,212,0.15)]">
-              <div className="flex items-center justify-between text-xs pb-2 border-b border-cyan-500/20">
-                <span className="text-slate-400 uppercase tracking-wider font-mono">Combat Rank</span>
-                <span className="font-black text-rose-400 font-mono px-2 py-0.5 rounded-lg bg-rose-500/10 border border-rose-500/30">
-                  {profileMember.currentRank}
-                </span>
-              </div>
-              <div className="flex items-center justify-between text-xs pb-2 border-b border-cyan-500/20">
-                <span className="text-slate-400 uppercase tracking-wider font-mono">In-Game GID</span>
-                <span className="font-mono text-cyan-300 font-bold">
-                  {profileMember.communicationNote?.match(/\[GID:([a-zA-Z0-9_-]+)\]/)?.[1] || 'UNLINKED'}
-                </span>
-              </div>
-              <div className="flex items-center justify-between text-xs pb-2 border-b border-cyan-500/20">
-                <span className="text-slate-400 uppercase tracking-wider font-mono">Disciplinary Strikes</span>
-                <span className={`font-mono font-black ${
-                  (profileMember.strikes || 0) > 0 ? 'text-rose-400' : 'text-emerald-400'
-                }`}>
-                  {profileMember.strikes || 0} / 3 Strikes
-                </span>
-              </div>
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-slate-400 uppercase tracking-wider font-mono">Duty Status</span>
-                <span className="text-[11px] font-mono font-bold px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-300 border border-cyan-500/30">
-                  {profileMember.status || 'Active'}
-                </span>
-              </div>
-            </div>
-
-            {/* Officer Tactical Actions */}
-            {isAuthenticated && (
-              <div className="grid grid-cols-2 gap-2.5 pt-1">
-                <button
-                  onClick={() => {
-                    const m = profileMember;
-                    setProfileMember(null);
-                    handleOpenAddStrike(m);
-                  }}
-                  className="py-3 px-3 rounded-xl bg-gradient-to-r from-rose-600 to-rose-700 text-white text-xs font-black uppercase font-mono tracking-wider active:scale-95 transition-all shadow-[0_0_15px_rgba(225,29,72,0.4)] cursor-pointer"
-                >
-                  + Add Strike
-                </button>
-                <button
-                  onClick={() => {
-                    const m = profileMember;
-                    setProfileMember(null);
-                    handleOpenEditMember(m);
-                  }}
-                  className="py-3 px-3 rounded-xl bg-[#0b1020] border border-cyan-500/40 text-cyan-300 text-xs font-black uppercase font-mono tracking-wider active:scale-95 transition-all shadow-[0_0_15px_rgba(6,182,212,0.2)] cursor-pointer"
-                >
-                  Edit Agent
-                </button>
-              </div>
-            )}
-          </div>
-        )}
-      </AndroidBottomSheet>
-
-      {/* Global Modals for Events and Members */}
+      {/* 4. MODALS (ALL CONNECTED TO API) */}
       <CreateEventModal
         isOpen={isCreateEventOpen}
         onClose={() => setIsCreateEventOpen(false)}
@@ -231,7 +294,65 @@ export const AndroidApp: React.FC<AndroidAppProps> = ({
         isOpen={isAddStrikeOpen}
         onClose={() => setIsAddStrikeOpen(false)}
         member={strikeMember}
+        defaultReason={strikeReason}
       />
+
+      <MemberProfileModal
+        isOpen={Boolean(selectedMemberForProfile)}
+        onClose={() => setSelectedMemberForProfile(null)}
+        member={selectedMemberForProfile}
+        onOpenAddStrike={m => handleOpenAddStrike(m)}
+        onOpenEditMember={m => handleOpenEditMember(m)}
+      />
+
+      {/* 5. TOAST NOTIFICATIONS */}
+      <div className="fixed bottom-3 left-3 right-3 sm:left-auto sm:right-4 z-50 flex flex-col gap-2 sm:max-w-sm pointer-events-none">
+        {toasts.map(toast => {
+          const config = {
+            success: {
+              border: 'border-emerald-200 bg-white text-emerald-900',
+              icon: <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />,
+            },
+            warning: {
+              border: 'border-amber-200 bg-white text-amber-900',
+              icon: <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />,
+            },
+            error: {
+              border: 'border-rose-200 bg-white text-rose-900',
+              icon: <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />,
+            },
+            info: {
+              border: 'border-sky-200 bg-white text-sky-900',
+              icon: <Info className="w-4 h-4 text-sky-600 shrink-0" />,
+            },
+          }[toast.type];
+
+          return (
+            <div
+              key={toast.id}
+              className={`p-3 rounded-2xl border shadow-xl flex items-start justify-between gap-3 pointer-events-auto backdrop-blur-md transition-all ${config.border}`}
+            >
+              <div className="flex items-start gap-2.5">
+                <span className="mt-0.5">{config.icon}</span>
+                <div>
+                  <h4 className="font-bold text-xs text-slate-900">
+                    {toast.title}
+                  </h4>
+                  <p className="text-xs text-slate-600 mt-0.5 leading-snug">
+                    {toast.message}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => removeToast(toast.id)}
+                className="text-slate-400 hover:text-slate-600 transition-colors cursor-pointer shrink-0 mt-0.5"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 };

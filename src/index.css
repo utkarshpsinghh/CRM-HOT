@@ -402,3 +402,121 @@
   box-shadow: 0 10px 30px -5px rgba(6, 182, 212, 0.2), 0 0 0 1px rgba(255, 255, 255, 0.06) inset;
 }
 
+/* ========================================================
+   ANDROID LIGHT THEME (Clean, High-Readability Mobile UI)
+   ======================================================== */
+
+.android-light-theme {
+  background-color: #f8fafc !important;
+  color: #0f172a !important;
+}
+
+.android-light-theme .bg-slate-900,
+.android-light-theme .bg-slate-900\/95,
+.android-light-theme .bg-slate-900\/90,
+.android-light-theme .bg-slate-900\/80,
+.android-light-theme .bg-slate-900\/70,
+.android-light-theme .bg-slate-900\/60,
+.android-light-theme .bg-slate-900\/50,
+.android-light-theme .bg-slate-900\/40,
+.android-light-theme .bg-\[\#090d16\],
+.android-light-theme .bg-\[\#0d1322\],
+.android-light-theme .bg-\[\#0b1020\],
+.android-light-theme .bg-\[\#070b14\],
+.android-light-theme .bg-\[\#060913\] {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.06), 0 1px 2px -1px rgba(0, 0, 0, 0.04) !important;
+}
+
+.android-light-theme .bg-slate-950,
+.android-light-theme .bg-slate-950\/90,
+.android-light-theme .bg-slate-950\/80,
+.android-light-theme .bg-slate-950\/60,
+.android-light-theme .bg-slate-950\/40,
+.android-light-theme .bg-slate-950\/20,
+.android-light-theme .bg-\[\#04060d\] {
+  background-color: #f1f5f9 !important;
+  border-color: #e2e8f0 !important;
+}
+
+.android-light-theme .bg-slate-800,
+.android-light-theme .bg-slate-800\/90,
+.android-light-theme .bg-slate-800\/80,
+.android-light-theme .bg-slate-800\/60,
+.android-light-theme .bg-slate-800\/40 {
+  background-color: #e2e8f0 !important;
+  color: #1e293b !important;
+}
+
+.android-light-theme .border-slate-800,
+.android-light-theme .border-slate-800\/90,
+.android-light-theme .border-slate-800\/80,
+.android-light-theme .border-slate-800\/60,
+.android-light-theme .border-slate-800\/40,
+.android-light-theme .border-slate-700,
+.android-light-theme .border-slate-700\/80,
+.android-light-theme .border-slate-700\/60 {
+  border-color: #e2e8f0 !important;
+}
+
+.android-light-theme .divide-slate-800,
+.android-light-theme .divide-slate-800\/60,
+.android-light-theme .divide-slate-800\/80 {
+  border-color: #f1f5f9 !important;
+}
+
+.android-light-theme .text-white,
+.android-light-theme .text-slate-100 {
+  color: #0f172a !important;
+}
+
+.android-light-theme .text-slate-200 {
+  color: #1e293b !important;
+}
+
+.android-light-theme .text-slate-300 {
+  color: #334155 !important;
+}
+
+.android-light-theme .text-slate-400 {
+  color: #64748b !important;
+}
+
+.android-light-theme .text-slate-500 {
+  color: #94a3b8 !important;
+}
+
+.android-light-theme input,
+.android-light-theme select,
+.android-light-theme textarea {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+.android-light-theme input::placeholder,
+.android-light-theme textarea::placeholder {
+  color: #94a3b8 !important;
+}
+
+.android-light-theme input:focus,
+.android-light-theme select:focus,
+.android-light-theme textarea:focus {
+  border-color: #f59e0b !important;
+  outline: none !important;
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.15) !important;
+}
+
+.android-light-theme .btn-secondary,
+.android-light-theme .btn-kingshot-cream {
+  background: #f1f5f9 !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+.android-light-theme .btn-secondary:hover,
+.android-light-theme .btn-kingshot-cream:hover {
+  background: #e2e8f0 !important;
+}
+
