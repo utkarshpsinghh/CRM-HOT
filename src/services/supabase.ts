@@ -711,6 +711,7 @@ export const supabaseService = {
       await Promise.allSettled([
         client.from('event_participations').delete().in('event_id', eventIds),
         client.from('event_slots').delete().in('event_id', eventIds),
+        client.from('attendance').delete().in('event_id', eventIds),
         client.from('events').delete().in('id', eventIds),
       ]);
       return true;

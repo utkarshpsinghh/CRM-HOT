@@ -236,6 +236,7 @@ export type ContributionActionType =
   | 'ATTENDANCE_MARKED'
   | 'ATTENDANCE_BULK'
   | 'EVENT_CREATED'
+  | 'EVENT_DELETED'
   | 'EVENT_COMPLETED'
   | 'STRIKE_ADDED'
   | 'STRIKE_REMOVED'

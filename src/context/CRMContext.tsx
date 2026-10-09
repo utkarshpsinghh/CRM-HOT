@@ -99,6 +99,7 @@ interface CRMContextType {
   archiveMember: (memberId: string) => Promise<boolean>;
   createEvent: (data: Omit<AllianceEvent, 'id' | 'createdAt'>) => Promise<boolean>;
   createParentEvent: (data: { eventType: MainEventType; eventName: string; date: string; notes?: string; slot1Time?: string; slot2Time?: string }) => Promise<boolean>;
+  deleteEvent: (eventId: string) => Promise<boolean>;
   updateVote: (eventId: string, memberId: string, vote: VoteStatus) => Promise<void>;
   updateAttendance: (eventId: string, memberId: string, att: AttendanceStatus) => Promise<void>;
   updateParticipationVote: (eventId: string, memberId: string, slotId: string | null, voteStatus: ParticipationVoteStatus) => Promise<void>;
@@ -1621,6 +1622,67 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
+  const deleteEvent = async (eventId: string): Promise<boolean> => {
+    if (admin && admin.role !== 'MainAdmin') {
+      sounds.playAlert();
+      addToast({
+        type: 'warning',
+        title: 'Action Restricted',
+        message: 'Only Main Admin can delete alliance events.',
+      });
+      return false;
+    }
+
+    try {
+      sounds.playClick();
+      const targetEvent = events.find(e => e.id === eventId);
+      const eventName = targetEvent?.eventName || 'Event';
+
+      // Optimistically update local state
+      setEvents(prev => prev.filter(e => e.id !== eventId));
+      setEventSlots(prev => prev.filter(s => s.eventId !== eventId));
+      setEventParticipations(prev => prev.filter(p => p.eventId !== eventId));
+      setAttendance(prev => prev.filter(a => a.eventId !== eventId));
+
+      // Reset selectedEventIdForAttendance if it was the deleted event
+      if (selectedEventIdForAttendance === eventId) {
+        const remaining = events.filter(e => e.id !== eventId);
+        setSelectedEventIdForAttendance(remaining.length > 0 ? remaining[0].id : null);
+      }
+
+      const success = await apiService.deleteEventsByIds([eventId], settings);
+      if (success) {
+        sounds.playSuccess();
+        addToast({
+          type: 'success',
+          title: 'Event Deleted',
+          message: `${eventName} and all associated attendance records were permanently removed.`,
+        });
+        logContribution('EVENT_DELETED', `Deleted event: ${eventName} (${eventId})`, eventName, 1);
+        return true;
+      } else {
+        sounds.playAlert();
+        addToast({
+          type: 'error',
+          title: 'Deletion Failed',
+          message: 'Failed to delete event from database.',
+        });
+        await refreshData();
+        return false;
+      }
+    } catch (err: any) {
+      console.error('deleteEvent error:', err);
+      sounds.playAlert();
+      addToast({
+        type: 'error',
+        title: 'Deletion Error',
+        message: err.message || 'An error occurred while deleting the event.',
+      });
+      await refreshData();
+      return false;
+    }
+  };
+
   const updateParticipationVote = async (
     eventId: string,
     memberId: string,
@@ -2456,6 +2518,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         archiveMember,
         createEvent,
         createParentEvent,
+        deleteEvent,
         updateVote,
         updateAttendance,
         updateParticipationVote,

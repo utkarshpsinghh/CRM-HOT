@@ -24,6 +24,7 @@ import {
   Layers,
   HelpCircle,
   FileText,
+  Trash2,
 } from 'lucide-react';
 import { sounds } from '../../utils/sound';
 import { safeFormatDate, getComputedEventStatus } from '../../utils/date';
@@ -46,9 +47,12 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
     updateParticipationPenalty,
     bulkUpdateParticipations,
     addStrike,
+    deleteEvent,
   } = useCRM();
 
   const { isMainAdmin } = useAuth();
+  const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Active selected event
   const currentEvent = useMemo(() => {
@@ -368,7 +372,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
           </div>
         </div>
 
-        {/* Event Selector Dropdown */}
+        {/* Event Selector Dropdown & Admin Actions */}
         <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full md:w-auto min-w-0 pt-2.5 md:pt-0 border-t md:border-t-0 border-slate-800">
           <label className="text-xs text-slate-400 font-semibold shrink-0">Select Event:</label>
           <div className="relative w-full sm:w-auto min-w-0 max-w-full">
@@ -387,6 +391,22 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
               ))}
             </select>
           </div>
+
+          {/* Main Admin Delete Event Trigger */}
+          {isMainAdmin && (
+            <button
+              onClick={() => {
+                sounds.playClick();
+                setIsConfirmDeleteOpen(true);
+              }}
+              className="px-3 py-2 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 hover:border-rose-500/50 text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer shrink-0 shadow-sm"
+              title="Permanently Delete Event (Main Admin Only)"
+              aria-label="Delete Event"
+            >
+              <Trash2 className="w-3.5 h-3.5 text-rose-400" />
+              <span>Delete Event</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -1743,6 +1763,57 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
             );
           })()}
         </Modal>
+      )}
+
+      {/* Main Admin Delete Confirmation Modal */}
+      {isConfirmDeleteOpen && currentEvent && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fade-in">
+          <div className="bg-slate-900 border border-slate-700/80 rounded-2xl max-w-md w-full p-5 space-y-4 shadow-2xl">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-rose-500/20 border border-rose-500/40 flex items-center justify-center text-rose-400 shrink-0">
+                <Trash2 className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-white">Delete Alliance Event</h3>
+                <p className="text-xs text-rose-400/90 font-mono">Main Admin Authorization</p>
+              </div>
+            </div>
+
+            <div className="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800 text-xs space-y-2">
+              <div className="text-slate-200">
+                Are you sure you want to delete <span className="font-bold text-white underline decoration-amber-500/50">{currentEvent.eventName}</span>?
+              </div>
+              <div className="text-slate-400 font-mono text-[11px]">
+                Event Type: <span className="text-amber-300 font-semibold">{currentEvent.eventType}</span> • Date: <span className="text-slate-200">{safeFormatDate(currentEvent.date)}</span>
+              </div>
+              <p className="text-rose-400 text-[11px] font-medium pt-1 border-t border-slate-800">
+                ⚠️ Warning: Deleting this event will permanently purge all associated slot selections, member attendance, and participation records from both the CRM and Supabase.
+              </p>
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5 pt-1">
+              <button
+                onClick={() => setIsConfirmDeleteOpen(false)}
+                disabled={isDeleting}
+                className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-semibold cursor-pointer transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  setIsDeleting(true);
+                  const res = await deleteEvent(currentEvent.id);
+                  setIsDeleting(false);
+                  if (res) setIsConfirmDeleteOpen(false);
+                }}
+                disabled={isDeleting}
+                className="px-4 py-2 rounded-xl bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-500 hover:to-rose-600 text-white text-xs font-bold shadow-md shadow-rose-600/30 flex items-center gap-1.5 cursor-pointer disabled:opacity-50 transition-all"
+              >
+                {isDeleting ? 'Deleting...' : 'Permanently Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

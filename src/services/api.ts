@@ -370,6 +370,8 @@ export const apiService = {
     storageService.setEventSlots(curSlots);
     const curParts = storageService.getEventParticipations().filter(p => !eventIds.includes(p.eventId));
     storageService.setEventParticipations(curParts);
+    const curAtt = storageService.getAttendance().filter(a => !eventIds.includes(a.eventId));
+    storageService.setAttendance(curAtt);
 
     if (this.isSupabase(settings)) {
       return await supabaseService.deleteEventsByIds(eventIds, settings);

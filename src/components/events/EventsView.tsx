@@ -13,9 +13,11 @@ import {
   CheckCircle2,
   AlertTriangle,
   Users,
+  Trash2,
 } from 'lucide-react';
 import { sounds } from '../../utils/sound';
 import { safeFormatDate, getComputedEventStatus, getEventRelativeTime, parseDateAsUtc } from '../../utils/date';
+import { AllianceEvent } from '../../types/crm';
 
 interface EventsViewProps {
   onOpenCreateEvent: () => void;
@@ -29,6 +31,7 @@ export const EventsView: React.FC<EventsViewProps> = ({ onOpenCreateEvent }) => 
     members,
     setSelectedEventIdForAttendance,
     setActiveTab,
+    deleteEvent,
   } = useCRM();
   const { isMainAdmin } = useAuth();
 
@@ -36,6 +39,18 @@ export const EventsView: React.FC<EventsViewProps> = ({ onOpenCreateEvent }) => 
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'Upcoming' | 'Completed'>('ALL');
   const [typeFilter, setTypeFilter] = useState<string>('ALL');
   const [sortOrder, setSortOrder] = useState<'earliest' | 'latest'>('latest');
+
+  // Deletion modal state
+  const [deleteTargetEvent, setDeleteTargetEvent] = useState<AllianceEvent | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleConfirmDelete = async () => {
+    if (!deleteTargetEvent) return;
+    setIsDeleting(true);
+    await deleteEvent(deleteTargetEvent.id);
+    setIsDeleting(false);
+    setDeleteTargetEvent(null);
+  };
 
   const mainEventTypes = ['Bear Trap', 'Swordsland', 'Tri Alliance'];
 
@@ -414,22 +429,86 @@ export const EventsView: React.FC<EventsViewProps> = ({ onOpenCreateEvent }) => 
                 </div>
 
                 {/* Card Action Link */}
-                <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between">
-                  <span className="text-[11px] text-slate-400 font-medium flex items-center gap-1">
-                    <Users className="w-3 h-3 text-slate-500" />
-                    <span>{metrics.eligibleMembersCount} members</span>
+                <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between gap-2">
+                  <span className="text-[11px] text-slate-400 font-medium flex items-center gap-1 min-w-0 truncate">
+                    <Users className="w-3 h-3 text-slate-500 shrink-0" />
+                    <span className="truncate">{metrics.eligibleMembersCount} members</span>
                   </span>
-                  <button
-                    onClick={() => handleOpenAttendance(event.id)}
-                    className="text-xs font-semibold text-amber-400 hover:text-amber-300 flex items-center gap-1 cursor-pointer transition-colors"
-                  >
-                    <span>Dashboard & Attendance</span>
-                    <ChevronRight className="w-3.5 h-3.5" />
-                  </button>
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    {isMainAdmin && (
+                      <button
+                        onClick={e => {
+                          e.stopPropagation();
+                          sounds.playClick();
+                          setDeleteTargetEvent(event);
+                        }}
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 border border-transparent hover:border-rose-500/30 transition-all cursor-pointer"
+                        title="Delete Event (Main Admin Only)"
+                        aria-label="Delete Event"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+
+                    <button
+                      onClick={() => handleOpenAttendance(event.id)}
+                      className="text-xs font-semibold text-amber-400 hover:text-amber-300 flex items-center gap-1 cursor-pointer transition-colors"
+                    >
+                      <span>Dashboard & Attendance</span>
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Main Admin Delete Confirmation Modal */}
+      {deleteTargetEvent && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fade-in">
+          <div className="bg-slate-900 border border-slate-700/80 rounded-2xl max-w-md w-full p-5 space-y-4 shadow-2xl">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-rose-500/20 border border-rose-500/40 flex items-center justify-center text-rose-400 shrink-0">
+                <Trash2 className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-white">Delete Alliance Event</h3>
+                <p className="text-xs text-rose-400/90 font-mono">Main Admin Authorization</p>
+              </div>
+            </div>
+
+            <div className="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800 text-xs space-y-2">
+              <div className="text-slate-200">
+                Are you sure you want to delete <span className="font-bold text-white underline decoration-amber-500/50">{deleteTargetEvent.eventName}</span>?
+              </div>
+              <div className="text-slate-400 font-mono text-[11px]">
+                Event Type: <span className="text-amber-300 font-semibold">{deleteTargetEvent.eventType}</span> • Date: <span className="text-slate-200">{safeFormatDate(deleteTargetEvent.date)}</span>
+              </div>
+              <p className="text-rose-400 text-[11px] font-medium pt-1 border-t border-slate-800">
+                ⚠️ Warning: Deleting this event will permanently purge all associated slot selections, member attendance, and participation records from both the CRM and Supabase.
+              </p>
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5 pt-1">
+              <button
+                onClick={() => setDeleteTargetEvent(null)}
+                disabled={isDeleting}
+                className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-semibold cursor-pointer transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmDelete}
+                disabled={isDeleting}
+                className="px-4 py-2 rounded-xl bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-500 hover:to-rose-600 text-white text-xs font-bold shadow-md shadow-rose-600/30 flex items-center gap-1.5 cursor-pointer disabled:opacity-50 transition-all"
+              >
+                {isDeleting ? 'Deleting...' : 'Permanently Delete'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
