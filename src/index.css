@@ -318,3 +318,87 @@
 .animate-pop-in {
   animation: fadeIn 0.18s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
+
+/* ========================================================
+   ANDROID EXCLUSIVE CYBER-CRIMSON / AMOLED DESIGN SYSTEM
+   ======================================================== */
+
+@keyframes androidNeonGlow {
+  0%, 100% {
+    box-shadow: 0 0 15px rgba(225, 29, 72, 0.25), 0 0 30px rgba(225, 29, 72, 0.1);
+  }
+  50% {
+    box-shadow: 0 0 25px rgba(225, 29, 72, 0.45), 0 0 50px rgba(225, 29, 72, 0.2);
+  }
+}
+
+@keyframes androidCyanGlow {
+  0%, 100% {
+    box-shadow: 0 0 15px rgba(6, 182, 212, 0.25), 0 0 30px rgba(6, 182, 212, 0.1);
+  }
+  50% {
+    box-shadow: 0 0 25px rgba(6, 182, 212, 0.45), 0 0 50px rgba(6, 182, 212, 0.2);
+  }
+}
+
+@keyframes androidFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+
+.android-pulse-crimson {
+  animation: androidNeonGlow 3s ease-in-out infinite;
+}
+
+.android-pulse-cyan {
+  animation: androidCyanGlow 3s ease-in-out infinite;
+}
+
+.android-float {
+  animation: androidFloat 3.5s ease-in-out infinite;
+}
+
+.android-gradient-crimson {
+  background: linear-gradient(135deg, #e11d48 0%, #f43f5e 50%, #fb7185 100%);
+}
+
+.android-gradient-cyber {
+  background: linear-gradient(135deg, #e11d48 0%, #a855f7 50%, #06b6d4 100%);
+}
+
+.android-text-gradient-crimson {
+  background: linear-gradient(135deg, #ff2e55 0%, #ff6b8b 50%, #ffa386 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.android-text-gradient-cyan {
+  background: linear-gradient(135deg, #00f5ff 0%, #38bdf8 50%, #818cf8 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.android-glass-card {
+  background: rgba(12, 16, 28, 0.78);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.04) inset;
+}
+
+.android-glass-crimson {
+  background: linear-gradient(145deg, rgba(225, 29, 72, 0.12) 0%, rgba(12, 16, 28, 0.85) 100%);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(244, 63, 94, 0.35);
+  box-shadow: 0 10px 30px -5px rgba(225, 29, 72, 0.2), 0 0 0 1px rgba(255, 255, 255, 0.06) inset;
+}
+
+.android-glass-cyan {
+  background: linear-gradient(145deg, rgba(6, 182, 212, 0.12) 0%, rgba(12, 16, 28, 0.85) 100%);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(34, 211, 238, 0.35);
+  box-shadow: 0 10px 30px -5px rgba(6, 182, 212, 0.2), 0 0 0 1px rgba(255, 255, 255, 0.06) inset;
+}
+

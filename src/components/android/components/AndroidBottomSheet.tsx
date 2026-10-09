@@ -41,28 +41,28 @@ export const AndroidBottomSheet: React.FC<AndroidBottomSheetProps> = ({
     <div className="fixed inset-0 z-50 flex flex-col justify-end">
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-black/70 backdrop-blur-sm transition-opacity animate-fade-in"
+        className="fixed inset-0 bg-black/85 backdrop-blur-md transition-opacity animate-fade-in"
         onClick={handleClose}
       />
 
       {/* Sheet panel */}
       <div
-        className={`relative z-10 w-full bg-[#0d1322] border-t border-slate-700/80 rounded-t-3xl shadow-2xl flex flex-col ${maxHeight} animate-slide-up overflow-hidden pb-safe`}
+        className={`relative z-10 w-full bg-[#050811] border-t border-rose-500/40 rounded-t-[32px] shadow-[0_-10px_40px_rgba(225,29,72,0.25)] flex flex-col ${maxHeight} animate-slide-up overflow-hidden pb-safe`}
       >
         {/* Android drag handle */}
-        <div className="w-full flex justify-center pt-2.5 pb-1">
-          <div className="w-12 h-1.5 bg-slate-600 rounded-full" />
+        <div className="w-full flex justify-center pt-3 pb-1.5">
+          <div className="w-12 h-1 bg-gradient-to-r from-rose-500 to-cyan-400 rounded-full shadow-[0_0_8px_rgba(225,29,72,0.5)]" />
         </div>
 
         {/* Sheet Header */}
-        <div className="px-5 py-3 border-b border-slate-800/80 flex items-center justify-between">
+        <div className="px-5 py-3 border-b border-rose-500/15 flex items-center justify-between">
           <div>
-            <h3 className="text-base font-bold text-white tracking-tight">{title}</h3>
-            {subtitle && <p className="text-xs text-slate-400 mt-0.5">{subtitle}</p>}
+            <h3 className="text-base font-black text-white tracking-tight uppercase font-mono">{title}</h3>
+            {subtitle && <p className="text-xs text-rose-300/80 mt-0.5 font-medium">{subtitle}</p>}
           </div>
           <button
             onClick={handleClose}
-            className="w-8 h-8 rounded-full bg-slate-800/80 flex items-center justify-center text-slate-400 hover:text-white active:scale-95 transition-all"
+            className="w-8 h-8 rounded-full bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-rose-300 hover:text-white active:scale-95 transition-all"
           >
             <X className="w-4 h-4" />
           </button>

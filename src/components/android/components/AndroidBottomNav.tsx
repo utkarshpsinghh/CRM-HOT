@@ -1,5 +1,5 @@
 import React from 'react';
-import { Swords, Trophy, Users, Zap, Settings } from 'lucide-react';
+import { Swords, Trophy, Users, Zap, ShieldAlert, Sliders } from 'lucide-react';
 import { sounds } from '../../../utils/sound';
 
 export type AndroidTab = 'warroom' | 'leaderboard' | 'roster' | 'ops' | 'settings';
@@ -41,8 +41,8 @@ export const AndroidBottomNav: React.FC<AndroidBottomNavProps> = ({
     },
     {
       id: 'settings' as AndroidTab,
-      label: 'Settings',
-      icon: Settings,
+      label: 'System',
+      icon: Sliders,
     },
   ];
 
@@ -52,8 +52,8 @@ export const AndroidBottomNav: React.FC<AndroidBottomNavProps> = ({
   };
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-40 bg-[#0d1322]/95 backdrop-blur-lg border-t border-slate-800/80 px-2 pb-safe pt-1.5 shadow-2xl select-none">
-      <div className="flex items-center justify-around max-w-md mx-auto">
+    <div className="fixed bottom-3 left-0 right-0 z-40 px-3 pointer-events-none select-none">
+      <nav className="pointer-events-auto max-w-md mx-auto p-1.5 rounded-3xl bg-[#060913]/92 backdrop-blur-2xl border border-rose-500/25 shadow-[0_12px_40px_-5px_rgba(225,29,72,0.35)] flex items-center justify-between">
         {tabs.map(tab => {
           const Icon = tab.icon;
           const isActive = currentTab === tab.id;
@@ -62,37 +62,38 @@ export const AndroidBottomNav: React.FC<AndroidBottomNavProps> = ({
             <button
               key={tab.id}
               onClick={() => handleSelect(tab.id)}
-              className={`relative flex flex-col items-center justify-center py-1.5 px-3 rounded-2xl transition-all duration-200 cursor-pointer min-w-[56px] ${
+              className={`relative flex flex-col items-center justify-center py-2 px-2.5 rounded-2xl transition-all duration-300 cursor-pointer flex-1 ${
                 isActive
-                  ? 'text-amber-400 font-semibold scale-105'
+                  ? 'bg-gradient-to-b from-rose-600 to-rose-700 text-white shadow-lg shadow-rose-600/40 scale-105'
                   : 'text-slate-400 hover:text-slate-200 active:scale-95'
               }`}
             >
-              {/* Active pill background indicator */}
-              {isActive && (
-                <span className="absolute -top-1 w-8 h-1 bg-gradient-to-r from-amber-500 to-amber-300 rounded-full shadow-sm shadow-amber-500/50" />
-              )}
-
               <div className="relative">
                 <Icon
-                  className={`w-5 h-5 transition-transform ${
-                    isActive ? 'stroke-[2.4px] text-amber-400' : 'stroke-[1.8px]'
+                  className={`w-4.5 h-4.5 transition-transform ${
+                    isActive ? 'stroke-[2.5px] text-white scale-110' : 'stroke-[1.8px] text-slate-400'
                   }`}
                 />
                 {tab.badge !== undefined && (
-                  <span className="absolute -top-1.5 -right-2 px-1.5 py-0.2 bg-rose-500 text-white text-[10px] font-bold rounded-full border border-slate-950 animate-pulse">
+                  <span className="absolute -top-1.5 -right-2 w-4 h-4 bg-cyan-400 text-slate-950 text-[9px] font-black rounded-full flex items-center justify-center ring-2 ring-[#060913] animate-pulse">
                     {tab.badge}
                   </span>
                 )}
               </div>
 
-              <span className={`text-[10px] mt-1 tracking-tight ${isActive ? 'text-amber-300 font-bold' : 'text-slate-400 font-medium'}`}>
+              <span className={`text-[10px] mt-1 tracking-tight font-mono uppercase ${isActive ? 'text-white font-black tracking-wider' : 'text-slate-400 font-semibold'}`}>
                 {tab.label}
               </span>
+
+              {/* Glowing Cyber Dot for active state */}
+              {isActive && (
+                <span className="absolute -bottom-0.5 w-1.5 h-1.5 bg-cyan-300 rounded-full shadow-[0_0_8px_#22d3ee]" />
+              )}
             </button>
           );
         })}
-      </div>
-    </nav>
+      </nav>
+    </div>
   );
 };
+

@@ -59,21 +59,21 @@ export const AndroidRosterView: React.FC<AndroidRosterViewProps> = ({
   };
 
   return (
-    <div className="space-y-3 pb-20 animate-fade-in relative">
-      {/* Top Search Bar */}
+    <div className="space-y-3.5 pb-24 animate-fade-in relative">
+      {/* Top Cyber Search Bar */}
       <div className="relative">
-        <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+        <Search className="w-4 h-4 text-cyan-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
         <input
           type="text"
           value={search}
           onChange={e => setSearch(e.target.value)}
-          placeholder="Search by member name or Player ID..."
-          className="w-full pl-9 pr-3 py-2.5 rounded-2xl bg-slate-900 border border-slate-800 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-500 transition-colors shadow-sm"
+          placeholder="Search agent name or Game ID..."
+          className="w-full pl-9 pr-3.5 py-2.5 rounded-2xl bg-[#090d1c] border border-cyan-500/30 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400 transition-all font-mono shadow-[0_4px_15px_rgba(0,0,0,0.4)]"
         />
       </div>
 
       {/* Rank Filter Chips (Horizontal Scroll) */}
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none select-none">
+      <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none select-none">
         {ranks.map(r => (
           <button
             key={r}
@@ -81,10 +81,10 @@ export const AndroidRosterView: React.FC<AndroidRosterViewProps> = ({
               sounds.playClick();
               setSelectedRank(r);
             }}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer ${
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-mono font-bold transition-all shrink-0 cursor-pointer ${
               selectedRank === r
-                ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
-                : 'bg-slate-900 text-slate-400 hover:text-slate-200 border border-slate-800'
+                ? 'bg-gradient-to-r from-rose-600 to-rose-700 text-white shadow-[0_0_15px_rgba(225,29,72,0.4)] scale-105'
+                : 'bg-[#090d1c] text-slate-400 hover:text-slate-200 border border-slate-800'
             }`}
           >
             {r}
@@ -93,13 +93,13 @@ export const AndroidRosterView: React.FC<AndroidRosterViewProps> = ({
       </div>
 
       {/* Roster Counter */}
-      <div className="flex items-center justify-between px-1 text-[11px] text-slate-400 font-medium">
-        <span>Showing {filteredMembers.length} members</span>
-        <span>Kingdom #1391</span>
+      <div className="flex items-center justify-between px-1 text-[11px] text-cyan-400/80 font-mono font-bold">
+        <span>ACTIVE SQUAD: {filteredMembers.length} AGENTS</span>
+        <span className="text-slate-500">S1391</span>
       </div>
 
       {/* Member Cards List */}
-      <div className="space-y-2">
+      <div className="space-y-2.5">
         {filteredMembers.map(member => {
           let gameId = '';
           if (member.communicationNote) {
@@ -116,42 +116,42 @@ export const AndroidRosterView: React.FC<AndroidRosterViewProps> = ({
                 sounds.playClick();
                 onSelectMember(member);
               }}
-              className="p-3.5 rounded-2xl bg-slate-900/80 border border-slate-800/80 flex items-center justify-between gap-3 active:scale-[0.99] active:bg-slate-800/60 transition-all cursor-pointer shadow-sm select-none"
+              className="p-3.5 rounded-2xl bg-[#060914]/90 border border-slate-800 hover:border-cyan-500/40 flex items-center justify-between gap-3 active:scale-[0.98] transition-all cursor-pointer shadow-[0_4px_20px_rgba(0,0,0,0.5)] select-none"
             >
               <div className="flex items-center gap-3 min-w-0">
                 {/* Rank Badge Avatar */}
                 <div
                   className={`w-10 h-10 rounded-2xl flex items-center justify-center text-xs font-black font-mono shrink-0 shadow-sm ${
                     member.currentRank === 'R5'
-                      ? 'bg-amber-500 text-slate-950 ring-2 ring-amber-400/50'
+                      ? 'bg-rose-600 text-white shadow-[0_0_15px_rgba(225,29,72,0.6)] ring-1 ring-rose-400'
                       : member.currentRank === 'R4'
-                      ? 'bg-sky-500 text-slate-950'
+                      ? 'bg-cyan-500 text-slate-950 shadow-[0_0_10px_rgba(6,182,212,0.5)]'
                       : member.currentRank === 'R3'
-                      ? 'bg-purple-600 text-white'
-                      : 'bg-slate-800 text-slate-300'
+                      ? 'bg-purple-600 text-white shadow-[0_0_10px_rgba(168,85,247,0.4)]'
+                      : 'bg-[#090d1c] text-slate-300 border border-slate-700/80'
                   }`}
                 >
                   {member.currentRank}
                 </div>
 
                 <div className="min-w-0">
-                  <div className="font-bold text-sm text-white truncate flex items-center gap-1.5">
+                  <div className="font-bold text-sm text-white truncate flex items-center gap-1.5 font-sans">
                     <span className="truncate">{member.name}</span>
                     {hasStrikes && (
-                      <span className="text-[10px] px-1.5 py-0.2 rounded bg-rose-500/20 text-rose-300 border border-rose-500/40 font-mono font-bold flex items-center gap-0.5">
+                      <span className="text-[10px] px-1.5 py-0.2 rounded bg-rose-500/20 text-rose-300 border border-rose-500/40 font-mono font-black flex items-center gap-0.5">
                         <AlertTriangle className="w-2.5 h-2.5" />
                         {member.strikes}
                       </span>
                     )}
                   </div>
 
-                  <div className="flex items-center gap-2 text-[11px] text-slate-400 font-mono mt-0.5">
+                  <div className="flex items-center gap-2 text-[11px] font-mono mt-0.5">
                     {gameId ? (
                       <button
                         onClick={e => handleCopyId(e, gameId)}
-                        className="inline-flex items-center gap-1 text-slate-400 hover:text-amber-400 transition-colors"
+                        className="inline-flex items-center gap-1 text-cyan-300/80 hover:text-cyan-200 transition-colors"
                       >
-                        <span>ID: {gameId}</span>
+                        <span>GID: {gameId}</span>
                         {copiedId === gameId ? (
                           <Check className="w-3 h-3 text-emerald-400" />
                         ) : (
@@ -159,13 +159,13 @@ export const AndroidRosterView: React.FC<AndroidRosterViewProps> = ({
                         )}
                       </button>
                     ) : (
-                      <span className="text-slate-500">ID: Not linked</span>
+                      <span className="text-slate-600">GID: UNLINKED</span>
                     )}
                   </div>
                 </div>
               </div>
 
-              <div className="flex items-center gap-1 text-slate-500">
+              <div className="flex items-center gap-1 text-cyan-400/50">
                 <ChevronRight className="w-4 h-4" />
               </div>
             </div>
@@ -180,10 +180,10 @@ export const AndroidRosterView: React.FC<AndroidRosterViewProps> = ({
             sounds.playClick();
             onOpenAddMember();
           }}
-          className="fixed bottom-20 right-5 z-40 w-14 h-14 rounded-full bg-gradient-to-r from-amber-500 to-amber-400 text-slate-950 flex items-center justify-center shadow-xl shadow-amber-500/30 active:scale-90 transition-transform cursor-pointer"
+          className="fixed bottom-24 right-5 z-40 w-14 h-14 rounded-full bg-gradient-to-r from-rose-600 via-rose-500 to-rose-600 text-white flex items-center justify-center shadow-[0_0_25px_rgba(225,29,72,0.6)] active:scale-90 transition-transform cursor-pointer android-pulse-crimson"
           aria-label="Add Member"
         >
-          <Plus className="w-6 h-6 stroke-[2.5]" />
+          <Plus className="w-6 h-6 stroke-[3]" />
         </button>
       )}
     </div>
