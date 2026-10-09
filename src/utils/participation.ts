@@ -1,5 +1,6 @@
 import { AllianceEvent, AttendanceRecord, EventParticipation, EventSlot } from '../types/crm';
 import { getComputedEventStatus } from './date';
+import { storageService } from '../services/storage';
 
 export interface MemberParticipationStats {
   memberId: string;
@@ -39,8 +40,10 @@ export function calculateMemberParticipation(
   eventParticipations: EventParticipation[] = [],
   eventSlots: EventSlot[] = []
 ): MemberParticipationStats {
-  // Count completed, live, or past events for fair and accurate evaluation
+  // Count completed, live, or past events for fair and accurate evaluation (excluding deleted events)
+  const deletedIds = new Set(storageService.getDeletedEventIds());
   const activeEvents = events.filter(e => {
+    if (deletedIds.has(e.id)) return false;
     if (e.status === 'Completed' || e.status === 'Live') return true;
     return getComputedEventStatus(e.date) === 'Completed';
   });

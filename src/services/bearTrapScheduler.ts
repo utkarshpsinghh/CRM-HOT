@@ -46,7 +46,8 @@ export function syncAndAutoScheduleBearTraps(
   slots: EventSlot[],
   participations: EventParticipation[],
   members: Member[],
-  referenceNowMs?: number
+  referenceNowMs?: number,
+  deletedEventIds: string[] = []
 ): {
   events: AllianceEvent[];
   slots: EventSlot[];
@@ -55,9 +56,10 @@ export function syncAndAutoScheduleBearTraps(
   prunedEventIds: string[];
 } {
   const nowMs = referenceNowMs ?? Date.now();
-  let updatedEvents = [...events];
-  let updatedSlots = [...slots];
-  let updatedParticipations = [...participations];
+  const deletedSet = new Set(deletedEventIds);
+  let updatedEvents = events.filter(e => !deletedSet.has(e.id));
+  let updatedSlots = slots.filter(s => !deletedSet.has(s.eventId) && !deletedSet.has(s.id));
+  let updatedParticipations = participations.filter(p => !deletedSet.has(p.eventId));
   let updatedCount = 0;
   const prunedEventIds: string[] = [];
 
@@ -152,8 +154,13 @@ export function syncAndAutoScheduleBearTraps(
     );
 
     if (!exists) {
-      // Within 24 hours before the event! Auto-schedule now.
       const parentId = `evt-parent-bt-${dateStr}`;
+      if (deletedSet.has(parentId) || deletedSet.has(dateStr)) {
+        k++;
+        continue;
+      }
+
+      // Within 24 hours before the event! Auto-schedule now.
       const slot1Id = `slot-${parentId}-1`;
       const slot2Id = `slot-${parentId}-2`;
 

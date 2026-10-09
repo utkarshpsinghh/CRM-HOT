@@ -364,9 +364,10 @@ export const apiService = {
 
   async deleteEventsByIds(eventIds: string[], settings?: AllianceSettings): Promise<boolean> {
     if (!eventIds.length) return true;
+    storageService.addDeletedEventIds(eventIds);
     const curEvents = storageService.getEvents().filter(e => !eventIds.includes(e.id));
     storageService.setEvents(curEvents);
-    const curSlots = storageService.getEventSlots().filter(s => !eventIds.includes(s.eventId));
+    const curSlots = storageService.getEventSlots().filter(s => !eventIds.includes(s.eventId) && !eventIds.includes(s.id));
     storageService.setEventSlots(curSlots);
     const curParts = storageService.getEventParticipations().filter(p => !eventIds.includes(p.eventId));
     storageService.setEventParticipations(curParts);

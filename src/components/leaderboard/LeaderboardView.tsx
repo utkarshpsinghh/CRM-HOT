@@ -21,6 +21,8 @@ import {
   Swords,
 } from 'lucide-react';
 import { sounds } from '../../utils/sound';
+import { storageService } from '../../services/storage';
+import { getComputedEventStatus } from '../../utils/date';
 
 interface MemberLeaderboardEntry {
   member: Member;
@@ -42,16 +44,26 @@ export const LeaderboardView: React.FC = () => {
   const [selectedRank, setSelectedRank] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState<string>('');
 
-  // 1. Determine events in selected timeframe
+  // 1. Determine events in selected timeframe (excluding deleted and unheld/upcoming events)
   const eligibleEvents = useMemo(() => {
-    if (timeframe === 'all') return events;
+    const deletedIds = new Set(storageService.getDeletedEventIds());
+    const validEvents = events.filter(e => !deletedIds.has(e.id));
+
+    // Turnout / Attendance rate only applies to concluded / completed events!
+    const completedEvents = validEvents.filter(e => {
+      if (e.status === 'Completed' || e.status === 'Live') return true;
+      const computed = getComputedEventStatus(e.date);
+      return computed === 'Completed';
+    });
+
+    if (timeframe === 'all') return completedEvents;
 
     const now = new Date();
     const currentYear = now.getFullYear();
     const currentMonth = now.getMonth();
 
     // Check events in current month
-    const thisMonthEvents = events.filter(e => {
+    const thisMonthEvents = completedEvents.filter(e => {
       const d = new Date(e.date);
       if (isNaN(d.getTime())) return false;
       return d.getFullYear() === currentYear && d.getMonth() === currentMonth;
@@ -59,11 +71,11 @@ export const LeaderboardView: React.FC = () => {
 
     if (thisMonthEvents.length < 2) {
       const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-      const rolling30Events = events.filter(e => {
+      const rolling30Events = completedEvents.filter(e => {
         const d = new Date(e.date);
         return !isNaN(d.getTime()) && d >= thirtyDaysAgo;
       });
-      return rolling30Events.length > 0 ? rolling30Events : events;
+      return rolling30Events.length > 0 ? rolling30Events : completedEvents;
     }
 
     return thisMonthEvents;

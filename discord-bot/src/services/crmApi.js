@@ -16,10 +16,11 @@ class CrmApiClient {
       const { data } = await this.supabase
         .from('settings')
         .select('key, value')
-        .in('key', ['crm_event_participations_cache', 'crm_event_slots_cache']);
+        .in('key', ['crm_event_participations_cache', 'crm_event_slots_cache', 'crm_deleted_event_ids']);
 
       let participations = [];
       let slots = [];
+      let deletedIds = new Set();
 
       (data || []).forEach(row => {
         try {
@@ -27,14 +28,20 @@ class CrmApiClient {
             participations = JSON.parse(row.value);
           } else if (row.key === 'crm_event_slots_cache') {
             slots = JSON.parse(row.value);
+          } else if (row.key === 'crm_deleted_event_ids') {
+            const arr = JSON.parse(row.value);
+            if (Array.isArray(arr)) arr.forEach(id => deletedIds.add(id));
           }
         } catch {}
       });
 
-      return { participations, slots };
+      participations = participations.filter(p => !deletedIds.has(p.eventId));
+      slots = slots.filter(s => !deletedIds.has(s.eventId) && !deletedIds.has(s.id));
+
+      return { participations, slots, deletedIds };
     } catch (err) {
       console.warn('[CRM CACHE] Failed to fetch settings cache:', err.message);
-      return { participations: [], slots: [] };
+      return { participations: [], slots: [], deletedIds: new Set() };
     }
   }
 
@@ -114,7 +121,7 @@ class CrmApiClient {
         this.supabase
           .from('settings')
           .select('*')
-          .in('key', ['crm_event_participations_cache']),
+          .in('key', ['crm_event_participations_cache', 'crm_deleted_event_ids']),
         this.supabase
           .from('events')
           .select('id, event_name, event_type, date, status'),
@@ -122,13 +129,21 @@ class CrmApiClient {
 
       const members = membersRes.data || [];
 
-      // Parse verified participations
+      // Parse verified participations and deleted events
       let participations = [];
+      let deletedIds = new Set();
       (settingsRes.data || []).forEach(r => {
         if (r.key === 'crm_event_participations_cache') {
           try { participations = JSON.parse(r.value); } catch {}
+        } else if (r.key === 'crm_deleted_event_ids') {
+          try {
+            const arr = JSON.parse(r.value);
+            if (Array.isArray(arr)) arr.forEach(id => deletedIds.add(id));
+          } catch {}
         }
       });
+
+      participations = participations.filter(p => !deletedIds.has(p.eventId));
 
       // Canonical 8 parent battle events (2 in Sep, 6 in Oct)
       const parentEvents = [
@@ -140,7 +155,7 @@ class CrmApiClient {
         { id: 'evt-parent-3-bear-trap-2026-10-01', eventName: 'Bear Trap #44', eventType: 'Bear Trap', date: '2026-10-01T16:00:00.000Z', status: 'Completed' },
         { id: 'evt-parent-2-bear-trap-2026-09-29', eventName: 'Bear Trap #43', eventType: 'Bear Trap', date: '2026-09-29T16:00:00.000Z', status: 'Completed' },
         { id: 'evt-parent-1-bear-trap-2026-09-27', eventName: 'Bear Trap #42', eventType: 'Bear Trap', date: '2026-09-27T16:00:00.000Z', status: 'Completed' },
-      ];
+      ].filter(e => !deletedIds.has(e.id));
 
       const legacyChildIds = new Set([
         'evt-185df6f0', 'evt-c233df90', 'evt-b7b108e7', 'evt-a7c586d3', 'evt-6f6a9d3a',
@@ -150,7 +165,7 @@ class CrmApiClient {
       ]);
 
       const dynamicCompleted = (dbEventsRes.data || []).filter(e => {
-        if (legacyChildIds.has(e.id)) return false;
+        if (legacyChildIds.has(e.id) || deletedIds.has(e.id)) return false;
         if (e.status === 'Completed') return true;
         if (e.date) {
           const t = new Date(e.date).getTime();
@@ -257,7 +272,7 @@ class CrmApiClient {
    */
   async getEvents(status = '', limit = 10) {
     try {
-      const [{ participations, slots }, dbEventsRes] = await Promise.all([
+      const [{ participations, slots, deletedIds }, dbEventsRes] = await Promise.all([
         this.getCachedParentData(),
         this.supabase
           .from('events')
@@ -267,7 +282,7 @@ class CrmApiClient {
 
       const dbEvents = dbEventsRes.data || [];
 
-      // Historical parent battle definitions matching the CRM
+      // Historical parent battle definitions matching the CRM (excluding deleted events)
       const parentEvents = [
         { id: 'evt-parent-8-bear-trap-2026-10-07', eventName: 'Bear Trap #47', eventType: 'Bear Trap', date: '2026-10-07T16:00:00.000Z', status: 'Completed' },
         { id: 'evt-parent-7-bear-trap-2026-10-05', eventName: 'Bear Trap #46', eventType: 'Bear Trap', date: '2026-10-05T16:00:00.000Z', status: 'Completed' },
@@ -277,7 +292,7 @@ class CrmApiClient {
         { id: 'evt-parent-3-bear-trap-2026-10-01', eventName: 'Bear Trap #44', eventType: 'Bear Trap', date: '2026-10-01T16:00:00.000Z', status: 'Completed' },
         { id: 'evt-parent-2-bear-trap-2026-09-29', eventName: 'Bear Trap #43', eventType: 'Bear Trap', date: '2026-09-29T16:00:00.000Z', status: 'Completed' },
         { id: 'evt-parent-1-bear-trap-2026-09-27', eventName: 'Bear Trap #42', eventType: 'Bear Trap', date: '2026-09-27T16:00:00.000Z', status: 'Completed' },
-      ];
+      ].filter(e => !deletedIds.has(e.id));
 
       // Known legacy child event IDs from the original dual-event migration
       const legacyChildIds = new Set([

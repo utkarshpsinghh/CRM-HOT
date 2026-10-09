@@ -3,6 +3,8 @@ import { useCRM } from '../../../context/CRMContext';
 import { Member } from '../../../types/crm';
 import { Trophy, Crown, Medal, Award, Search, Calendar, Star, ShieldCheck, AlertCircle } from 'lucide-react';
 import { sounds } from '../../../utils/sound';
+import { storageService } from '../../../services/storage';
+import { getComputedEventStatus } from '../../../utils/date';
 
 interface AndroidLeaderboardViewProps {
   onSelectMember: (member: Member) => void;
@@ -14,21 +16,30 @@ export const AndroidLeaderboardView: React.FC<AndroidLeaderboardViewProps> = ({ 
   const [timeframe, setTimeframe] = useState<'all' | 'month'>('all');
   const [search, setSearch] = useState('');
 
-  // 1. Determine events in selected timeframe
+  // 1. Determine events in selected timeframe (excluding deleted and unheld/upcoming events)
   const eligibleEvents = useMemo(() => {
-    if (timeframe === 'all') return events;
+    const deletedIds = new Set(storageService.getDeletedEventIds());
+    const validEvents = events.filter(e => !deletedIds.has(e.id));
+
+    const completedEvents = validEvents.filter(e => {
+      if (e.status === 'Completed' || e.status === 'Live') return true;
+      const computed = getComputedEventStatus(e.date);
+      return computed === 'Completed';
+    });
+
+    if (timeframe === 'all') return completedEvents;
 
     const now = new Date();
     const currentYear = now.getFullYear();
     const currentMonth = now.getMonth();
 
-    const thisMonthEvents = events.filter(e => {
+    const thisMonthEvents = completedEvents.filter(e => {
       const d = new Date(e.date);
       if (isNaN(d.getTime())) return false;
       return d.getFullYear() === currentYear && d.getMonth() === currentMonth;
     });
 
-    return thisMonthEvents.length >= 2 ? thisMonthEvents : events;
+    return thisMonthEvents.length >= 2 ? thisMonthEvents : completedEvents;
   }, [events, timeframe]);
 
   // 2. Compute stats matching the official CRM sorting

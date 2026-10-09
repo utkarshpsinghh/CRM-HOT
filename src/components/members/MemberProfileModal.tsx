@@ -22,7 +22,8 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import { sounds } from '../../utils/sound';
-import { safeFormatDateTime } from '../../utils/date';
+import { safeFormatDateTime, getComputedEventStatus } from '../../utils/date';
+import { storageService } from '../../services/storage';
 
 interface MemberProfileModalProps {
   isOpen: boolean;
@@ -86,12 +87,24 @@ export const MemberProfileModal: React.FC<MemberProfileModalProps> = ({
       .sort((a, b) => new Date(b.event!.date).getTime() - new Date(a.event!.date).getTime());
   }, [member, events, eventSlots, eventParticipations]);
 
-  // Overall attendance, vote, and reliability rates across completed parent events
+  // Overall attendance, vote, and reliability rates across completed parent events (excluding deleted events)
   const overallStats = useMemo(() => {
-    const totalEvents = events.length;
-    const attendedCount = memberParticipationsList.filter(item => item.participation.attendanceStatus === 'ATTENDED').length;
-    const votedCount = memberParticipationsList.filter(item => item.participation.voteStatus === 'VOTED').length;
-    const attendedWhenVoted = memberParticipationsList.filter(item => item.participation.voteStatus === 'VOTED' && item.participation.attendanceStatus === 'ATTENDED').length;
+    const deletedIds = new Set(storageService.getDeletedEventIds());
+    const validCompletedEvents = events.filter(
+      e => !deletedIds.has(e.id) && (e.status === 'Completed' || e.status === 'Live' || getComputedEventStatus(e.date) === 'Completed')
+    );
+    const totalEvents = validCompletedEvents.length;
+    const completedEventIdSet = new Set(validCompletedEvents.map(e => e.id));
+
+    const attendedCount = memberParticipationsList.filter(
+      item => completedEventIdSet.has(item.event!.id) && item.participation.attendanceStatus === 'ATTENDED'
+    ).length;
+    const votedCount = memberParticipationsList.filter(
+      item => completedEventIdSet.has(item.event!.id) && item.participation.voteStatus === 'VOTED'
+    ).length;
+    const attendedWhenVoted = memberParticipationsList.filter(
+      item => completedEventIdSet.has(item.event!.id) && item.participation.voteStatus === 'VOTED' && item.participation.attendanceStatus === 'ATTENDED'
+    ).length;
 
     const rate = totalEvents > 0 ? (attendedCount / totalEvents) * 100 : 0;
     const voteRate = totalEvents > 0 ? (votedCount / totalEvents) * 100 : 0;

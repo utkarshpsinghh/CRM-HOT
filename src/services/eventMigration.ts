@@ -100,15 +100,81 @@ export const HISTORICAL_PAIRS: Array<{
 ];
 
 /**
+ * Helper to collect all related IDs for an event: parent ID, slot IDs, legacy historical IDs, and aliases
+ */
+export function getAllEventRelatedIds(
+  eventId: string,
+  events: AllianceEvent[] = [],
+  slots: EventSlot[] = []
+): string[] {
+  const ids = new Set<string>();
+  ids.add(eventId);
+
+  // 1. Check against HISTORICAL_PAIRS
+  HISTORICAL_PAIRS.forEach((pair, idx) => {
+    const parentId = `evt-parent-${idx + 1}-${pair.type.toLowerCase().replace(/\s+/g, '-')}-${pair.date.slice(0, 10)}`;
+    const altBtParentId = `evt-parent-bt-${pair.date.slice(0, 10)}`;
+    const legacy1 = pair.slot1.legacyId;
+    const legacy2 = pair.slot2.legacyId;
+    const slot1Id = `slot-${parentId}-1`;
+    const slot2Id = `slot-${parentId}-2`;
+
+    if (
+      eventId === parentId ||
+      eventId === altBtParentId ||
+      eventId === legacy1 ||
+      eventId === legacy2 ||
+      eventId === slot1Id ||
+      eventId === slot2Id
+    ) {
+      ids.add(parentId);
+      ids.add(altBtParentId);
+      ids.add(legacy1);
+      ids.add(legacy2);
+      ids.add(slot1Id);
+      ids.add(slot2Id);
+    }
+  });
+
+  // 2. Check slots from eventSlots
+  slots.forEach(s => {
+    if (s.eventId === eventId || ids.has(s.eventId)) {
+      ids.add(s.eventId);
+      ids.add(s.id);
+    }
+    if (s.id === eventId) {
+      ids.add(s.eventId);
+      ids.add(s.id);
+    }
+  });
+
+  // 3. Check events that might share the same date/type or slot name
+  const targetEvt = events.find(e => ids.has(e.id));
+  if (targetEvt && targetEvt.date) {
+    const datePrefix = targetEvt.date.slice(0, 10);
+    events.forEach(e => {
+      if (e.date && e.date.slice(0, 10) === datePrefix && (e.eventType === targetEvt.eventType || e.eventName === targetEvt.eventName)) {
+        ids.add(e.id);
+      }
+    });
+  }
+
+  return Array.from(ids);
+}
+
+/**
  * Perform safe, idempotent historical migration of legacy events and attendance records
  */
 export function migrateHistoricalEvents(
   legacyEvents: AllianceEvent[],
-  legacyAttendance: AttendanceRecord[]
+  legacyAttendance: AttendanceRecord[],
+  deletedEventIds: string[] = []
 ): MigrationBundle {
   const newEvents: AllianceEvent[] = [];
   const newSlots: EventSlot[] = [];
   const newParticipations: EventParticipation[] = [];
+
+  const deletedSet = new Set(deletedEventIds);
 
   let votesMigratedCount = 0;
   let attendanceRecordsMigratedCount = 0;
@@ -122,8 +188,20 @@ export function migrateHistoricalEvents(
     handledLegacyEventIds.add(pair.slot2.legacyId);
 
     const parentId = `evt-parent-${idx + 1}-${pair.type.toLowerCase().replace(/\s+/g, '-')}-${pair.date.slice(0, 10)}`;
+    const altBtParentId = `evt-parent-bt-${pair.date.slice(0, 10)}`;
     handledLegacyEventIds.add(parentId);
-    handledLegacyEventIds.add(`evt-parent-bt-${pair.date.slice(0, 10)}`);
+    handledLegacyEventIds.add(altBtParentId);
+
+    // If this historical pair or any of its constituent IDs was deleted, do NOT resurrect it!
+    if (
+      deletedSet.has(parentId) ||
+      deletedSet.has(altBtParentId) ||
+      deletedSet.has(pair.slot1.legacyId) ||
+      deletedSet.has(pair.slot2.legacyId)
+    ) {
+      return;
+    }
+
     const slot1Id = `slot-${parentId}-1`;
     const slot2Id = `slot-${parentId}-2`;
 
@@ -232,8 +310,11 @@ export function migrateHistoricalEvents(
   });
 
   // 2. Process any other remaining legacy events that weren't in HISTORICAL_PAIRS
-  const remainingEvents = legacyEvents.filter(e => !handledLegacyEventIds.has(e.id));
+  const remainingEvents = legacyEvents.filter(e => !handledLegacyEventIds.has(e.id) && !deletedSet.has(e.id));
   remainingEvents.forEach((oldEvt, rIdx) => {
+    if (deletedSet.has(oldEvt.id)) {
+      return;
+    }
     // If already in newEvents, skip
     if (newEvents.some(e => e.id === oldEvt.id)) {
       return;

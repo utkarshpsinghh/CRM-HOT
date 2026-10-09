@@ -1,16 +1,18 @@
 import React, { useState, useMemo } from 'react';
 import { useCRM } from '../../../context/CRMContext';
 import { useAuth } from '../../../context/AuthContext';
-import { Swords, Flame, Clock, CheckCircle2, XCircle, Users, ChevronRight, Vote, Calendar, Award } from 'lucide-react';
+import { Swords, Flame, Clock, CheckCircle2, XCircle, Users, ChevronRight, Vote, Calendar, Award, Trash2, AlertTriangle } from 'lucide-react';
 import { sounds } from '../../../utils/sound';
 
 export const AndroidWarRoomView: React.FC = () => {
-  const { events, eventSlots, eventParticipations, members, updateParticipationAttendance, updateParticipationVote } = useCRM();
+  const { events, eventSlots, eventParticipations, members, updateParticipationAttendance, updateParticipationVote, deleteEvent } = useCRM();
   const { isMainAdmin, isAuthenticated } = useAuth();
   const canManage = isAuthenticated;
 
   const [searchMember, setSearchMember] = useState('');
   const [selectedSlotFilter, setSelectedSlotFilter] = useState<'ALL' | string>('ALL');
+  const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Find upcoming or most recent battle
   const sortedEvents = useMemo(() => {
@@ -78,9 +80,23 @@ export const AndroidWarRoomView: React.FC = () => {
           </div>
 
           {/* Event Name */}
-          <h2 className="text-xl font-black text-white mt-2.5 tracking-tight font-sans">
-            {upcomingEvent.eventName}
-          </h2>
+          <div className="flex items-center justify-between gap-2 mt-2.5">
+            <h2 className="text-xl font-black text-white tracking-tight font-sans">
+              {upcomingEvent.eventName}
+            </h2>
+            {isMainAdmin && (
+              <button
+                onClick={() => {
+                  sounds.playAlert();
+                  setIsConfirmDeleteOpen(true);
+                }}
+                className="p-1.5 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-400 hover:bg-rose-500/20 active:scale-95 transition-all cursor-pointer"
+                title="Delete Event"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            )}
+          </div>
 
           {/* Slots Strip */}
           {currentSlots.length > 0 && (
@@ -219,6 +235,47 @@ export const AndroidWarRoomView: React.FC = () => {
           ))}
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {isConfirmDeleteOpen && upcomingEvent && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+          <div className="bg-[#0b0f19] border border-rose-500/40 rounded-3xl p-5 max-w-sm w-full shadow-2xl text-center space-y-4">
+            <div className="w-12 h-12 rounded-2xl bg-rose-500/15 border border-rose-500/30 flex items-center justify-center mx-auto text-rose-400">
+              <AlertTriangle className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="font-bold text-base text-white">Permanently Delete Event?</h3>
+              <p className="text-xs text-slate-400 mt-1.5 leading-relaxed">
+                Are you sure you want to delete <span className="text-rose-400 font-semibold">{upcomingEvent.eventName}</span>? All turnout and attendance records for this battle will be permanently eradicated.
+              </p>
+            </div>
+            <div className="flex gap-2.5 pt-1">
+              <button
+                onClick={() => {
+                  sounds.playClick();
+                  setIsConfirmDeleteOpen(false);
+                }}
+                disabled={isDeleting}
+                className="flex-1 py-2.5 rounded-xl border border-slate-700 bg-slate-800/80 text-slate-300 text-xs font-bold font-mono active:scale-95 transition-all cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  setIsDeleting(true);
+                  await deleteEvent(upcomingEvent.id);
+                  setIsDeleting(false);
+                  setIsConfirmDeleteOpen(false);
+                }}
+                disabled={isDeleting}
+                className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-500 hover:to-rose-600 text-white text-xs font-bold font-mono shadow-lg shadow-rose-600/30 active:scale-95 transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+              >
+                {isDeleting ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -23,6 +23,7 @@ const STORAGE_KEYS = {
   ADMIN_ACCOUNTS: 'crm_hot_admin_accounts_v1',
   CONTRIBUTIONS: 'crm_hot_contributions_v1',
   INITIALIZED: 'crm_hot_initialized_v2',
+  DELETED_EVENT_IDS: 'crm_hot_deleted_event_ids_v1',
 };
 
 export function deduplicateMembers(members: Member[]): Member[] {
@@ -287,18 +288,44 @@ export const storageService = {
     localStorage.setItem(STORAGE_KEYS.MEMBERS, JSON.stringify(deduplicateMembers(members)));
   },
 
+  getDeletedEventIds(): string[] {
+    const raw = localStorage.getItem(STORAGE_KEYS.DELETED_EVENT_IDS);
+    if (!raw) return [];
+    try {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  },
+
+  addDeletedEventIds(ids: string[]) {
+    if (!ids || ids.length === 0) return;
+    const current = this.getDeletedEventIds();
+    const updated = Array.from(new Set([...current, ...ids]));
+    localStorage.setItem(STORAGE_KEYS.DELETED_EVENT_IDS, JSON.stringify(updated));
+  },
+
+  isEventDeleted(id: string): boolean {
+    const list = this.getDeletedEventIds();
+    return list.includes(id);
+  },
+
   getEvents(): AllianceEvent[] {
     const raw = localStorage.getItem(STORAGE_KEYS.EVENTS);
     if (!raw) return [];
+    const deletedIds = new Set(this.getDeletedEventIds());
     try {
       const parsed: AllianceEvent[] = JSON.parse(raw);
       if (Array.isArray(parsed)) {
-        return parsed.map(e => {
-          if (e.status === 'Scheduled' && getComputedEventStatus(e.date) === 'Completed') {
-            return { ...e, status: 'Completed' };
-          }
-          return e;
-        });
+        return parsed
+          .filter(e => !deletedIds.has(e.id))
+          .map(e => {
+            if (e.status === 'Scheduled' && getComputedEventStatus(e.date) === 'Completed') {
+              return { ...e, status: 'Completed' };
+            }
+            return e;
+          });
       }
       return [];
     } catch {
@@ -307,12 +334,15 @@ export const storageService = {
   },
 
   setEvents(events: AllianceEvent[]) {
-    localStorage.setItem(STORAGE_KEYS.EVENTS, JSON.stringify(events));
+    const deletedIds = new Set(this.getDeletedEventIds());
+    const filtered = (events || []).filter(e => !deletedIds.has(e.id));
+    localStorage.setItem(STORAGE_KEYS.EVENTS, JSON.stringify(filtered));
   },
 
   getAttendance(): AttendanceRecord[] {
     const raw = localStorage.getItem(STORAGE_KEYS.ATTENDANCE);
     const list: AttendanceRecord[] = raw ? JSON.parse(raw) : [];
+    const deletedIds = new Set(this.getDeletedEventIds());
     const EVENT_ID_ALIASES: Record<string, string> = {
       'evt-1790607589476-kins': 'evt-c233df90',
       'evt-1791048690819-7icl': 'evt-6f6a9d3a',
@@ -321,13 +351,16 @@ export const storageService = {
       'evt-1791049171203-10e5': 'evt-f9234e34',
       'evt-1791223308841-6mkk': 'evt-4eee1101',
     };
-    return list.map(a => {
-      const mapped = EVENT_ID_ALIASES[a.eventId] || a.eventId;
-      return mapped !== a.eventId ? { ...a, eventId: mapped } : a;
-    });
+    return list
+      .filter(a => !deletedIds.has(a.eventId))
+      .map(a => {
+        const mapped = EVENT_ID_ALIASES[a.eventId] || a.eventId;
+        return mapped !== a.eventId ? { ...a, eventId: mapped } : a;
+      });
   },
 
   setAttendance(records: AttendanceRecord[]) {
+    const deletedIds = new Set(this.getDeletedEventIds());
     const EVENT_ID_ALIASES: Record<string, string> = {
       'evt-1790607589476-kins': 'evt-c233df90',
       'evt-1791048690819-7icl': 'evt-6f6a9d3a',
@@ -336,35 +369,57 @@ export const storageService = {
       'evt-1791049171203-10e5': 'evt-f9234e34',
       'evt-1791223308841-6mkk': 'evt-4eee1101',
     };
-    const normalized = (records || []).map(a => {
-      const mapped = EVENT_ID_ALIASES[a.eventId] || a.eventId;
-      return mapped !== a.eventId ? { ...a, eventId: mapped } : a;
-    });
+    const normalized = (records || [])
+      .filter(a => !deletedIds.has(a.eventId))
+      .map(a => {
+        const mapped = EVENT_ID_ALIASES[a.eventId] || a.eventId;
+        return mapped !== a.eventId ? { ...a, eventId: mapped } : a;
+      });
     localStorage.setItem(STORAGE_KEYS.ATTENDANCE, JSON.stringify(normalized));
   },
 
   getEventSlots(): EventSlot[] {
     const raw = localStorage.getItem(STORAGE_KEYS.EVENT_SLOTS);
-    return raw ? JSON.parse(raw) : [];
+    if (!raw) return [];
+    const deletedIds = new Set(this.getDeletedEventIds());
+    try {
+      const parsed: EventSlot[] = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed.filter(s => !deletedIds.has(s.eventId) && !deletedIds.has(s.id)) : [];
+    } catch {
+      return [];
+    }
   },
 
   setEventSlots(slots: EventSlot[]) {
-    localStorage.setItem(STORAGE_KEYS.EVENT_SLOTS, JSON.stringify(slots));
+    const deletedIds = new Set(this.getDeletedEventIds());
+    const filtered = (slots || []).filter(s => !deletedIds.has(s.eventId) && !deletedIds.has(s.id));
+    localStorage.setItem(STORAGE_KEYS.EVENT_SLOTS, JSON.stringify(filtered));
   },
 
   getEventParticipations(): EventParticipation[] {
     const raw = localStorage.getItem(STORAGE_KEYS.EVENT_PARTICIPATIONS);
-    return raw ? JSON.parse(raw) : [];
+    if (!raw) return [];
+    const deletedIds = new Set(this.getDeletedEventIds());
+    try {
+      const parsed: EventParticipation[] = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed.filter(p => !deletedIds.has(p.eventId)) : [];
+    } catch {
+      return [];
+    }
   },
 
   setEventParticipations(participations: EventParticipation[]) {
-    localStorage.setItem(STORAGE_KEYS.EVENT_PARTICIPATIONS, JSON.stringify(participations));
+    const deletedIds = new Set(this.getDeletedEventIds());
+    const filtered = (participations || []).filter(p => !deletedIds.has(p.eventId));
+    localStorage.setItem(STORAGE_KEYS.EVENT_PARTICIPATIONS, JSON.stringify(filtered));
   },
 
   getMigratedOrStoredEvents(): { events: AllianceEvent[]; slots: EventSlot[]; participations: EventParticipation[] } {
-    const storedSlots = this.getEventSlots();
-    const storedParticipations = this.getEventParticipations();
-    const storedEvents = this.getEvents();
+    const deletedIds = this.getDeletedEventIds();
+    const deletedIdSet = new Set(deletedIds);
+    const storedSlots = this.getEventSlots().filter(s => !deletedIdSet.has(s.eventId) && !deletedIdSet.has(s.id));
+    const storedParticipations = this.getEventParticipations().filter(p => !deletedIdSet.has(p.eventId));
+    const storedEvents = this.getEvents().filter(e => !deletedIdSet.has(e.id));
 
     let currentEvents: AllianceEvent[];
     let currentSlots: EventSlot[];
@@ -380,13 +435,14 @@ export const storageService = {
     } else {
       // Auto-migrate from existing legacy events and attendance
       const legacyAtt = this.getAttendance();
-      const bundle = migrateHistoricalEvents(storedEvents, legacyAtt);
+      const bundle = migrateHistoricalEvents(storedEvents, legacyAtt, deletedIds);
       if (bundle.participations.length > 0) {
         this.setEventSlots(bundle.slots);
         this.setEventParticipations(bundle.participations);
-        // Ensure parent events are present in stored events (exclude legacy slot events)
+        // Ensure parent events are present in stored events (exclude legacy slot events and deleted events)
         const mergedEvents = [...bundle.events];
         for (const e of storedEvents) {
+          if (deletedIdSet.has(e.id)) continue;
           if (e.eventType === 'BT1' || e.eventType === 'BT2' || e.eventType.startsWith('Swordland') || e.eventType.startsWith('Tri Alliance L') || e.id.startsWith('evt-parent-bt-')) {
             continue;
           }
@@ -395,9 +451,9 @@ export const storageService = {
           }
         }
         this.setEvents(mergedEvents);
-        currentEvents = bundle.events;
-        currentSlots = bundle.slots;
-        currentParticipations = bundle.participations;
+        currentEvents = bundle.events.filter(e => !deletedIdSet.has(e.id));
+        currentSlots = bundle.slots.filter(s => !deletedIdSet.has(s.eventId) && !deletedIdSet.has(s.id));
+        currentParticipations = bundle.participations.filter(p => !deletedIdSet.has(p.eventId));
       } else {
         currentEvents = storedEvents;
         currentSlots = storedSlots;
@@ -407,7 +463,7 @@ export const storageService = {
 
     // Enforce strict Bear Trap sequence and auto-schedule upcoming cycles (only 24h before event)
     const members = this.getMembers();
-    const synced = syncAndAutoScheduleBearTraps(currentEvents, currentSlots, currentParticipations, members);
+    const synced = syncAndAutoScheduleBearTraps(currentEvents, currentSlots, currentParticipations, members, undefined, deletedIds);
     if (synced.updatedCount > 0 || synced.prunedEventIds.length > 0) {
       this.setEvents(synced.events);
       this.setEventSlots(synced.slots);

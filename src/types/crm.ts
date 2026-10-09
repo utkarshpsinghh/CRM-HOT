@@ -171,6 +171,7 @@ export interface AllianceSettings {
   underDevelopment?: boolean;      // Under Development mode toggle
   googleSheetUrl?: string;         // Alliance Google Sheet URL
   apiKeys?: ApiKeyItem[];          // External API integration keys
+  deletedEventIds?: string[];      // Tombstone list of permanently deleted event IDs
 }
 
 export interface ApiKeyItem {

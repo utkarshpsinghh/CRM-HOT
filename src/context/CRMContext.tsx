@@ -30,7 +30,7 @@ import { initialMembers } from '../services/mockData';
 import { sounds } from '../utils/sound';
 import { formatCurrentUtcTime, getComputedEventStatus, parseDateAsUtc } from '../utils/date';
 import { useAuth } from './AuthContext';
-import { migrateHistoricalEvents, mapParticipationToLegacyAttendanceRows } from '../services/eventMigration';
+import { migrateHistoricalEvents, mapParticipationToLegacyAttendanceRows, getAllEventRelatedIds } from '../services/eventMigration';
 import { getDefaultSlotsForEventType } from '../utils/eventCalculations';
 import { syncAndAutoScheduleBearTraps } from '../services/bearTrapScheduler';
 
@@ -405,10 +405,13 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             }
 
             // Synthesize canonical 2-slot parent events from raw Supabase events and attendance
-            const rawEvents = Array.isArray(allData.events) && allData.events.length > 0 ? allData.events : storageService.getEvents();
-            const rawAttendance = Array.isArray(allData.attendance) && allData.attendance.length > 0 ? allData.attendance : storageService.getAttendance();
+            const deletedIds = storageService.getDeletedEventIds();
+            const rawEvents = (Array.isArray(allData.events) && allData.events.length > 0 ? allData.events : storageService.getEvents())
+              .filter((e: AllianceEvent) => !deletedIds.includes(e.id));
+            const rawAttendance = (Array.isArray(allData.attendance) && allData.attendance.length > 0 ? allData.attendance : storageService.getAttendance())
+              .filter((a: AttendanceRecord) => !deletedIds.includes(a.eventId));
 
-            const bundle = migrateHistoricalEvents(rawEvents, rawAttendance);
+            const bundle = migrateHistoricalEvents(rawEvents, rawAttendance, deletedIds);
             let processedEvents = bundle.events;
             let processedSlots = bundle.slots;
             let processedParticipations = bundle.participations;
@@ -418,14 +421,16 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               processedEvents,
               processedSlots,
               processedParticipations,
-              remoteMembers
+              remoteMembers,
+              undefined,
+              deletedIds
             );
             processedEvents = scheduledBundle.events;
             processedSlots = scheduledBundle.slots;
             processedParticipations = scheduledBundle.participations;
 
             // Reconcile and preserve any locally marked attendance/votes so refresh never wipes user changes
-            const localStoredParts = storageService.getEventParticipations();
+            const localStoredParts = storageService.getEventParticipations().filter(p => !deletedIds.includes(p.eventId));
             if (localStoredParts.length > 0) {
               const localMap = new Map(localStoredParts.map(p => [`${p.eventId}_${p.memberId}`, p]));
               let hasLocalSyncDifferences = false;
@@ -1028,9 +1033,10 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const strikesTotal = members.filter(m => m.strikes > 0).length;
     const needsAttention = inactiveInsights.length;
 
-    // Fast calculation across completed events using Set lookup
+    // Fast calculation across completed events using Set lookup (excluding deleted events)
+    const deletedIdSet = new Set(storageService.getDeletedEventIds());
     const completedEventIds = new Set(
-      events.filter(e => e.status === 'Completed' || getComputedEventStatus(e.date) === 'Completed').map(e => e.id)
+      events.filter(e => !deletedIdSet.has(e.id) && (e.status === 'Completed' || getComputedEventStatus(e.date) === 'Completed')).map(e => e.id)
     );
     let totalJoined = 0;
     let totalExpected = 0;
@@ -1638,19 +1644,36 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const targetEvent = events.find(e => e.id === eventId);
       const eventName = targetEvent?.eventName || 'Event';
 
-      // Optimistically update local state
-      setEvents(prev => prev.filter(e => e.id !== eventId));
-      setEventSlots(prev => prev.filter(s => s.eventId !== eventId));
-      setEventParticipations(prev => prev.filter(p => p.eventId !== eventId));
-      setAttendance(prev => prev.filter(a => a.eventId !== eventId));
+      // 1. Collect ALL associated IDs (parent, slots, historical legacy IDs, aliases)
+      const allTargetIds = getAllEventRelatedIds(eventId, events, eventSlots);
+      const targetIdSet = new Set(allTargetIds);
+
+      // 2. Persist tombstone immediately
+      storageService.addDeletedEventIds(allTargetIds);
+
+      // 3. Instant local & state updates (0ms)
+      const remainingEvents = events.filter(e => !targetIdSet.has(e.id));
+      const remainingSlots = eventSlots.filter(s => !targetIdSet.has(s.eventId) && !targetIdSet.has(s.id));
+      const remainingParts = eventParticipations.filter(p => !targetIdSet.has(p.eventId));
+      const remainingAtt = attendance.filter(a => !targetIdSet.has(a.eventId));
+
+      setEvents(remainingEvents);
+      setEventSlots(remainingSlots);
+      setEventParticipations(remainingParts);
+      setAttendance(remainingAtt);
+
+      storageService.setEvents(remainingEvents);
+      storageService.setEventSlots(remainingSlots);
+      storageService.setEventParticipations(remainingParts);
+      storageService.setAttendance(remainingAtt);
 
       // Reset selectedEventIdForAttendance if it was the deleted event
-      if (selectedEventIdForAttendance === eventId) {
-        const remaining = events.filter(e => e.id !== eventId);
-        setSelectedEventIdForAttendance(remaining.length > 0 ? remaining[0].id : null);
+      if (selectedEventIdForAttendance && targetIdSet.has(selectedEventIdForAttendance)) {
+        setSelectedEventIdForAttendance(remainingEvents.length > 0 ? remainingEvents[0].id : null);
       }
 
-      const success = await apiService.deleteEventsByIds([eventId], settings);
+      // 4. Background cloud sync to remove from Supabase DB tables & shadow caches
+      const success = await apiService.deleteEventsByIds(allTargetIds, settings);
       if (success) {
         sounds.playSuccess();
         addToast({

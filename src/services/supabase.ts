@@ -242,22 +242,42 @@ export const supabaseService = {
         }
       }
 
-        return {
-          members: deduplicateMembers((membersRes.data || []).map(this.mapMemberFromRow)),
-          events: (eventsRes.data || []).map(this.mapEventFromRow),
-          slots: remoteSlots,
-          participations: remoteParticipations,
-          attendance: (allAttendanceRows || []).map(this.mapAttendanceFromRow),
-          strikes: (strikesRes.data || []).map(this.mapStrikeFromRow),
-          communications: (commsRes.data || []).map(this.mapCommFromRow),
-          admins: (adminsRes.data || []).map(this.mapAdminFromRow),
-          contributions: (contributionsRes.data || []).map(this.mapContributionFromRow),
-          settings: remoteSettings,
-        };
-      } catch (err) {
-        console.error('Supabase getAllData error:', err);
-        return null;
+      // Extract tombstone deleted event IDs
+      const delRow = (settingsRows || []).find((r: any) => r.key === 'crm_deleted_event_ids');
+      let cloudDeletedIds: string[] = [];
+      if (delRow?.value) {
+        try {
+          const parsedDel = JSON.parse(delRow.value);
+          if (Array.isArray(parsedDel)) cloudDeletedIds = parsedDel;
+        } catch {}
       }
+      storageService.addDeletedEventIds(cloudDeletedIds);
+      const allDeletedSet = new Set(storageService.getDeletedEventIds());
+
+      const rawEvents = (eventsRes.data || []).map(this.mapEventFromRow).filter(e => !allDeletedSet.has(e.id));
+      const filteredSlots = remoteSlots.filter(s => !allDeletedSet.has(s.eventId) && !allDeletedSet.has(s.id));
+      const filteredParticipations = remoteParticipations.filter(p => !allDeletedSet.has(p.eventId));
+      const filteredAttendance = (allAttendanceRows || []).map(this.mapAttendanceFromRow).filter(a => !allDeletedSet.has(a.eventId));
+
+      return {
+        members: deduplicateMembers((membersRes.data || []).map(this.mapMemberFromRow)),
+        events: rawEvents,
+        slots: filteredSlots,
+        participations: filteredParticipations,
+        attendance: filteredAttendance,
+        strikes: (strikesRes.data || []).map(this.mapStrikeFromRow),
+        communications: (commsRes.data || []).map(this.mapCommFromRow),
+        admins: (adminsRes.data || []).map(this.mapAdminFromRow),
+        contributions: (contributionsRes.data || []).map(this.mapContributionFromRow),
+        settings: {
+          ...remoteSettings,
+          deletedEventIds: Array.from(allDeletedSet),
+        },
+      };
+    } catch (err) {
+      console.error('Supabase getAllData error:', err);
+      return null;
+    }
     },
 
     async saveSettings(settings: AllianceSettings): Promise<boolean> {
@@ -708,12 +728,77 @@ export const supabaseService = {
     const client = this.getClient(settings);
     if (!client) return false;
     try {
+      // 1. Delete rows in Supabase tables
       await Promise.allSettled([
         client.from('event_participations').delete().in('event_id', eventIds),
         client.from('event_slots').delete().in('event_id', eventIds),
+        client.from('event_slots').delete().in('id', eventIds),
         client.from('attendance').delete().in('event_id', eventIds),
         client.from('events').delete().in('id', eventIds),
       ]);
+
+      // 2. Prune shadow participations cache in Supabase settings table
+      try {
+        const { data: partCacheData } = await client
+          .from('settings')
+          .select('value')
+          .eq('key', 'crm_event_participations_cache')
+          .single();
+        if (partCacheData?.value) {
+          const parsedParts = JSON.parse(partCacheData.value);
+          if (Array.isArray(parsedParts)) {
+            const filteredParts = parsedParts.filter((p: any) => !eventIds.includes(p.eventId));
+            await client.from('settings').upsert({
+              key: 'crm_event_participations_cache',
+              value: JSON.stringify(filteredParts),
+            }, { onConflict: 'key' });
+          }
+        }
+      } catch (err) {
+        console.warn('Prune crm_event_participations_cache error:', err);
+      }
+
+      // 3. Prune shadow slots cache in Supabase settings table
+      try {
+        const { data: slotCacheData } = await client
+          .from('settings')
+          .select('value')
+          .eq('key', 'crm_event_slots_cache')
+          .single();
+        if (slotCacheData?.value) {
+          const parsedSlots = JSON.parse(slotCacheData.value);
+          if (Array.isArray(parsedSlots)) {
+            const filteredSlots = parsedSlots.filter((s: any) => !eventIds.includes(s.eventId) && !eventIds.includes(s.id));
+            await client.from('settings').upsert({
+              key: 'crm_event_slots_cache',
+              value: JSON.stringify(filteredSlots),
+            }, { onConflict: 'key' });
+          }
+        }
+      } catch (err) {
+        console.warn('Prune crm_event_slots_cache error:', err);
+      }
+
+      // 4. Update persistent deleted event IDs tombstone in Supabase settings
+      try {
+        const { data: delRow } = await client
+          .from('settings')
+          .select('value')
+          .eq('key', 'crm_deleted_event_ids')
+          .single();
+        let existingDeleted: string[] = [];
+        if (delRow?.value) {
+          try { existingDeleted = JSON.parse(delRow.value); } catch {}
+        }
+        const updatedDeleted = Array.from(new Set([...existingDeleted, ...eventIds]));
+        await client.from('settings').upsert({
+          key: 'crm_deleted_event_ids',
+          value: JSON.stringify(updatedDeleted),
+        }, { onConflict: 'key' });
+      } catch (err) {
+        console.warn('Update crm_deleted_event_ids error:', err);
+      }
+
       return true;
     } catch (err) {
       console.warn('deleteEventsByIds exception:', err);
