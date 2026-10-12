@@ -143,20 +143,27 @@ export function getAllEventRelatedIds(
     }
   });
 
-  // 3. Check events that might share the same date/type or slot name (including 24h proximity for cycle alignment)
+  // 3. Extract date pattern (YYYY-MM-DD) from eventId if present (e.g. evt-parent-bt-2026-10-09)
+  const dateMatch = eventId.match(/(\d{4}-\d{2}-\d{2})/);
+  if (dateMatch) {
+    const dateStr = dateMatch[1];
+    ids.add(`evt-parent-bt-${dateStr}`);
+    events.forEach(e => {
+      if (e.date && e.date.startsWith(dateStr)) {
+        ids.add(e.id);
+      }
+    });
+  }
+
+  // 4. Check events that might share the same date/type or slot name
   const targetEvt = events.find(e => ids.has(e.id));
   if (targetEvt && targetEvt.date) {
     const datePrefix = targetEvt.date.slice(0, 10);
-    const targetMs = new Date(targetEvt.date).getTime();
+    ids.add(`evt-parent-bt-${datePrefix}`);
     events.forEach(e => {
       if (e.eventType === targetEvt.eventType || e.eventName === targetEvt.eventName) {
         if (e.date && e.date.slice(0, 10) === datePrefix) {
           ids.add(e.id);
-        } else if (!isNaN(targetMs) && e.date) {
-          const eMs = new Date(e.date).getTime();
-          if (!isNaN(eMs) && Math.abs(targetMs - eMs) <= 24 * 60 * 60 * 1000) {
-            ids.add(e.id);
-          }
         }
       }
     });

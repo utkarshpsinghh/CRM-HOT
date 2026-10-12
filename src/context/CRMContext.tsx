@@ -522,14 +522,14 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
                   if (isAttSlot2) {
                     mappedAttStatus = 'ATTENDED';
-                    defaultAttSlotId = s2 ? s2.id : (s1 ? s1.id : null);
+                    defaultAttSlotId = s2 ? s2.id : (s1 ? s1.id : `slot-${targetEvtId}-2`);
                   } else if (isAttSlot1) {
                     mappedAttStatus = 'ATTENDED';
-                    defaultAttSlotId = s1 ? s1.id : null;
+                    defaultAttSlotId = s1 ? s1.id : `slot-${targetEvtId}-1`;
                   } else if (isJoined) {
                     mappedAttStatus = 'ATTENDED';
                     const legacySlot2 = (att.id && att.id.includes('-s2')) || (att.eventId && att.eventId.endsWith('-2')) || (att.eventId && att.eventId.includes('bt2'));
-                    defaultAttSlotId = legacySlot2 ? (s2 ? s2.id : s1?.id || null) : (s1 ? s1.id : null);
+                    defaultAttSlotId = legacySlot2 ? (s2 ? s2.id : `slot-${targetEvtId}-2`) : (s1 ? s1.id : `slot-${targetEvtId}-1`);
                   } else if (isAbsent) {
                     mappedAttStatus = 'ABSENT';
                     defaultAttSlotId = null;
@@ -540,10 +540,10 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
                   if (isVoteSlot2) {
                     mappedVoteStatus = 'VOTED';
-                    defaultVoteSlotId = s2 ? s2.id : (s1 ? s1.id : null);
+                    defaultVoteSlotId = s2 ? s2.id : `slot-${targetEvtId}-2`;
                   } else if (isVoteSlot1 || isVoted) {
                     mappedVoteStatus = 'VOTED';
-                    defaultVoteSlotId = s1 ? s1.id : null;
+                    defaultVoteSlotId = s1 ? s1.id : `slot-${targetEvtId}-1`;
                   }
 
                   const k = `${targetEvtId}_${memId}`;
@@ -2053,9 +2053,21 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
     sounds.playClick();
     setSelectedEventIdForAttendance(eventId);
+    try {
+      localStorage.setItem('crm_hot_selected_event_id', eventId);
+    } catch {}
     const now = new Date().toISOString();
 
     const relatedIds = new Set(getAllEventRelatedIds(eventId, events, eventSlots));
+    const currentEvt = events.find(e => e.id === eventId);
+    const datePrefix = (currentEvt?.date || '').slice(0, 10);
+    if (datePrefix) {
+      events.forEach(e => {
+        if (e.date && e.date.startsWith(datePrefix)) {
+          relatedIds.add(e.id);
+        }
+      });
+    }
     const allTargetIds = Array.from(new Set([eventId, ...relatedIds])).filter(id => Boolean(id) && !id.startsWith('slot-'));
 
     setEventParticipations(prev => {

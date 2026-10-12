@@ -68,6 +68,12 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
         return related.includes(selectedEventIdForAttendance);
       });
       if (foundRelated) return foundRelated;
+      // Also check if any event matches the date prefix in selectedEventIdForAttendance
+      const dateMatch = selectedEventIdForAttendance.match(/(\d{4}-\d{2}-\d{2})/);
+      if (dateMatch) {
+        const foundDate = events.find(e => e.date && e.date.startsWith(dateMatch[1]));
+        if (foundDate) return foundDate;
+      }
     }
     const sorted = [...events].sort((a, b) => {
       const tA = parseDateAsUtc(a.date)?.getTime() || new Date(a.date).getTime() || 0;
@@ -103,7 +109,10 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
     if (!currentEvent) return [];
     const relatedIds = new Set(getAllEventRelatedIds(currentEvent.id, events, eventSlots));
     const matched = eventSlots.filter(s => s.eventId === currentEvent.id || relatedIds.has(s.eventId));
-    if (matched.length > 0) return matched;
+    if (matched.length > 0) {
+      // Re-bind eventId to currentEvent.id so metric filters recognize them
+      return matched.map(s => ({ ...s, eventId: currentEvent.id }));
+    }
     // Guaranteed fallback: always provision canonical slots for active event type
     return getDefaultSlotsForEventType(currentEvent.eventType, currentEvent.id, currentEvent.date);
   }, [eventSlots, currentEvent, events]);
@@ -120,127 +129,135 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
     return members.filter(m => m.status !== 'Archived');
   }, [members]);
 
-  // Participations for current event
+  // Participations for current event (Single Source of Truth Redesign)
   const currentParticipations = useMemo(() => {
     if (!currentEvent) return [];
+    const eventDatePrefix = (currentEvent.date || '').slice(0, 10);
     const relatedIds = new Set(getAllEventRelatedIds(currentEvent.id, events, eventSlots));
-    const partMap = new Map<string, EventParticipation>();
 
-    // Accumulate participations, strictly prioritizing marked attendance/votes
-    eventParticipations
-      .filter(p => p.eventId === currentEvent.id || relatedIds.has(p.eventId))
-      .forEach(p => {
-        const cur = partMap.get(p.memberId);
-        if (!cur) {
-          partMap.set(p.memberId, p);
-        } else {
-          const curMarked = cur.attendanceStatus !== 'NOT_MARKED' || cur.voteStatus !== 'NO_VOTE';
-          const pMarked = p.attendanceStatus !== 'NOT_MARKED' || p.voteStatus !== 'NO_VOTE';
-          if (pMarked && !curMarked) {
-            partMap.set(p.memberId, p);
-          } else if (pMarked && curMarked) {
-            if (new Date(p.updatedAt).getTime() > new Date(cur.updatedAt).getTime()) {
-              partMap.set(p.memberId, p);
-            }
-          }
-        }
-      });
+    // Also include any events in roster that share the exact date prefix and type
+    events.forEach(e => {
+      if (
+        (e.eventType === currentEvent.eventType || e.eventName === currentEvent.eventName) &&
+        e.date &&
+        e.date.slice(0, 10) === eventDatePrefix
+      ) {
+        relatedIds.add(e.id);
+      }
+    });
+
+    const isMatchingEventId = (eId?: string | null): boolean => {
+      if (!eId) return false;
+      if (eId === currentEvent.id || relatedIds.has(eId)) return true;
+      if (eventDatePrefix && eId.includes(eventDatePrefix)) return true;
+      return false;
+    };
+
+    const s1Id = slot1?.id || `slot-${currentEvent.id}-1`;
+    const s2Id = slot2?.id || `slot-${currentEvent.id}-2`;
 
     return eligibleMembers.map(m => {
-      const existing = partMap.get(m.id);
-      const isExistingMarked = existing && (existing.attendanceStatus !== 'NOT_MARKED' || existing.voteStatus !== 'NO_VOTE');
-      if (isExistingMarked) return existing;
+      // 1. Check direct database attendance records for this member (SSOT)
+      const allMatchingAtt = attendance.filter(a => {
+        const eId = a.eventId || (a as any).event_id;
+        const mId = a.memberId || (a as any).member_id;
+        return mId === m.id && isMatchingEventId(eId);
+      });
 
-      // Robust fallback to Supabase attendance table records: prioritize marked records over placeholder rows
-      const attRec = attendance.find(
-        a => {
-          const eId = a.eventId || (a as any).event_id;
-          const mId = a.memberId || (a as any).member_id;
-          if (mId !== m.id) return false;
-          if (eId !== currentEvent.id && !relatedIds.has(eId)) return false;
-          const aSt = String(a.attendanceStatus || (a as any).attendance_status || '').trim().toUpperCase();
-          const vSt = String(a.voteStatus || (a as any).vote_status || '').trim().toUpperCase();
-          return ['BT1', 'BT2', 'JOINED', 'DIDNT_JOIN', 'ATTENDED', 'ABSENT'].includes(aSt) || ['BT1', 'BT2', 'YES', 'VOTED'].includes(vSt);
-        }
-      ) || attendance.find(
-        a => {
-          const eId = a.eventId || (a as any).event_id;
-          const mId = a.memberId || (a as any).member_id;
-          return mId === m.id && (eId === currentEvent.id || relatedIds.has(eId));
-        }
-      );
-      if (attRec) {
-        const attStatusRaw = String(attRec.attendanceStatus || (attRec as any).attendance_status || '').trim().toUpperCase();
-        const voteStatusRaw = String(attRec.voteStatus || (attRec as any).vote_status || '').trim().toUpperCase();
+      const markedAtt = allMatchingAtt.find(a => {
+        const aSt = String(a.attendanceStatus || (a as any).attendance_status || '').trim().toUpperCase();
+        const vSt = String(a.voteStatus || (a as any).vote_status || '').trim().toUpperCase();
+        return ['BT1', 'BT2', 'JOINED', 'DIDNT_JOIN', 'ATTENDED', 'ABSENT'].includes(aSt) || ['BT1', 'BT2', 'YES', 'VOTED'].includes(vSt);
+      }) || allMatchingAtt[0];
 
-        const isAttSlot1 = attStatusRaw === 'BT1' || attStatusRaw === 'SLOT_1' || attStatusRaw === 'SLOT1';
-        const isAttSlot2 = attStatusRaw === 'BT2' || attStatusRaw === 'SLOT_2' || attStatusRaw === 'SLOT2';
-        const isJoined = attStatusRaw === 'JOINED' || attStatusRaw === 'ATTENDED';
-        const isAbsent = attStatusRaw === 'DIDNT_JOIN' || attStatusRaw === 'ABSENT';
+      // 2. Check eventParticipations cache
+      const allMatchingParts = eventParticipations.filter(p => {
+        return p.memberId === m.id && isMatchingEventId(p.eventId);
+      });
 
-        const isVoteSlot1 = voteStatusRaw === 'BT1' || voteStatusRaw === 'SLOT_1' || voteStatusRaw === 'SLOT1';
-        const isVoteSlot2 = voteStatusRaw === 'BT2' || voteStatusRaw === 'SLOT_2' || voteStatusRaw === 'SLOT2';
-        const isVoted = voteStatusRaw === 'YES' || voteStatusRaw === 'VOTED';
+      const markedPart = allMatchingParts.find(
+        p => p.attendanceStatus !== 'NOT_MARKED' || p.voteStatus !== 'NO_VOTE'
+      ) || allMatchingParts[0];
 
-        let mappedAttStatus: ParticipationAttendanceStatus = 'NOT_MARKED';
-        let fallbackAttSlot: EventSlot | undefined = undefined;
+      // Extract raw status strings
+      const rawAttStatus = String(
+        markedAtt?.attendanceStatus || (markedAtt as any)?.attendance_status || ''
+      ).trim().toUpperCase();
+      const rawVoteStatus = String(
+        markedAtt?.voteStatus || (markedAtt as any)?.vote_status || ''
+      ).trim().toUpperCase();
 
-        if (isAttSlot2) {
-          mappedAttStatus = 'ATTENDED';
-          fallbackAttSlot = slot2 || slot1;
-        } else if (isAttSlot1) {
-          mappedAttStatus = 'ATTENDED';
-          fallbackAttSlot = slot1;
-        } else if (isJoined) {
-          mappedAttStatus = 'ATTENDED';
-          const isAttendedSlot2 = attRec.id?.includes('-s2') || attRec.eventId?.endsWith('-2') || attRec.eventId?.includes('bt2');
-          fallbackAttSlot = isAttendedSlot2 ? (slot2 || slot1) : slot1;
-        } else if (isAbsent) {
-          mappedAttStatus = 'ABSENT';
-        }
+      const partAttStatus = markedPart?.attendanceStatus;
+      const partVoteStatus = markedPart?.voteStatus;
 
-        let mappedVoteStatus: ParticipationVoteStatus = 'NO_VOTE';
-        let fallbackVoteSlot: EventSlot | undefined = undefined;
+      // Determine final attendance status & slot
+      let finalAttStatus: ParticipationAttendanceStatus = 'NOT_MARKED';
+      let finalAttSlotId: string | null = null;
 
-        if (isVoteSlot2) {
-          mappedVoteStatus = 'VOTED';
-          fallbackVoteSlot = slot2 || slot1;
-        } else if (isVoteSlot1 || isVoted) {
-          mappedVoteStatus = 'VOTED';
-          fallbackVoteSlot = slot1;
-        }
-
-        if (mappedAttStatus !== 'NOT_MARKED' || mappedVoteStatus !== 'NO_VOTE') {
-          return {
-            id: existing?.id || `part-${currentEvent.id}-${m.id}`,
-            eventId: currentEvent.id,
-            memberId: m.id,
-            selectedSlotId: fallbackVoteSlot ? fallbackVoteSlot.id : null,
-            voteStatus: mappedVoteStatus,
-            attendanceStatus: mappedAttStatus,
-            attendanceSlotId: fallbackAttSlot ? fallbackAttSlot.id : null,
-            penaltyStatus: existing?.penaltyStatus || ('NONE' as const),
-            penaltyNote: existing?.penaltyNote || null,
-            createdAt: attRec.updatedAt || currentEvent.createdAt || new Date().toISOString(),
-            updatedAt: attRec.updatedAt || currentEvent.createdAt || new Date().toISOString(),
-          };
+      if (rawAttStatus === 'BT2' || rawAttStatus === 'SLOT_2' || rawAttStatus === 'SLOT2') {
+        finalAttStatus = 'ATTENDED';
+        finalAttSlotId = s2Id;
+      } else if (rawAttStatus === 'BT1' || rawAttStatus === 'SLOT_1' || rawAttStatus === 'SLOT1') {
+        finalAttStatus = 'ATTENDED';
+        finalAttSlotId = s1Id;
+      } else if (rawAttStatus === 'JOINED' || rawAttStatus === 'ATTENDED') {
+        finalAttStatus = 'ATTENDED';
+        const isSlot2 = (markedAtt?.id && (markedAtt.id.includes('-s2') || markedAtt.id.includes('-2'))) ||
+                        (markedAtt?.eventId && (markedAtt.eventId.endsWith('-2') || markedAtt.eventId.includes('bt2')));
+        finalAttSlotId = isSlot2 ? s2Id : s1Id;
+      } else if (rawAttStatus === 'DIDNT_JOIN' || rawAttStatus === 'ABSENT') {
+        finalAttStatus = 'ABSENT';
+        finalAttSlotId = null;
+      } else if (partAttStatus && partAttStatus !== 'NOT_MARKED') {
+        finalAttStatus = partAttStatus;
+        if (partAttStatus === 'ATTENDED') {
+          const isSlot2 = markedPart?.attendanceSlotId && (
+            markedPart.attendanceSlotId.endsWith('-2') ||
+            markedPart.attendanceSlotId.toLowerCase().includes('slot2') ||
+            markedPart.attendanceSlotId.toLowerCase().includes('bt2')
+          );
+          finalAttSlotId = isSlot2 ? s2Id : s1Id;
         }
       }
 
-      if (existing) return existing;
+      // Determine final vote status & slot
+      let finalVoteStatus: ParticipationVoteStatus = 'NO_VOTE';
+      let finalVoteSlotId: string | null = null;
+
+      if (rawVoteStatus === 'BT2' || rawVoteStatus === 'SLOT_2' || rawVoteStatus === 'SLOT2') {
+        finalVoteStatus = 'VOTED';
+        finalVoteSlotId = s2Id;
+      } else if (
+        rawVoteStatus === 'BT1' ||
+        rawVoteStatus === 'SLOT_1' ||
+        rawVoteStatus === 'SLOT1' ||
+        rawVoteStatus === 'YES' ||
+        rawVoteStatus === 'VOTED'
+      ) {
+        finalVoteStatus = 'VOTED';
+        finalVoteSlotId = s1Id;
+      } else if (partVoteStatus === 'VOTED') {
+        finalVoteStatus = 'VOTED';
+        const isVoteSlot2 = markedPart?.selectedSlotId && (
+          markedPart.selectedSlotId.endsWith('-2') ||
+          markedPart.selectedSlotId.toLowerCase().includes('slot2') ||
+          markedPart.selectedSlotId.toLowerCase().includes('bt2')
+        );
+        finalVoteSlotId = isVoteSlot2 ? s2Id : s1Id;
+      }
 
       return {
-        id: `part-${currentEvent.id}-${m.id}`,
+        id: markedPart?.id || markedAtt?.id || `part-${currentEvent.id}-${m.id}`,
         eventId: currentEvent.id,
         memberId: m.id,
-        selectedSlotId: null,
-        voteStatus: 'NO_VOTE' as const,
-        attendanceStatus: 'NOT_MARKED' as const,
-        attendanceSlotId: null,
-        penaltyStatus: 'NONE' as const,
-        penaltyNote: null,
-        createdAt: currentEvent.createdAt || new Date().toISOString(),
-        updatedAt: currentEvent.createdAt || new Date().toISOString(),
+        selectedSlotId: finalVoteSlotId,
+        voteStatus: finalVoteStatus,
+        attendanceStatus: finalAttStatus,
+        attendanceSlotId: finalAttSlotId,
+        penaltyStatus: markedPart?.penaltyStatus || 'NONE',
+        penaltyNote: markedPart?.penaltyNote || null,
+        createdAt: markedAtt?.updatedAt || markedPart?.createdAt || currentEvent.createdAt || new Date().toISOString(),
+        updatedAt: markedAtt?.updatedAt || markedPart?.updatedAt || currentEvent.createdAt || new Date().toISOString(),
       };
     });
   }, [eventParticipations, currentEvent, eligibleMembers, events, eventSlots, attendance, slot1, slot2]);
@@ -475,8 +492,13 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
   const isRecordSlot1Attended = useCallback((rec: EventParticipation) => {
     if (rec.attendanceStatus !== 'ATTENDED') return false;
     if (slot1 && rec.attendanceSlotId === slot1.id) return true;
+    const isSlot2 = Boolean(
+      (slot2 && rec.attendanceSlotId === slot2.id) ||
+      (rec.attendanceSlotId && (rec.attendanceSlotId.endsWith('-2') || rec.attendanceSlotId.toLowerCase().includes('bt2') || rec.attendanceSlotId.toLowerCase().includes('slot2')))
+    );
+    if (isSlot2) return false;
     if (rec.attendanceSlotId && (rec.attendanceSlotId.endsWith('-1') || rec.attendanceSlotId.toLowerCase().includes('bt1') || rec.attendanceSlotId.toLowerCase().includes('slot1'))) return true;
-    return !rec.attendanceSlotId && !slot2;
+    return true;
   }, [slot1, slot2]);
 
   const isRecordSlot2Attended = useCallback((rec: EventParticipation) => {
@@ -536,32 +558,42 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
               }}
               className="w-full sm:w-auto min-w-0 max-w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-amber-300 text-xs font-semibold focus:outline-none focus:border-amber-500 cursor-pointer truncate shadow-sm"
             >
-              {[...events]
-                .sort((a, b) => {
+              {(() => {
+                const sorted = [...events].sort((a, b) => {
                   const tA = parseDateAsUtc(a.date)?.getTime() || new Date(a.date).getTime() || 0;
                   const tB = parseDateAsUtc(b.date)?.getTime() || new Date(b.date).getTime() || 0;
                   return tB - tA;
-                })
-                .map(e => {
-                  const relIds = new Set(getAllEventRelatedIds(e.id, events, eventSlots));
-                  const partCount = eventParticipations.filter(
-                    p => (p.eventId === e.id || relIds.has(p.eventId)) && p.attendanceStatus !== 'NOT_MARKED'
-                  ).length;
-                  const attCount = attendance.filter(
-                    a => {
-                      const aEvt = a.eventId || (a as any).event_id;
-                      const aSt = String(a.attendanceStatus || (a as any).attendance_status || '').trim().toUpperCase();
-                      return (aEvt === e.id || relIds.has(aEvt)) && ['BT1', 'BT2', 'JOINED', 'DIDNT_JOIN', 'ATTENDED', 'ABSENT'].includes(aSt);
-                    }
-                  ).length;
-                  const count = Math.max(partCount, attCount);
-                  const labelSuffix = count > 0 ? ` (${count} marked)` : '';
-                  return (
-                    <option key={e.id} value={e.id}>
-                      {e.eventType} — {safeFormatDate(e.date, { month: 'short', day: 'numeric', year: 'numeric' })}{labelSuffix}
-                    </option>
-                  );
-                })}
+                });
+                const seenKeys = new Set<string>();
+                return sorted
+                  .filter(e => {
+                    const dPrefix = (e.date || '').slice(0, 10);
+                    const key = `${e.eventType}_${dPrefix}`;
+                    if (seenKeys.has(key) && e.id !== currentEvent.id) return false;
+                    seenKeys.add(key);
+                    return true;
+                  })
+                  .map(e => {
+                    const relIds = new Set(getAllEventRelatedIds(e.id, events, eventSlots));
+                    const partCount = eventParticipations.filter(
+                      p => (p.eventId === e.id || relIds.has(p.eventId)) && p.attendanceStatus !== 'NOT_MARKED'
+                    ).length;
+                    const attCount = attendance.filter(
+                      a => {
+                        const aEvt = a.eventId || (a as any).event_id;
+                        const aSt = String(a.attendanceStatus || (a as any).attendance_status || '').trim().toUpperCase();
+                        return (aEvt === e.id || relIds.has(aEvt)) && ['BT1', 'BT2', 'JOINED', 'DIDNT_JOIN', 'ATTENDED', 'ABSENT'].includes(aSt);
+                      }
+                    ).length;
+                    const count = Math.max(partCount, attCount);
+                    const labelSuffix = count > 0 ? ` (${count} marked)` : '';
+                    return (
+                      <option key={e.id} value={e.id}>
+                        {e.eventType} — {safeFormatDate(e.date, { month: 'short', day: 'numeric', year: 'numeric' })}{labelSuffix}
+                      </option>
+                    );
+                  });
+              })()}
             </select>
           </div>
 
