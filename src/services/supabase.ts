@@ -21,7 +21,7 @@ import {
 import { hashPasswordSha256 } from '../utils/security';
 import { getComputedEventStatus } from '../utils/date';
 import { deduplicateMembers, storageService } from './storage';
-import { mapParticipationToLegacyAttendanceRows } from './eventMigration';
+import { mapParticipationToLegacyAttendanceRows, getAllEventRelatedIds } from './eventMigration';
 
 // Helper to strip any trailing slashes or /rest/v1 paths from Supabase Project URL
 export function normalizeSupabaseUrl(url: string): string {
@@ -569,22 +569,48 @@ export const supabaseService = {
   async updateVote(eventId: string, memberId: string, voteStatus: VoteStatus, settings: AllianceSettings): Promise<boolean> {
     const client = this.getClient(settings);
     if (!client) return false;
+    let anySuccess = false;
 
-    const id = `att-${eventId}-${memberId}`;
-    const row = {
-      id,
-      event_id: eventId,
+    const allEvents = storageService.getEvents();
+    const allSlots = storageService.getEventSlots();
+    const relatedIds = getAllEventRelatedIds(eventId, allEvents, allSlots);
+    const targetEventIds = Array.from(new Set([eventId, ...relatedIds])).filter(id => Boolean(id) && !id.startsWith('slot-'));
+
+    // Guarantee parent events exist in events table
+    for (const relId of targetEventIds) {
+      const parentEvent = allEvents.find(e => e.id === relId);
+      if (parentEvent) {
+        try {
+          await client.from('events').upsert(this.mapEventToRow(parentEvent), { onConflict: 'id' });
+        } catch {}
+      } else {
+        try {
+          await client.from('events').upsert({
+            id: relId,
+            event_type: relId.includes('bt') || relId.includes('bear-trap') ? 'Bear Trap' : 'Event',
+            event_name: relId.includes('bt') || relId.includes('bear-trap') ? 'Bear Trap' : 'Event',
+            date: new Date().toISOString(),
+            status: 'Scheduled',
+            created_at: new Date().toISOString(),
+          }, { onConflict: 'id' });
+        } catch {}
+      }
+    }
+
+    const now = new Date().toISOString();
+    const rows = targetEventIds.map(relId => ({
+      id: `att-${relId}-${memberId}`,
+      event_id: relId,
       member_id: memberId,
       vote_status: voteStatus,
-      updated_at: new Date().toISOString(),
-    };
+      updated_at: now,
+    }));
 
-    const { error } = await client.from('attendance').upsert(row, { onConflict: 'id' });
-    if (error) {
-      console.error('updateVote error:', error);
-      return false;
+    for (const row of rows) {
+      const { error } = await client.from('attendance').upsert(row, { onConflict: 'id' });
+      if (!error) anySuccess = true;
     }
-    return true;
+    return anySuccess;
   },
 
   async updateAttendance(
@@ -595,22 +621,48 @@ export const supabaseService = {
   ): Promise<boolean> {
     const client = this.getClient(settings);
     if (!client) return false;
+    let anySuccess = false;
 
-    const id = `att-${eventId}-${memberId}`;
-    const row = {
-      id,
-      event_id: eventId,
+    const allEvents = storageService.getEvents();
+    const allSlots = storageService.getEventSlots();
+    const relatedIds = getAllEventRelatedIds(eventId, allEvents, allSlots);
+    const targetEventIds = Array.from(new Set([eventId, ...relatedIds])).filter(id => Boolean(id) && !id.startsWith('slot-'));
+
+    // Guarantee parent events exist in events table
+    for (const relId of targetEventIds) {
+      const parentEvent = allEvents.find(e => e.id === relId);
+      if (parentEvent) {
+        try {
+          await client.from('events').upsert(this.mapEventToRow(parentEvent), { onConflict: 'id' });
+        } catch {}
+      } else {
+        try {
+          await client.from('events').upsert({
+            id: relId,
+            event_type: relId.includes('bt') || relId.includes('bear-trap') ? 'Bear Trap' : 'Event',
+            event_name: relId.includes('bt') || relId.includes('bear-trap') ? 'Bear Trap' : 'Event',
+            date: new Date().toISOString(),
+            status: 'Scheduled',
+            created_at: new Date().toISOString(),
+          }, { onConflict: 'id' });
+        } catch {}
+      }
+    }
+
+    const now = new Date().toISOString();
+    const rows = targetEventIds.map(relId => ({
+      id: `att-${relId}-${memberId}`,
+      event_id: relId,
       member_id: memberId,
       attendance_status: attendanceStatus,
-      updated_at: new Date().toISOString(),
-    };
+      updated_at: now,
+    }));
 
-    const { error } = await client.from('attendance').upsert(row, { onConflict: 'id' });
-    if (error) {
-      console.error('updateAttendance error:', error);
-      return false;
+    for (const row of rows) {
+      const { error } = await client.from('attendance').upsert(row, { onConflict: 'id' });
+      if (!error) anySuccess = true;
     }
-    return true;
+    return anySuccess;
   },
 
   async bulkUpdateAttendance(
@@ -620,23 +672,63 @@ export const supabaseService = {
   ): Promise<boolean> {
     const client = this.getClient(settings);
     if (!client) return false;
+    let anySuccess = false;
+
+    const allEvents = storageService.getEvents();
+    const allSlots = storageService.getEventSlots();
+    const relatedIds = getAllEventRelatedIds(eventId, allEvents, allSlots);
+    const targetEventIds = Array.from(new Set([eventId, ...relatedIds])).filter(id => Boolean(id) && !id.startsWith('slot-'));
+
+    // Guarantee parent events exist in events table
+    for (const relId of targetEventIds) {
+      const parentEvent = allEvents.find(e => e.id === relId);
+      if (parentEvent) {
+        try {
+          await client.from('events').upsert(this.mapEventToRow(parentEvent), { onConflict: 'id' });
+        } catch {}
+      } else {
+        try {
+          await client.from('events').upsert({
+            id: relId,
+            event_type: relId.includes('bt') || relId.includes('bear-trap') ? 'Bear Trap' : 'Event',
+            event_name: relId.includes('bt') || relId.includes('bear-trap') ? 'Bear Trap' : 'Event',
+            date: new Date().toISOString(),
+            status: 'Scheduled',
+            created_at: new Date().toISOString(),
+          }, { onConflict: 'id' });
+        } catch {}
+      }
+    }
 
     const now = new Date().toISOString();
-    const rows = updates.map(u => ({
-      id: `att-${eventId}-${u.memberId}`,
-      event_id: eventId,
-      member_id: u.memberId,
-      ...(u.voteStatus !== undefined ? { vote_status: u.voteStatus } : {}),
-      ...(u.attendanceStatus !== undefined ? { attendance_status: u.attendanceStatus } : {}),
-      updated_at: now,
-    }));
+    const rows: any[] = [];
+    updates.forEach(u => {
+      targetEventIds.forEach(relId => {
+        rows.push({
+          id: `att-${relId}-${u.memberId}`,
+          event_id: relId,
+          member_id: u.memberId,
+          ...(u.voteStatus !== undefined ? { vote_status: u.voteStatus } : {}),
+          ...(u.attendanceStatus !== undefined ? { attendance_status: u.attendanceStatus } : {}),
+          updated_at: now,
+        });
+      });
+    });
 
-    const { error } = await client.from('attendance').upsert(rows, { onConflict: 'id' });
-    if (error) {
-      console.error('bulkUpdateAttendance error:', error);
-      return false;
+    for (let i = 0; i < rows.length; i += 100) {
+      const chunk = rows.slice(i, i + 100);
+      const { error } = await client.from('attendance').upsert(chunk, { onConflict: 'id' });
+      if (!error) {
+        anySuccess = true;
+      } else {
+        console.warn('bulkUpdateAttendance chunk error, falling back to item upsert:', error);
+        for (const item of chunk) {
+          const { error: itemErr } = await client.from('attendance').upsert(item, { onConflict: 'id' });
+          if (!itemErr) anySuccess = true;
+        }
+      }
     }
-    return true;
+    return anySuccess;
   },
 
   // ==========================================================================
@@ -812,25 +904,85 @@ export const supabaseService = {
     if (!client) return false;
     let anySuccess = false;
 
-    // 0. Ensure parent event exists in Supabase 'events' table to prevent foreign key errors (23503)
-    try {
-      const allEvents = storageService.getEvents();
-      const parentEvent = allEvents.find(e => e.id === participation.eventId);
+    const allEvents = storageService.getEvents();
+    const allSlots = storageService.getEventSlots();
+    const relatedIds = getAllEventRelatedIds(participation.eventId, allEvents, allSlots);
+    const targetEventIds = Array.from(new Set([participation.eventId, ...relatedIds])).filter(id => Boolean(id) && !id.startsWith('slot-'));
+
+    // 0. Ensure all related parent events exist in Supabase 'events' table to prevent foreign key errors (23503)
+    for (const relId of targetEventIds) {
+      const parentEvent = allEvents.find(e => e.id === relId);
       if (parentEvent) {
-        await client.from('events').upsert(this.mapEventToRow(parentEvent), { onConflict: 'id' });
+        try {
+          await client.from('events').upsert(this.mapEventToRow(parentEvent), { onConflict: 'id' });
+        } catch {}
+      } else {
+        try {
+          await client.from('events').upsert({
+            id: relId,
+            event_type: relId.includes('bt') || relId.includes('bear-trap') ? 'Bear Trap' : 'Event',
+            event_name: relId.includes('bt') || relId.includes('bear-trap') ? 'Bear Trap' : 'Event',
+            date: new Date().toISOString(),
+            status: 'Scheduled',
+            created_at: new Date().toISOString(),
+          }, { onConflict: 'id' });
+        } catch {}
       }
-    } catch (err) {
-      console.warn('updateParticipation parent event upsert warning:', err);
     }
 
-    // 1. Try to upsert into new 'event_participations' table
-    try {
-      const row = this.mapEventParticipationToRow(participation);
-      const { error } = await client.from('event_participations').upsert(row, { onConflict: 'id' });
-      if (!error) anySuccess = true;
-    } catch {}
+    // Determine status strings
+    const isSlot2 = Boolean(
+      participation.attendanceSlotId &&
+      (participation.attendanceSlotId.endsWith('-2') ||
+       participation.attendanceSlotId.toLowerCase().includes('slot2') ||
+       participation.attendanceSlotId.toLowerCase().includes('bt2'))
+    );
 
-    // 2. Dual-write to legacy 'attendance' table in Supabase
+    let attStatus = 'NOT_APPLICABLE';
+    if (participation.attendanceStatus === 'ATTENDED') {
+      attStatus = isSlot2 ? 'BT2' : 'BT1';
+    } else if (participation.attendanceStatus === 'ABSENT') {
+      attStatus = 'DIDNT_JOIN';
+    }
+
+    const isVoteSlot2 = Boolean(
+      participation.selectedSlotId &&
+      (participation.selectedSlotId.endsWith('-2') ||
+       participation.selectedSlotId.toLowerCase().includes('slot2') ||
+       participation.selectedSlotId.toLowerCase().includes('bt2'))
+    );
+
+    let voteStatus = 'NO RESPONSE';
+    if (participation.voteStatus === 'VOTED') {
+      voteStatus = isVoteSlot2 ? 'BT2' : 'BT1';
+    }
+
+    const now = participation.updatedAt || new Date().toISOString();
+
+    // 1. Direct SQL upsert into Supabase 'attendance' table for all related event IDs (Single Source of Truth)
+    try {
+      const rows = targetEventIds.map(relId => ({
+        id: `att-${relId}-${participation.memberId}`,
+        event_id: relId,
+        member_id: participation.memberId,
+        vote_status: voteStatus,
+        attendance_status: attStatus,
+        updated_at: now,
+      }));
+
+      for (const row of rows) {
+        const { error } = await client.from('attendance').upsert(row, { onConflict: 'id' });
+        if (!error) {
+          anySuccess = true;
+        } else {
+          console.warn(`Direct SQL attendance upsert error for ${row.event_id}:`, error);
+        }
+      }
+    } catch (err) {
+      console.warn('Direct SQL attendance upsert error:', err);
+    }
+
+    // 2. Also dual-write legacy attendance rows for historical pair aliases
     try {
       const legacyRows = mapParticipationToLegacyAttendanceRows(participation);
       for (const legRow of legacyRows) {
@@ -844,11 +996,9 @@ export const supabaseService = {
         }, { onConflict: 'id' });
         if (!error) anySuccess = true;
       }
-    } catch (err) {
-      console.warn('Dual-write to Supabase attendance warning:', err);
-    }
+    } catch {}
 
-    // 3. Shadow-sync to Supabase settings cache
+    // 3. Fire-and-forget shadow cache update
     this.saveParticipationsCache(client, [participation]).catch(() => {});
 
     return anySuccess;
@@ -863,28 +1013,91 @@ export const supabaseService = {
     if (!client) return false;
     let anySuccess = false;
 
-    // 0. Ensure parent event exists in Supabase 'events' table to prevent foreign key errors (23503)
-    try {
-      const allEvents = storageService.getEvents();
-      const parentEvent = allEvents.find(e => e.id === eventId);
+    const allEvents = storageService.getEvents();
+    const allSlots = storageService.getEventSlots();
+    const relatedIds = getAllEventRelatedIds(eventId, allEvents, allSlots);
+    const targetEventIds = Array.from(new Set([eventId, ...relatedIds])).filter(id => Boolean(id) && !id.startsWith('slot-'));
+
+    // 0. Ensure all related parent events exist in Supabase 'events' table
+    for (const relId of targetEventIds) {
+      const parentEvent = allEvents.find(e => e.id === relId);
       if (parentEvent) {
-        await client.from('events').upsert(this.mapEventToRow(parentEvent), { onConflict: 'id' });
+        try {
+          await client.from('events').upsert(this.mapEventToRow(parentEvent), { onConflict: 'id' });
+        } catch {}
+      } else {
+        try {
+          await client.from('events').upsert({
+            id: relId,
+            event_type: relId.includes('bt') || relId.includes('bear-trap') ? 'Bear Trap' : 'Event',
+            event_name: relId.includes('bt') || relId.includes('bear-trap') ? 'Bear Trap' : 'Event',
+            date: new Date().toISOString(),
+            status: 'Scheduled',
+            created_at: new Date().toISOString(),
+          }, { onConflict: 'id' });
+        } catch {}
       }
-    } catch (err) {
-      console.warn('bulkUpdateParticipations parent event upsert warning:', err);
     }
 
-    // 1. Try to upsert chunks into event_participations table
-    try {
-      const rows = updates.map(this.mapEventParticipationToRow);
-      for (let i = 0; i < rows.length; i += 100) {
-        const chunk = rows.slice(i, i + 100);
-        const { error } = await client.from('event_participations').upsert(chunk, { onConflict: 'id' });
-        if (!error) anySuccess = true;
-      }
-    } catch {}
+    // 1. Build atomic rows for 'attendance' table
+    const now = new Date().toISOString();
+    const directRows: any[] = [];
 
-    // 2. Dual-write to legacy attendance table in Supabase
+    updates.forEach(p => {
+      const isSlot2 = Boolean(
+        p.attendanceSlotId &&
+        (p.attendanceSlotId.endsWith('-2') ||
+         p.attendanceSlotId.toLowerCase().includes('slot2') ||
+         p.attendanceSlotId.toLowerCase().includes('bt2'))
+      );
+
+      let attStatus = 'NOT_APPLICABLE';
+      if (p.attendanceStatus === 'ATTENDED') {
+        attStatus = isSlot2 ? 'BT2' : 'BT1';
+      } else if (p.attendanceStatus === 'ABSENT') {
+        attStatus = 'DIDNT_JOIN';
+      }
+
+      const isVoteSlot2 = Boolean(
+        p.selectedSlotId &&
+        (p.selectedSlotId.endsWith('-2') ||
+         p.selectedSlotId.toLowerCase().includes('slot2') ||
+         p.selectedSlotId.toLowerCase().includes('bt2'))
+      );
+
+      let voteStatus = 'NO RESPONSE';
+      if (p.voteStatus === 'VOTED') {
+        voteStatus = isVoteSlot2 ? 'BT2' : 'BT1';
+      }
+
+      targetEventIds.forEach(relId => {
+        directRows.push({
+          id: `att-${relId}-${p.memberId}`,
+          event_id: relId,
+          member_id: p.memberId,
+          vote_status: voteStatus,
+          attendance_status: attStatus,
+          updated_at: p.updatedAt || now,
+        });
+      });
+    });
+
+    // Chunked upsert into attendance table
+    for (let i = 0; i < directRows.length; i += 100) {
+      const chunk = directRows.slice(i, i + 100);
+      const { error } = await client.from('attendance').upsert(chunk, { onConflict: 'id' });
+      if (!error) {
+        anySuccess = true;
+      } else {
+        console.warn('bulkUpdateParticipations chunk error, falling back to item upsert:', error);
+        for (const item of chunk) {
+          const { error: itemErr } = await client.from('attendance').upsert(item, { onConflict: 'id' });
+          if (!itemErr) anySuccess = true;
+        }
+      }
+    }
+
+    // Also fire legacy sync
     try {
       const allLegacyRows = updates.flatMap(p => mapParticipationToLegacyAttendanceRows(p));
       for (let i = 0; i < allLegacyRows.length; i += 100) {
@@ -896,14 +1109,13 @@ export const supabaseService = {
           attendance_status: r.attendanceStatus,
           updated_at: r.updatedAt,
         }));
-        const { error } = await client.from('attendance').upsert(chunk, { onConflict: 'id' });
-        if (!error) anySuccess = true;
+        try {
+          await client.from('attendance').upsert(chunk, { onConflict: 'id' });
+        } catch {}
       }
-    } catch (err) {
-      console.warn('bulkUpdateParticipations legacy attendance sync error:', err);
-    }
+    } catch {}
 
-    // 3. Shadow-sync to Supabase settings cache
+    // Fire-and-forget shadow cache update
     this.saveParticipationsCache(client, updates).catch(() => {});
 
     return anySuccess;
@@ -912,8 +1124,8 @@ export const supabaseService = {
   async saveParticipationsCache(client: any, extraParticipations?: EventParticipation[]): Promise<void> {
     try {
       const deletedIds = new Set(storageService.getDeletedEventIds());
-      const stored = storageService.getEventParticipations().filter(p => !deletedIds.has(p.eventId));
-      const allParts = [...stored, ...(extraParticipations || []).filter(p => !deletedIds.has(p.eventId))];
+      const stored = storageService.getEventParticipations().filter(p => !deletedIds.has(p.eventId) && !p.eventId.startsWith('slot-'));
+      const allParts = [...stored, ...(extraParticipations || []).filter(p => !deletedIds.has(p.eventId) && !p.eventId.startsWith('slot-'))];
       if (allParts.length > 0) {
         const dedupMap = new Map<string, EventParticipation>();
         allParts.forEach(p => {

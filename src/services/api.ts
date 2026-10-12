@@ -20,7 +20,7 @@ import {
 } from '../types/crm';
 import { storageService } from './storage';
 import { supabaseService } from './supabase';
-import { mapParticipationToLegacyAttendanceRows } from './eventMigration';
+import { mapParticipationToLegacyAttendanceRows, getAllEventRelatedIds } from './eventMigration';
 import { getLoginAttemptState, recordFailedAttempt, resetLoginAttempts } from '../utils/security';
 
 export const apiService = {
@@ -388,43 +388,40 @@ export const apiService = {
     settings: AllianceSettings
   ): Promise<boolean> {
     const all = storageService.getEventParticipations();
+    const allEvents = storageService.getEvents();
+    const allSlots = storageService.getEventSlots();
+    const relatedIds = getAllEventRelatedIds(eventId, allEvents, allSlots);
     const now = new Date().toISOString();
     let updatedRecord: EventParticipation | null = null;
 
-    const updated = all.map(p => {
-      if (p.eventId === eventId && p.memberId === memberId) {
-        const next: EventParticipation = {
-          ...p,
-          voteStatus,
-          selectedSlotId: voteStatus === 'VOTED' ? slotId : null,
-          updatedAt: now,
-        };
-        updatedRecord = next;
-        return next;
-      }
-      return p;
-    });
+    const partMap = new Map(all.map(p => [`${p.eventId}_${p.memberId}`, p]));
+    const targetEventIds = Array.from(new Set([eventId, ...relatedIds])).filter(id => Boolean(id) && !id.startsWith('slot-'));
 
-    if (!updatedRecord) {
-      // If record doesn't exist yet for this member, create it
-      const newPart: EventParticipation = {
-        id: `part-${eventId}-${memberId}`,
-        eventId,
+    targetEventIds.forEach(targetId => {
+      const k = `${targetId}_${memberId}`;
+      const existing = partMap.get(k);
+      const next: EventParticipation = {
+        id: existing?.id || `part-${targetId}-${memberId}`,
+        eventId: targetId,
         memberId,
         selectedSlotId: voteStatus === 'VOTED' ? slotId : null,
         voteStatus,
-        attendanceStatus: 'NOT_MARKED',
-        attendanceSlotId: null,
-        penaltyStatus: 'NONE',
-        penaltyNote: null,
-        createdAt: now,
+        attendanceStatus: existing?.attendanceStatus || 'NOT_MARKED',
+        attendanceSlotId: existing?.attendanceSlotId || null,
+        penaltyStatus: existing?.penaltyStatus || 'NONE',
+        penaltyNote: existing?.penaltyNote || null,
+        createdAt: existing?.createdAt || now,
         updatedAt: now,
       };
-      updated.push(newPart);
-      updatedRecord = newPart;
-    }
+      partMap.set(k, next);
+      if (targetId === eventId) {
+        updatedRecord = next;
+      }
+    });
 
+    const updated = Array.from(partMap.values());
     storageService.setEventParticipations(updated);
+
     if (updatedRecord) {
       this.syncLegacyAttendanceStorage([updatedRecord]);
     }
@@ -459,42 +456,46 @@ export const apiService = {
     settings: AllianceSettings
   ): Promise<boolean> {
     const all = storageService.getEventParticipations();
+    const allEvents = storageService.getEvents();
+    const allSlots = storageService.getEventSlots();
+    const relatedIds = getAllEventRelatedIds(eventId, allEvents, allSlots);
     const now = new Date().toISOString();
     let updatedRecord: EventParticipation | null = null;
 
-    const updated = all.map(p => {
-      if (p.eventId === eventId && p.memberId === memberId) {
-        const next: EventParticipation = {
-          ...p,
-          attendanceStatus,
-          attendanceSlotId: attendanceStatus === 'ATTENDED' ? slotId : null,
-          updatedAt: now,
-        };
-        updatedRecord = next;
-        return next;
-      }
-      return p;
-    });
+    const partMap = new Map(all.map(p => [`${p.eventId}_${p.memberId}`, p]));
+    const targetEventIds = Array.from(new Set([eventId, ...relatedIds])).filter(id => Boolean(id) && !id.startsWith('slot-'));
 
-    if (!updatedRecord) {
-      const newPart: EventParticipation = {
-        id: `part-${eventId}-${memberId}`,
-        eventId,
+    targetEventIds.forEach(targetId => {
+      const k = `${targetId}_${memberId}`;
+      const existing = partMap.get(k);
+      const targetSlots = allSlots.filter(s => s.eventId === targetId);
+      const s1 = targetSlots.find(s => s.slotNumber === 1);
+      const s2 = targetSlots.find(s => s.slotNumber === 2);
+      const isSlot2 = slotId && (slotId.endsWith('-2') || slotId.toLowerCase().includes('slot2') || slotId.toLowerCase().includes('bt2'));
+      const targetSlotId = attendanceStatus === 'ATTENDED' ? (isSlot2 ? (s2 ? s2.id : slotId) : (s1 ? s1.id : slotId)) : null;
+
+      const next: EventParticipation = {
+        id: existing?.id || `part-${targetId}-${memberId}`,
+        eventId: targetId,
         memberId,
-        selectedSlotId: null,
-        voteStatus: 'NO_VOTE',
+        selectedSlotId: existing?.selectedSlotId || null,
+        voteStatus: existing?.voteStatus || 'NO_VOTE',
         attendanceStatus,
-        attendanceSlotId: attendanceStatus === 'ATTENDED' ? slotId : null,
-        penaltyStatus: 'NONE',
-        penaltyNote: null,
-        createdAt: now,
+        attendanceSlotId: targetSlotId,
+        penaltyStatus: existing?.penaltyStatus || 'NONE',
+        penaltyNote: existing?.penaltyNote || null,
+        createdAt: existing?.createdAt || now,
         updatedAt: now,
       };
-      updated.push(newPart);
-      updatedRecord = newPart;
-    }
+      partMap.set(k, next);
+      if (targetId === eventId) {
+        updatedRecord = next;
+      }
+    });
 
+    const updated = Array.from(partMap.values());
     storageService.setEventParticipations(updated);
+
     if (updatedRecord) {
       this.syncLegacyAttendanceStorage([updatedRecord]);
     }
@@ -542,13 +543,26 @@ export const apiService = {
     settings: AllianceSettings
   ): Promise<boolean> {
     const all = storageService.getEventParticipations();
-    const updateMap = new Map(updates.map(u => [u.memberId, u]));
-    const updated = all.map(p => {
-      if (p.eventId === eventId && updateMap.has(p.memberId)) {
-        return updateMap.get(p.memberId)!;
-      }
-      return p;
+    const allEvents = storageService.getEvents();
+    const allSlots = storageService.getEventSlots();
+    const relatedIds = getAllEventRelatedIds(eventId, allEvents, allSlots);
+    const targetEventIds = Array.from(new Set([eventId, ...relatedIds])).filter(id => Boolean(id) && !id.startsWith('slot-'));
+
+    const partMap = new Map(all.map(p => [`${p.eventId}_${p.memberId}`, p]));
+
+    updates.forEach(u => {
+      targetEventIds.forEach(targetId => {
+        const k = `${targetId}_${u.memberId}`;
+        const existing = partMap.get(k);
+        partMap.set(k, {
+          ...u,
+          id: existing?.id || `part-${targetId}-${u.memberId}`,
+          eventId: targetId,
+        });
+      });
     });
+
+    const updated = Array.from(partMap.values());
     storageService.setEventParticipations(updated);
     if (updates.length > 0) {
       this.syncLegacyAttendanceStorage(updates);

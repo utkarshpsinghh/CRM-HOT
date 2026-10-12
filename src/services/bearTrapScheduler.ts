@@ -62,6 +62,7 @@ export function syncAndAutoScheduleBearTraps(
   let updatedParticipations = participations.filter(p => !deletedSet.has(p.eventId));
   let updatedCount = 0;
   const prunedEventIds: string[] = [];
+  const activeMembers = (members || []).filter(m => m.status !== 'Archived');
 
   // 1. Prune any auto-generated Bear Trap events that duplicate known historical dates or are >24 hours away
   // Auto-generated Bear Trap events have ID prefix 'evt-parent-bt-'
@@ -109,24 +110,96 @@ export function syncAndAutoScheduleBearTraps(
     const expectedSlot1Time = `${dateStr} 16:00 UTC`;
     const expectedSlot2Time = `${nextDayStr} 00:30 UTC`;
 
-    // Ensure slot 1 and slot 2 match exact sequence
-    const s1 = updatedSlots.find(s => s.eventId === evt.id && s.slotNumber === 1);
-    if (s1 && s1.startTime !== expectedSlot1Time) {
+    // Ensure slot 1 and slot 2 match exact sequence and ALWAYS exist
+    let s1 = updatedSlots.find(s => s.eventId === evt.id && s.slotNumber === 1);
+    if (!s1) {
+      s1 = {
+        id: `slot-${evt.id}-1`,
+        eventId: evt.id,
+        slotNumber: 1,
+        slotName: 'BT1',
+        startTime: expectedSlot1Time,
+        createdAt: evt.createdAt || new Date().toISOString(),
+      };
+      updatedSlots.push(s1);
+      updatedCount++;
+    } else if (s1.startTime !== expectedSlot1Time) {
       s1.startTime = expectedSlot1Time;
       s1.slotName = 'BT1';
       updatedCount++;
     }
 
-    const s2 = updatedSlots.find(s => s.eventId === evt.id && s.slotNumber === 2);
-    if (s2 && s2.startTime !== expectedSlot2Time) {
+    let s2 = updatedSlots.find(s => s.eventId === evt.id && s.slotNumber === 2);
+    if (!s2) {
+      s2 = {
+        id: `slot-${evt.id}-2`,
+        eventId: evt.id,
+        slotNumber: 2,
+        slotName: 'BT2',
+        startTime: expectedSlot2Time,
+        createdAt: evt.createdAt || new Date().toISOString(),
+      };
+      updatedSlots.push(s2);
+      updatedCount++;
+    } else if (s2.startTime !== expectedSlot2Time) {
       s2.startTime = expectedSlot2Time;
       s2.slotName = 'BT2';
       updatedCount++;
     }
+
+    // Provision default participations for active members if not present
+    if (activeMembers.length > 0) {
+      const existingPartKeys = new Set(
+        updatedParticipations.filter(p => p.eventId === evt.id).map(p => p.memberId)
+      );
+      activeMembers.forEach(m => {
+        if (!existingPartKeys.has(m.id)) {
+          const evtDatePrefix = evt.date.split('T')[0];
+          const existingMarked = updatedParticipations.find(p => {
+            if (p.memberId !== m.id) return false;
+            if (p.attendanceStatus === 'NOT_MARKED' && p.voteStatus === 'NO_VOTE') return false;
+            const parent = updatedEvents.find(e => e.id === p.eventId);
+            return parent && parent.date && parent.date.startsWith(evtDatePrefix);
+          });
+
+          if (existingMarked) {
+            const isSlot2 = existingMarked.attendanceSlotId && (existingMarked.attendanceSlotId.endsWith('-2') || existingMarked.attendanceSlotId.toLowerCase().includes('slot2') || existingMarked.attendanceSlotId.toLowerCase().includes('bt2'));
+            const slotId = isSlot2 ? s2?.id || null : s1?.id || null;
+            updatedParticipations.push({
+              id: `part-${evt.id}-${m.id}`,
+              eventId: evt.id,
+              memberId: m.id,
+              selectedSlotId: existingMarked.selectedSlotId,
+              voteStatus: existingMarked.voteStatus,
+              attendanceStatus: existingMarked.attendanceStatus,
+              attendanceSlotId: slotId,
+              penaltyStatus: existingMarked.penaltyStatus || 'NONE',
+              penaltyNote: existingMarked.penaltyNote || null,
+              createdAt: existingMarked.createdAt || evt.createdAt || new Date().toISOString(),
+              updatedAt: existingMarked.updatedAt || new Date().toISOString(),
+            });
+          } else {
+            updatedParticipations.push({
+              id: `part-${evt.id}-${m.id}`,
+              eventId: evt.id,
+              memberId: m.id,
+              selectedSlotId: null,
+              voteStatus: 'NO_VOTE',
+              attendanceStatus: 'NOT_MARKED',
+              attendanceSlotId: null,
+              penaltyStatus: 'NONE',
+              penaltyNote: null,
+              createdAt: evt.createdAt || new Date().toISOString(),
+              updatedAt: evt.createdAt || new Date().toISOString(),
+            });
+          }
+          updatedCount++;
+        }
+      });
+    }
   });
 
   // 3. Auto-schedule: ONLY within 24 hours before the event (eventStartTime - now <= 24h)
-  const activeMembers = members.filter(m => m.status !== 'Archived');
   const nowIso = new Date().toISOString();
 
   // Iterate forward along 48h cadence starting from anchor
@@ -148,12 +221,13 @@ export function syncAndAutoScheduleBearTraps(
     const nextDayStr = getNextDayStr(dateStr);
     const expectedSlot2Time = `${nextDayStr} 00:30 UTC`;
 
-    // Check if event already exists for this date
-    const exists = updatedEvents.some(
-      e => e.eventType === 'Bear Trap' && e.date.split('T')[0] === dateStr
+    // Check if event already exists for this date or within 24 hours of cycle start
+    const existingCycleEvent = updatedEvents.find(
+      e => (e.eventType === 'Bear Trap' || e.eventName?.toLowerCase().includes('bear trap')) &&
+           (e.date.split('T')[0] === dateStr || (!isNaN(new Date(e.date).getTime()) && Math.abs(new Date(e.date).getTime() - cycleTimeMs) < 24 * 60 * 60 * 1000))
     );
 
-    if (!exists) {
+    if (!existingCycleEvent) {
       const parentId = `evt-parent-bt-${dateStr}`;
       if (deletedSet.has(parentId) || deletedSet.has(dateStr)) {
         k++;
@@ -195,19 +269,43 @@ export function syncAndAutoScheduleBearTraps(
       const existingPartKeys = new Set(updatedParticipations.map(p => `${p.eventId}_${p.memberId}`));
       const newParts: EventParticipation[] = activeMembers
         .filter(m => !existingPartKeys.has(`${parentId}_${m.id}`))
-        .map(m => ({
-          id: `part-${parentId}-${m.id}`,
-          eventId: parentId,
-          memberId: m.id,
-          selectedSlotId: null,
-          voteStatus: 'NO_VOTE',
-          attendanceStatus: 'NOT_MARKED',
-          attendanceSlotId: null,
-          penaltyStatus: 'NONE',
-          penaltyNote: null,
-          createdAt: nowIso,
-          updatedAt: nowIso,
-        }));
+        .map(m => {
+          const existingMarked = updatedParticipations.find(p => {
+            if (p.memberId !== m.id) return false;
+            if (p.attendanceStatus === 'NOT_MARKED' && p.voteStatus === 'NO_VOTE') return false;
+            const parent = updatedEvents.find(e => e.id === p.eventId);
+            return parent && parent.date && parent.date.startsWith(dateStr);
+          });
+          if (existingMarked) {
+            const isSlot2 = existingMarked.attendanceSlotId && (existingMarked.attendanceSlotId.endsWith('-2') || existingMarked.attendanceSlotId.toLowerCase().includes('slot2') || existingMarked.attendanceSlotId.toLowerCase().includes('bt2'));
+            return {
+              id: `part-${parentId}-${m.id}`,
+              eventId: parentId,
+              memberId: m.id,
+              selectedSlotId: existingMarked.selectedSlotId,
+              voteStatus: existingMarked.voteStatus,
+              attendanceStatus: existingMarked.attendanceStatus,
+              attendanceSlotId: isSlot2 ? slot2.id : slot1.id,
+              penaltyStatus: existingMarked.penaltyStatus || 'NONE',
+              penaltyNote: existingMarked.penaltyNote || null,
+              createdAt: existingMarked.createdAt || nowIso,
+              updatedAt: existingMarked.updatedAt || nowIso,
+            };
+          }
+          return {
+            id: `part-${parentId}-${m.id}`,
+            eventId: parentId,
+            memberId: m.id,
+            selectedSlotId: null,
+            voteStatus: 'NO_VOTE' as const,
+            attendanceStatus: 'NOT_MARKED' as const,
+            attendanceSlotId: null,
+            penaltyStatus: 'NONE' as const,
+            penaltyNote: null,
+            createdAt: nowIso,
+            updatedAt: nowIso,
+          };
+        });
 
       updatedEvents.push(newParentEvent);
       updatedSlots.push(slot1, slot2);

@@ -452,6 +452,17 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             storageService.getEventSlots().forEach(s => {
               if (!deletedSet.has(s.eventId) && !deletedSet.has(s.id) && !slotsMap.has(s.id)) slotsMap.set(s.id, s);
             });
+
+            // 2b. Guarantee every event has slots provisioned (BT1/BT2, etc.)
+            processedEvents.forEach(evt => {
+              const existingEvtSlots = Array.from(slotsMap.values()).filter(s => s.eventId === evt.id);
+              if (existingEvtSlots.length === 0) {
+                const defaults = getDefaultSlotsForEventType(evt.eventType, evt.id, evt.date);
+                defaults.forEach(ds => {
+                  slotsMap.set(ds.id, ds);
+                });
+              }
+            });
             processedSlots = Array.from(slotsMap.values());
 
             // 3. Merge remote participations from Supabase cache/table
@@ -482,42 +493,89 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               const evtId = att.eventId || (att as any).event_id;
               const memId = att.memberId || (att as any).member_id;
               if (!evtId || !memId || deletedSet.has(evtId)) return;
-              const k = `${evtId}_${memId}`;
-              const cur = partsMap.get(k);
-              const attStatusRaw = att.attendanceStatus || (att as any).attendance_status;
-              const voteStatusRaw = att.voteStatus || (att as any).vote_status;
-              const hasAtt = attStatusRaw === 'JOINED' || attStatusRaw === 'DIDNT_JOIN';
-              const hasVote = voteStatusRaw === 'YES';
+
+              const attStatusRaw = String(att.attendanceStatus || (att as any).attendance_status || '').trim().toUpperCase();
+              const voteStatusRaw = String(att.voteStatus || (att as any).vote_status || '').trim().toUpperCase();
+
+              const isAttSlot1 = attStatusRaw === 'BT1' || attStatusRaw === 'SLOT_1' || attStatusRaw === 'SLOT1';
+              const isAttSlot2 = attStatusRaw === 'BT2' || attStatusRaw === 'SLOT_2' || attStatusRaw === 'SLOT2';
+              const isJoined = attStatusRaw === 'JOINED' || attStatusRaw === 'ATTENDED';
+              const isAbsent = attStatusRaw === 'DIDNT_JOIN' || attStatusRaw === 'ABSENT';
+
+              const isVoteSlot1 = voteStatusRaw === 'BT1' || voteStatusRaw === 'SLOT_1' || voteStatusRaw === 'SLOT1';
+              const isVoteSlot2 = voteStatusRaw === 'BT2' || voteStatusRaw === 'SLOT_2' || voteStatusRaw === 'SLOT2';
+              const isVoted = voteStatusRaw === 'YES' || voteStatusRaw === 'VOTED';
+
+              const hasAtt = isAttSlot1 || isAttSlot2 || isJoined || isAbsent;
+              const hasVote = isVoteSlot1 || isVoteSlot2 || isVoted;
 
               if (hasAtt || hasVote) {
-                const mappedAttStatus: ParticipationAttendanceStatus =
-                  attStatusRaw === 'JOINED' ? 'ATTENDED' : attStatusRaw === 'DIDNT_JOIN' ? 'ABSENT' : 'NOT_MARKED';
-                const mappedVoteStatus: ParticipationVoteStatus =
-                  voteStatusRaw === 'YES' ? 'VOTED' : 'NO_VOTE';
+                const relatedEvtIds = getAllEventRelatedIds(evtId, processedEvents, processedSlots);
 
-                if (!cur) {
-                  const evtSlot = processedSlots.find(s => s.eventId === evtId);
-                  partsMap.set(k, {
-                    id: `part-${evtId}-${memId}`,
-                    eventId: evtId,
-                    memberId: memId,
-                    selectedSlotId: mappedVoteStatus === 'VOTED' && evtSlot ? evtSlot.id : null,
-                    voteStatus: mappedVoteStatus,
-                    attendanceStatus: mappedAttStatus,
-                    attendanceSlotId: mappedAttStatus === 'ATTENDED' && evtSlot ? evtSlot.id : null,
-                    penaltyStatus: 'NONE',
-                    penaltyNote: null,
-                    createdAt: att.updatedAt || new Date().toISOString(),
-                    updatedAt: att.updatedAt || new Date().toISOString(),
-                  });
-                } else {
-                  if (cur.attendanceStatus === 'NOT_MARKED' && mappedAttStatus !== 'NOT_MARKED') {
-                    cur.attendanceStatus = mappedAttStatus;
+                relatedEvtIds.forEach(targetEvtId => {
+                  const targetSlots = processedSlots.filter(s => s.eventId === targetEvtId);
+                  const s1 = targetSlots.find(s => s.slotNumber === 1);
+                  const s2 = targetSlots.find(s => s.slotNumber === 2);
+
+                  let mappedAttStatus: ParticipationAttendanceStatus = 'NOT_MARKED';
+                  let defaultAttSlotId: string | null = null;
+
+                  if (isAttSlot2) {
+                    mappedAttStatus = 'ATTENDED';
+                    defaultAttSlotId = s2 ? s2.id : (s1 ? s1.id : null);
+                  } else if (isAttSlot1) {
+                    mappedAttStatus = 'ATTENDED';
+                    defaultAttSlotId = s1 ? s1.id : null;
+                  } else if (isJoined) {
+                    mappedAttStatus = 'ATTENDED';
+                    const legacySlot2 = (att.id && att.id.includes('-s2')) || (att.eventId && att.eventId.endsWith('-2')) || (att.eventId && att.eventId.includes('bt2'));
+                    defaultAttSlotId = legacySlot2 ? (s2 ? s2.id : s1?.id || null) : (s1 ? s1.id : null);
+                  } else if (isAbsent) {
+                    mappedAttStatus = 'ABSENT';
+                    defaultAttSlotId = null;
                   }
-                  if (cur.voteStatus === 'NO_VOTE' && mappedVoteStatus !== 'NO_VOTE') {
-                    cur.voteStatus = mappedVoteStatus;
+
+                  let mappedVoteStatus: ParticipationVoteStatus = 'NO_VOTE';
+                  let defaultVoteSlotId: string | null = null;
+
+                  if (isVoteSlot2) {
+                    mappedVoteStatus = 'VOTED';
+                    defaultVoteSlotId = s2 ? s2.id : (s1 ? s1.id : null);
+                  } else if (isVoteSlot1 || isVoted) {
+                    mappedVoteStatus = 'VOTED';
+                    defaultVoteSlotId = s1 ? s1.id : null;
                   }
-                }
+
+                  const k = `${targetEvtId}_${memId}`;
+                  const cur = partsMap.get(k);
+
+                  if (!cur) {
+                    partsMap.set(k, {
+                      id: `part-${targetEvtId}-${memId}`,
+                      eventId: targetEvtId,
+                      memberId: memId,
+                      selectedSlotId: defaultVoteSlotId,
+                      voteStatus: mappedVoteStatus,
+                      attendanceStatus: mappedAttStatus,
+                      attendanceSlotId: defaultAttSlotId,
+                      penaltyStatus: 'NONE',
+                      penaltyNote: null,
+                      createdAt: att.updatedAt || new Date().toISOString(),
+                      updatedAt: att.updatedAt || new Date().toISOString(),
+                    });
+                  } else {
+                    if (mappedAttStatus !== 'NOT_MARKED') {
+                      cur.attendanceStatus = mappedAttStatus;
+                      cur.attendanceSlotId = defaultAttSlotId;
+                      cur.updatedAt = att.updatedAt || cur.updatedAt;
+                    }
+                    if (mappedVoteStatus !== 'NO_VOTE') {
+                      cur.voteStatus = mappedVoteStatus;
+                      cur.selectedSlotId = defaultVoteSlotId;
+                      cur.updatedAt = att.updatedAt || cur.updatedAt;
+                    }
+                  }
+                });
               }
             });
 
@@ -562,6 +620,20 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                     hasLocalSyncDifferences = true;
                   }
                 }
+
+                // Propagate marked attendance to any related event (e.g. auto-scheduled vs manual cycle alias)
+                if (local.attendanceStatus !== 'NOT_MARKED') {
+                  const relIds = getAllEventRelatedIds(local.eventId, processedEvents, processedSlots);
+                  relIds.forEach(relId => {
+                    const relRemote = finalPartMap.get(`${relId}_${local.memberId}`);
+                    if (relRemote && relRemote.attendanceStatus === 'NOT_MARKED') {
+                      relRemote.attendanceStatus = local.attendanceStatus;
+                      relRemote.attendanceSlotId = local.attendanceSlotId;
+                      relRemote.updatedAt = local.updatedAt;
+                      hasLocalSyncDifferences = true;
+                    }
+                  });
+                }
               });
 
               processedParticipations = Array.from(finalPartMap.values());
@@ -585,16 +657,17 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               }
             }
 
-            // 7. Background sync auto-scheduled events to Supabase 'events' table
-            const remoteEventIds = new Set(remoteEvents.map((e: AllianceEvent) => e.id));
-            const newEventsToSync = processedEvents.filter(e => !remoteEventIds.has(e.id));
-            if (newEventsToSync.length > 0 && apiService.isSupabase(currentSettings)) {
+            // 7. Background sync auto-scheduled events & shadow cache to Supabase
+            if (apiService.isSupabase(currentSettings)) {
               (async () => {
                 const client = (supabaseService as any).getClient?.(currentSettings);
                 if (client) {
+                  const remoteEventIds = new Set(remoteEvents.map((e: AllianceEvent) => e.id));
+                  const newEventsToSync = processedEvents.filter(e => !remoteEventIds.has(e.id));
                   for (const ev of newEventsToSync) {
                     await client.from('events').upsert((supabaseService as any).mapEventToRow(ev), { onConflict: 'id' }).catch(() => {});
                   }
+                  await supabaseService.saveParticipationsCache(client, processedParticipations).catch(() => {});
                 }
               })().catch(() => {});
             }
@@ -1669,10 +1742,18 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     slot2Time?: string;
   }) => {
     try {
-      const parentId = `evt-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
-      const now = new Date().toISOString();
       const parsedUtc = parseDateAsUtc(data.date);
       const normalizedDate = parsedUtc ? parsedUtc.toISOString() : data.date;
+      const datePrefix = normalizedDate.split('T')[0];
+      const typeSlug = data.eventType.toLowerCase().replace(/\s+/g, '-');
+      const parentId = data.eventType === 'Bear Trap'
+        ? `evt-parent-bt-${datePrefix}`
+        : `evt-parent-${typeSlug}-${datePrefix}`;
+
+      const now = new Date().toISOString();
+
+      // Ensure newly created/re-created event is not tombstoned
+      storageService.removeDeletedEventId?.(parentId);
 
       const parentEvent: AllianceEvent = {
         id: parentId,
@@ -1720,15 +1801,16 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }));
 
       // Update state & storage
-      setEvents(prev => [parentEvent, ...prev]);
-      setEventSlots(prev => [...newSlots, ...prev]);
-      setEventParticipations(prev => [...newParticipations, ...prev]);
+      setEvents(prev => [parentEvent, ...prev.filter(e => e.id !== parentId)]);
+      setEventSlots(prev => [...newSlots, ...prev.filter(s => s.eventId !== parentId)]);
+      setEventParticipations(prev => [...newParticipations, ...prev.filter(p => p.eventId !== parentId)]);
+      setSelectedEventIdForAttendance(parentEvent.id);
 
-      const curEvents = storageService.getEvents();
+      const curEvents = storageService.getEvents().filter(e => e.id !== parentId);
       storageService.setEvents([parentEvent, ...curEvents]);
-      const curSlots = storageService.getEventSlots();
+      const curSlots = storageService.getEventSlots().filter(s => s.eventId !== parentId);
       storageService.setEventSlots([...newSlots, ...curSlots]);
-      const curPart = storageService.getEventParticipations();
+      const curPart = storageService.getEventParticipations().filter(p => p.eventId !== parentId);
       storageService.setEventParticipations([...newParticipations, ...curPart]);
 
       sounds.playSuccess();
@@ -1855,62 +1937,67 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setSelectedEventIdForAttendance(eventId);
     const now = new Date().toISOString();
 
+    const relatedIds = new Set(getAllEventRelatedIds(eventId, events, eventSlots));
+    const allTargetIds = Array.from(new Set([eventId, ...relatedIds])).filter(id => Boolean(id) && !id.startsWith('slot-'));
+
     setEventParticipations(prev => {
-      let found = false;
-      const next = prev.map(p => {
-        if (p.eventId === eventId && p.memberId === memberId) {
-          found = true;
-          return {
-            ...p,
+      const partMap = new Map(prev.map(p => [`${p.eventId}_${p.memberId}`, p]));
+
+      allTargetIds.forEach(targetId => {
+        const k = `${targetId}_${memberId}`;
+        const cur = partMap.get(k);
+        const targetSlots = eventSlots.filter(s => s.eventId === targetId);
+        const s1 = targetSlots.find(s => s.slotNumber === 1);
+        const s2 = targetSlots.find(s => s.slotNumber === 2);
+        const isSlot2 = slotId && (slotId.endsWith('-2') || slotId.toLowerCase().includes('slot2') || slotId.toLowerCase().includes('bt2'));
+        const targetSlotId = isSlot2 ? (s2 ? s2.id : slotId) : (s1 ? s1.id : slotId);
+
+        if (cur) {
+          partMap.set(k, {
+            ...cur,
+            selectedSlotId: voteStatus === 'VOTED' ? targetSlotId : null,
             voteStatus,
-            selectedSlotId: voteStatus === 'VOTED' ? slotId : null,
             updatedAt: now,
-          };
+          });
+        } else {
+          partMap.set(k, {
+            id: `part-${targetId}-${memberId}`,
+            eventId: targetId,
+            memberId,
+            selectedSlotId: voteStatus === 'VOTED' ? targetSlotId : null,
+            voteStatus,
+            attendanceStatus: 'NOT_MARKED',
+            attendanceSlotId: null,
+            penaltyStatus: 'NONE',
+            penaltyNote: null,
+            createdAt: now,
+            updatedAt: now,
+          });
         }
-        return p;
       });
-      if (!found) {
-        const newPart: EventParticipation = {
-          id: `part-${eventId}-${memberId}`,
-          eventId,
-          memberId,
-          selectedSlotId: voteStatus === 'VOTED' ? slotId : null,
-          voteStatus,
-          attendanceStatus: 'NOT_MARKED',
-          attendanceSlotId: null,
-          penaltyStatus: 'NONE',
-          penaltyNote: null,
-          createdAt: now,
-          updatedAt: now,
-        };
-        next.push(newPart);
-      }
+
+      const next = Array.from(partMap.values());
       storageService.setEventParticipations(next);
       return next;
     });
 
-    // Keep legacy attendance state in sync
-    const currentPart = eventParticipations.find(p => p.eventId === eventId && p.memberId === memberId);
-    const updatedPartRecord: EventParticipation = {
-      id: currentPart?.id || `part-${eventId}-${memberId}`,
-      eventId,
-      memberId,
-      selectedSlotId: voteStatus === 'VOTED' ? slotId : null,
-      voteStatus,
-      attendanceStatus: currentPart?.attendanceStatus || 'NOT_MARKED',
-      attendanceSlotId: currentPart?.attendanceSlotId || null,
-      penaltyStatus: currentPart?.penaltyStatus || 'NONE',
-      penaltyNote: currentPart?.penaltyNote || null,
-      createdAt: currentPart?.createdAt || now,
-      updatedAt: now,
-    };
-    const legRowsVote = mapParticipationToLegacyAttendanceRows(updatedPartRecord);
     setAttendance(prev => {
-      const legMap = new Map(legRowsVote.map(r => [r.id, r]));
-      const nextAtt = prev.map(a => legMap.has(a.id) ? legMap.get(a.id)! : a);
-      legRowsVote.forEach(r => {
-        if (!prev.some(a => a.id === r.id)) nextAtt.push(r);
+      const attMap = new Map(prev.map(a => [`${a.eventId}_${a.memberId}`, a]));
+      allTargetIds.forEach(targetId => {
+        const k = `${targetId}_${memberId}`;
+        const cur = attMap.get(k);
+        const isSlot2 = slotId && (slotId.endsWith('-2') || slotId.toLowerCase().includes('slot2') || slotId.toLowerCase().includes('bt2'));
+        const vStatus = voteStatus === 'VOTED' ? (isSlot2 ? 'BT2' : 'BT1') : 'NO RESPONSE';
+        attMap.set(k, {
+          id: cur?.id || `att-${targetId}-${memberId}`,
+          eventId: targetId,
+          memberId,
+          voteStatus: vStatus as any,
+          attendanceStatus: cur?.attendanceStatus || 'NOT_APPLICABLE',
+          updatedAt: now,
+        });
       });
+      const nextAtt = Array.from(attMap.values());
       storageService.setAttendance(nextAtt);
       return nextAtt;
     });
@@ -1945,62 +2032,67 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setSelectedEventIdForAttendance(eventId);
     const now = new Date().toISOString();
 
+    const relatedIds = new Set(getAllEventRelatedIds(eventId, events, eventSlots));
+    const allTargetIds = Array.from(new Set([eventId, ...relatedIds])).filter(id => Boolean(id) && !id.startsWith('slot-'));
+
     setEventParticipations(prev => {
-      let found = false;
-      const next = prev.map(p => {
-        if (p.eventId === eventId && p.memberId === memberId) {
-          found = true;
-          return {
-            ...p,
+      const partMap = new Map(prev.map(p => [`${p.eventId}_${p.memberId}`, p]));
+
+      allTargetIds.forEach(targetId => {
+        const k = `${targetId}_${memberId}`;
+        const cur = partMap.get(k);
+        const targetSlots = eventSlots.filter(s => s.eventId === targetId);
+        const s1 = targetSlots.find(s => s.slotNumber === 1);
+        const s2 = targetSlots.find(s => s.slotNumber === 2);
+        const isSlot2 = slotId && (slotId.endsWith('-2') || slotId.toLowerCase().includes('slot2') || slotId.toLowerCase().includes('bt2'));
+        const targetSlotId = attendanceStatus === 'ATTENDED' ? (isSlot2 ? (s2 ? s2.id : slotId) : (s1 ? s1.id : slotId)) : null;
+
+        if (cur) {
+          partMap.set(k, {
+            ...cur,
             attendanceStatus,
-            attendanceSlotId: attendanceStatus === 'ATTENDED' ? slotId : null,
+            attendanceSlotId: targetSlotId,
             updatedAt: now,
-          };
+          });
+        } else {
+          partMap.set(k, {
+            id: `part-${targetId}-${memberId}`,
+            eventId: targetId,
+            memberId,
+            selectedSlotId: null,
+            voteStatus: 'NO_VOTE',
+            attendanceStatus,
+            attendanceSlotId: targetSlotId,
+            penaltyStatus: 'NONE',
+            penaltyNote: null,
+            createdAt: now,
+            updatedAt: now,
+          });
         }
-        return p;
       });
-      if (!found) {
-        const newPart: EventParticipation = {
-          id: `part-${eventId}-${memberId}`,
-          eventId,
-          memberId,
-          selectedSlotId: null,
-          voteStatus: 'NO_VOTE',
-          attendanceStatus,
-          attendanceSlotId: attendanceStatus === 'ATTENDED' ? slotId : null,
-          penaltyStatus: 'NONE',
-          penaltyNote: null,
-          createdAt: now,
-          updatedAt: now,
-        };
-        next.push(newPart);
-      }
+
+      const next = Array.from(partMap.values());
       storageService.setEventParticipations(next);
       return next;
     });
 
-    // Keep legacy attendance state in sync
-    const currentPart = eventParticipations.find(p => p.eventId === eventId && p.memberId === memberId);
-    const updatedPartRecord: EventParticipation = {
-      id: currentPart?.id || `part-${eventId}-${memberId}`,
-      eventId,
-      memberId,
-      selectedSlotId: currentPart?.selectedSlotId || null,
-      voteStatus: currentPart?.voteStatus || 'NO_VOTE',
-      attendanceStatus,
-      attendanceSlotId: attendanceStatus === 'ATTENDED' ? slotId : null,
-      penaltyStatus: currentPart?.penaltyStatus || 'NONE',
-      penaltyNote: currentPart?.penaltyNote || null,
-      createdAt: currentPart?.createdAt || now,
-      updatedAt: now,
-    };
-    const legRowsAtt = mapParticipationToLegacyAttendanceRows(updatedPartRecord);
     setAttendance(prev => {
-      const legMap = new Map(legRowsAtt.map(r => [r.id, r]));
-      const nextAtt = prev.map(a => legMap.has(a.id) ? legMap.get(a.id)! : a);
-      legRowsAtt.forEach(r => {
-        if (!prev.some(a => a.id === r.id)) nextAtt.push(r);
+      const attMap = new Map(prev.map(a => [`${a.eventId}_${a.memberId}`, a]));
+      allTargetIds.forEach(targetId => {
+        const k = `${targetId}_${memberId}`;
+        const cur = attMap.get(k);
+        const isSlot2 = slotId && (slotId.endsWith('-2') || slotId.toLowerCase().includes('slot2') || slotId.toLowerCase().includes('bt2'));
+        const attStatus = attendanceStatus === 'ATTENDED' ? (isSlot2 ? 'BT2' : 'BT1') : attendanceStatus === 'ABSENT' ? 'DIDNT_JOIN' : 'NOT_APPLICABLE';
+        attMap.set(k, {
+          id: cur?.id || `att-${targetId}-${memberId}`,
+          eventId: targetId,
+          memberId,
+          voteStatus: cur?.voteStatus || 'NO RESPONSE',
+          attendanceStatus: attStatus as any,
+          updatedAt: now,
+        });
       });
+      const nextAtt = Array.from(attMap.values());
       storageService.setAttendance(nextAtt);
       return nextAtt;
     });
@@ -2069,33 +2161,54 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
     sounds.playSuccess();
     setSelectedEventIdForAttendance(eventId);
-    const updateMap = new Map(updates.map(u => [u.memberId, u]));
+    const relatedIds = new Set(getAllEventRelatedIds(eventId, events, eventSlots));
+    const allTargetIds = Array.from(new Set([eventId, ...relatedIds])).filter(id => Boolean(id) && !id.startsWith('slot-'));
+
     setEventParticipations(prev => {
-      const handledMemberIds = new Set<string>();
-      const next = prev.map(p => {
-        if (p.eventId === eventId && updateMap.has(p.memberId)) {
-          handledMemberIds.add(p.memberId);
-          return updateMap.get(p.memberId)!;
-        }
-        return p;
-      });
+      const partMap = new Map(prev.map(p => [`${p.eventId}_${p.memberId}`, p]));
+
       updates.forEach(u => {
-        if (!handledMemberIds.has(u.memberId)) {
-          next.push(u);
-        }
+        allTargetIds.forEach(targetId => {
+          const k = `${targetId}_${u.memberId}`;
+          const existing = partMap.get(k);
+          partMap.set(k, {
+            ...u,
+            id: existing?.id || `part-${targetId}-${u.memberId}`,
+            eventId: targetId,
+          });
+        });
       });
+
+      const next = Array.from(partMap.values());
       storageService.setEventParticipations(next);
       return next;
     });
 
-    // Keep legacy attendance state in sync for bulk updates
-    const allLegRows = updates.flatMap(u => mapParticipationToLegacyAttendanceRows(u));
+    const now = new Date().toISOString();
     setAttendance(prev => {
-      const legMap = new Map(allLegRows.map(r => [r.id, r]));
-      const nextAtt = prev.map(a => legMap.has(a.id) ? legMap.get(a.id)! : a);
-      allLegRows.forEach(r => {
-        if (!prev.some(a => a.id === r.id)) nextAtt.push(r);
+      const attMap = new Map(prev.map(a => [`${a.eventId}_${a.memberId}`, a]));
+      updates.forEach(u => {
+        const isSlot2 = u.attendanceSlotId && (u.attendanceSlotId.endsWith('-2') || u.attendanceSlotId.toLowerCase().includes('slot2') || u.attendanceSlotId.toLowerCase().includes('bt2'));
+        const attStatus = u.attendanceStatus === 'ATTENDED' ? (isSlot2 ? 'BT2' : 'BT1') : u.attendanceStatus === 'ABSENT' ? 'DIDNT_JOIN' : 'NOT_APPLICABLE';
+        const isVoteSlot2 = u.selectedSlotId && (u.selectedSlotId.endsWith('-2') || u.selectedSlotId.toLowerCase().includes('slot2') || u.selectedSlotId.toLowerCase().includes('bt2'));
+        const vStatus = u.voteStatus === 'VOTED' ? (isVoteSlot2 ? 'BT2' : 'BT1') : 'NO RESPONSE';
+
+        allTargetIds.forEach(targetId => {
+          const k = `${targetId}_${u.memberId}`;
+          const cur = attMap.get(k);
+          attMap.set(k, {
+            id: cur?.id || `att-${targetId}-${u.memberId}`,
+            event_id: targetId,
+            eventId: targetId,
+            member_id: u.memberId,
+            memberId: u.memberId,
+            voteStatus: vStatus as any,
+            attendanceStatus: attStatus as any,
+            updatedAt: u.updatedAt || now,
+          } as any);
+        });
       });
+      const nextAtt = Array.from(attMap.values());
       storageService.setAttendance(nextAtt);
       return nextAtt;
     });

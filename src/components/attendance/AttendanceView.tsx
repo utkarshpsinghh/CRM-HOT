@@ -1,11 +1,11 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Member, EventParticipation, EventSlot, ParticipationVoteStatus, ParticipationAttendanceStatus, PenaltyStatus } from '../../types/crm';
 import { useCRM } from '../../context/CRMContext';
 import { useAuth } from '../../context/AuthContext';
 import { RankBadge } from '../common/RankBadge';
 import { Modal } from '../common/Modal';
 import { GameButton } from '../common/GameButton';
-import { calculateEventHealthMetrics, isPotentialPenaltyReview } from '../../utils/eventCalculations';
+import { calculateEventHealthMetrics, isPotentialPenaltyReview, getDefaultSlotsForEventType } from '../../utils/eventCalculations';
 import {
   Check,
   X,
@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import { sounds } from '../../utils/sound';
 import { safeFormatDate, getComputedEventStatus, parseDateAsUtc } from '../../utils/date';
+import { getAllEventRelatedIds } from '../../services/eventMigration';
 
 interface AttendanceViewProps {
   onOpenAddStrike?: (member: Member, defaultReason: string) => void;
@@ -38,6 +39,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
     events,
     eventSlots,
     eventParticipations,
+    attendance,
     members,
     selectedEventIdForAttendance,
     setSelectedEventIdForAttendance,
@@ -60,14 +62,35 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
     if (selectedEventIdForAttendance) {
       const found = events.find(e => e.id === selectedEventIdForAttendance);
       if (found) return found;
+      // Also check related IDs (e.g. date-based aliases)
+      const foundRelated = events.find(e => {
+        const related = getAllEventRelatedIds(e.id, events, eventSlots);
+        return related.includes(selectedEventIdForAttendance);
+      });
+      if (foundRelated) return foundRelated;
     }
     const sorted = [...events].sort((a, b) => {
       const tA = parseDateAsUtc(a.date)?.getTime() || new Date(a.date).getTime() || 0;
       const tB = parseDateAsUtc(b.date)?.getTime() || new Date(b.date).getTime() || 0;
       return tB - tA;
     });
-    return sorted[0];
-  }, [events, selectedEventIdForAttendance]);
+
+    // If no specific event is selected, prioritize the most recent event with recorded attendance/votes
+    const eventWithAttendance = sorted.find(evt => {
+      const relIds = new Set(getAllEventRelatedIds(evt.id, events, eventSlots));
+      const hasPart = eventParticipations.some(
+        p => (p.eventId === evt.id || relIds.has(p.eventId)) && (p.attendanceStatus !== 'NOT_MARKED' || p.voteStatus !== 'NO_VOTE')
+      );
+      if (hasPart) return true;
+      return attendance.some(a => {
+        const eId = a.eventId || (a as any).event_id;
+        const st = String(a.attendanceStatus || (a as any).attendance_status || '').trim().toUpperCase();
+        return (eId === evt.id || relIds.has(eId)) && ['BT1', 'BT2', 'JOINED', 'DIDNT_JOIN'].includes(st);
+      });
+    });
+
+    return eventWithAttendance || sorted[0];
+  }, [events, selectedEventIdForAttendance, eventSlots, eventParticipations, attendance]);
 
   useEffect(() => {
     if (currentEvent && currentEvent.id !== selectedEventIdForAttendance) {
@@ -78,8 +101,12 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
   // Slots for the active event
   const currentSlots = useMemo(() => {
     if (!currentEvent) return [];
-    return eventSlots.filter(s => s.eventId === currentEvent.id);
-  }, [eventSlots, currentEvent]);
+    const relatedIds = new Set(getAllEventRelatedIds(currentEvent.id, events, eventSlots));
+    const matched = eventSlots.filter(s => s.eventId === currentEvent.id || relatedIds.has(s.eventId));
+    if (matched.length > 0) return matched;
+    // Guaranteed fallback: always provision canonical slots for active event type
+    return getDefaultSlotsForEventType(currentEvent.eventType, currentEvent.id, currentEvent.date);
+  }, [eventSlots, currentEvent, events]);
 
   const slot1 = currentSlots.find(s => s.slotNumber === 1);
   const slot2 = currentSlots.find(s => s.slotNumber === 2);
@@ -96,12 +123,112 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
   // Participations for current event
   const currentParticipations = useMemo(() => {
     if (!currentEvent) return [];
-    const partMap = new Map(
-      eventParticipations.filter(p => p.eventId === currentEvent.id).map(p => [p.memberId, p])
-    );
+    const relatedIds = new Set(getAllEventRelatedIds(currentEvent.id, events, eventSlots));
+    const partMap = new Map<string, EventParticipation>();
+
+    // Accumulate participations, strictly prioritizing marked attendance/votes
+    eventParticipations
+      .filter(p => p.eventId === currentEvent.id || relatedIds.has(p.eventId))
+      .forEach(p => {
+        const cur = partMap.get(p.memberId);
+        if (!cur) {
+          partMap.set(p.memberId, p);
+        } else {
+          const curMarked = cur.attendanceStatus !== 'NOT_MARKED' || cur.voteStatus !== 'NO_VOTE';
+          const pMarked = p.attendanceStatus !== 'NOT_MARKED' || p.voteStatus !== 'NO_VOTE';
+          if (pMarked && !curMarked) {
+            partMap.set(p.memberId, p);
+          } else if (pMarked && curMarked) {
+            if (new Date(p.updatedAt).getTime() > new Date(cur.updatedAt).getTime()) {
+              partMap.set(p.memberId, p);
+            }
+          }
+        }
+      });
+
     return eligibleMembers.map(m => {
       const existing = partMap.get(m.id);
+      const isExistingMarked = existing && (existing.attendanceStatus !== 'NOT_MARKED' || existing.voteStatus !== 'NO_VOTE');
+      if (isExistingMarked) return existing;
+
+      // Robust fallback to Supabase attendance table records: prioritize marked records over placeholder rows
+      const attRec = attendance.find(
+        a => {
+          const eId = a.eventId || (a as any).event_id;
+          const mId = a.memberId || (a as any).member_id;
+          if (mId !== m.id) return false;
+          if (eId !== currentEvent.id && !relatedIds.has(eId)) return false;
+          const aSt = String(a.attendanceStatus || (a as any).attendance_status || '').trim().toUpperCase();
+          const vSt = String(a.voteStatus || (a as any).vote_status || '').trim().toUpperCase();
+          return ['BT1', 'BT2', 'JOINED', 'DIDNT_JOIN', 'ATTENDED', 'ABSENT'].includes(aSt) || ['BT1', 'BT2', 'YES', 'VOTED'].includes(vSt);
+        }
+      ) || attendance.find(
+        a => {
+          const eId = a.eventId || (a as any).event_id;
+          const mId = a.memberId || (a as any).member_id;
+          return mId === m.id && (eId === currentEvent.id || relatedIds.has(eId));
+        }
+      );
+      if (attRec) {
+        const attStatusRaw = String(attRec.attendanceStatus || (attRec as any).attendance_status || '').trim().toUpperCase();
+        const voteStatusRaw = String(attRec.voteStatus || (attRec as any).vote_status || '').trim().toUpperCase();
+
+        const isAttSlot1 = attStatusRaw === 'BT1' || attStatusRaw === 'SLOT_1' || attStatusRaw === 'SLOT1';
+        const isAttSlot2 = attStatusRaw === 'BT2' || attStatusRaw === 'SLOT_2' || attStatusRaw === 'SLOT2';
+        const isJoined = attStatusRaw === 'JOINED' || attStatusRaw === 'ATTENDED';
+        const isAbsent = attStatusRaw === 'DIDNT_JOIN' || attStatusRaw === 'ABSENT';
+
+        const isVoteSlot1 = voteStatusRaw === 'BT1' || voteStatusRaw === 'SLOT_1' || voteStatusRaw === 'SLOT1';
+        const isVoteSlot2 = voteStatusRaw === 'BT2' || voteStatusRaw === 'SLOT_2' || voteStatusRaw === 'SLOT2';
+        const isVoted = voteStatusRaw === 'YES' || voteStatusRaw === 'VOTED';
+
+        let mappedAttStatus: ParticipationAttendanceStatus = 'NOT_MARKED';
+        let fallbackAttSlot: EventSlot | undefined = undefined;
+
+        if (isAttSlot2) {
+          mappedAttStatus = 'ATTENDED';
+          fallbackAttSlot = slot2 || slot1;
+        } else if (isAttSlot1) {
+          mappedAttStatus = 'ATTENDED';
+          fallbackAttSlot = slot1;
+        } else if (isJoined) {
+          mappedAttStatus = 'ATTENDED';
+          const isAttendedSlot2 = attRec.id?.includes('-s2') || attRec.eventId?.endsWith('-2') || attRec.eventId?.includes('bt2');
+          fallbackAttSlot = isAttendedSlot2 ? (slot2 || slot1) : slot1;
+        } else if (isAbsent) {
+          mappedAttStatus = 'ABSENT';
+        }
+
+        let mappedVoteStatus: ParticipationVoteStatus = 'NO_VOTE';
+        let fallbackVoteSlot: EventSlot | undefined = undefined;
+
+        if (isVoteSlot2) {
+          mappedVoteStatus = 'VOTED';
+          fallbackVoteSlot = slot2 || slot1;
+        } else if (isVoteSlot1 || isVoted) {
+          mappedVoteStatus = 'VOTED';
+          fallbackVoteSlot = slot1;
+        }
+
+        if (mappedAttStatus !== 'NOT_MARKED' || mappedVoteStatus !== 'NO_VOTE') {
+          return {
+            id: existing?.id || `part-${currentEvent.id}-${m.id}`,
+            eventId: currentEvent.id,
+            memberId: m.id,
+            selectedSlotId: fallbackVoteSlot ? fallbackVoteSlot.id : null,
+            voteStatus: mappedVoteStatus,
+            attendanceStatus: mappedAttStatus,
+            attendanceSlotId: fallbackAttSlot ? fallbackAttSlot.id : null,
+            penaltyStatus: existing?.penaltyStatus || ('NONE' as const),
+            penaltyNote: existing?.penaltyNote || null,
+            createdAt: attRec.updatedAt || currentEvent.createdAt || new Date().toISOString(),
+            updatedAt: attRec.updatedAt || currentEvent.createdAt || new Date().toISOString(),
+          };
+        }
+      }
+
       if (existing) return existing;
+
       return {
         id: `part-${currentEvent.id}-${m.id}`,
         eventId: currentEvent.id,
@@ -116,7 +243,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
         updatedAt: currentEvent.createdAt || new Date().toISOString(),
       };
     });
-  }, [eventParticipations, currentEvent, eligibleMembers]);
+  }, [eventParticipations, currentEvent, eligibleMembers, events, eventSlots, attendance, slot1, slot2]);
 
   // Event Health Metrics
   const metrics = useMemo(() => {
@@ -344,6 +471,20 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
   const unmarkedCount = currentParticipations.filter(p => p.attendanceStatus === 'NOT_MARKED').length;
   const slot1VotePct = metrics.eligibleMembersCount > 0 ? Math.round(((slot1Metrics?.votedCount || 0) / metrics.eligibleMembersCount) * 100) : 0;
   const slot2VotePct = metrics.eligibleMembersCount > 0 ? Math.round(((slot2Metrics?.votedCount || 0) / metrics.eligibleMembersCount) * 100) : 0;
+
+  const isRecordSlot1Attended = useCallback((rec: EventParticipation) => {
+    if (rec.attendanceStatus !== 'ATTENDED') return false;
+    if (slot1 && rec.attendanceSlotId === slot1.id) return true;
+    if (rec.attendanceSlotId && (rec.attendanceSlotId.endsWith('-1') || rec.attendanceSlotId.toLowerCase().includes('bt1') || rec.attendanceSlotId.toLowerCase().includes('slot1'))) return true;
+    return !rec.attendanceSlotId && !slot2;
+  }, [slot1, slot2]);
+
+  const isRecordSlot2Attended = useCallback((rec: EventParticipation) => {
+    if (rec.attendanceStatus !== 'ATTENDED') return false;
+    if (slot2 && rec.attendanceSlotId === slot2.id) return true;
+    if (rec.attendanceSlotId && (rec.attendanceSlotId.endsWith('-2') || rec.attendanceSlotId.toLowerCase().includes('bt2') || rec.attendanceSlotId.toLowerCase().includes('slot2'))) return true;
+    return false;
+  }, [slot2]);
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -881,7 +1022,11 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
               if (!member) return null;
 
               const votedSlot = currentSlots.find(s => s.id === record.selectedSlotId);
-              const attendedSlot = currentSlots.find(s => s.id === record.attendanceSlotId);
+              const attendedSlot = currentSlots.find(
+                s => s.id === record.attendanceSlotId ||
+                     (s.slotNumber === 1 && isRecordSlot1Attended(record)) ||
+                     (s.slotNumber === 2 && isRecordSlot2Attended(record))
+              );
               const isPotential = isPotentialPenaltyReview(record);
 
               return (
@@ -1026,7 +1171,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
                           type="button"
                           onClick={() => handleQuickMarkAttendance(member.id, 'ATTENDED', slot1.id)}
                           className={`flex-1 py-1.5 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer ${
-                            record.attendanceStatus === 'ATTENDED' && record.attendanceSlotId === slot1.id
+                            isRecordSlot1Attended(record)
                               ? 'bg-emerald-500 text-slate-950 font-black shadow-sm'
                               : 'bg-slate-800/80 text-slate-300 hover:bg-slate-700'
                           }`}
@@ -1039,7 +1184,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
                           type="button"
                           onClick={() => handleQuickMarkAttendance(member.id, 'ATTENDED', slot2.id)}
                           className={`flex-1 py-1.5 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer ${
-                            record.attendanceStatus === 'ATTENDED' && record.attendanceSlotId === slot2.id
+                            isRecordSlot2Attended(record)
                               ? 'bg-emerald-500 text-slate-950 font-black shadow-sm'
                               : 'bg-slate-800/80 text-slate-300 hover:bg-slate-700'
                           }`}
@@ -1153,7 +1298,11 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
                   if (!member) return null;
 
                   const votedSlot = currentSlots.find(s => s.id === record.selectedSlotId);
-                  const attendedSlot = currentSlots.find(s => s.id === record.attendanceSlotId);
+                  const attendedSlot = currentSlots.find(
+                    s => s.id === record.attendanceSlotId ||
+                         (s.slotNumber === 1 && isRecordSlot1Attended(record)) ||
+                         (s.slotNumber === 2 && isRecordSlot2Attended(record))
+                  );
                   const isPotential = isPotentialPenaltyReview(record);
 
                   return (
@@ -1339,7 +1488,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
                                 onClick={() => handleQuickMarkAttendance(member.id, 'ATTENDED', slot1.id)}
                                 title={`Mark ${isBearTrap ? 'attended' : 'joined'}: ${slot1.slotName}`}
                                 className={`px-1.5 py-0.5 rounded text-[10px] font-mono cursor-pointer transition-colors ${
-                                  record.attendanceStatus === 'ATTENDED' && record.attendanceSlotId === slot1.id
+                                  isRecordSlot1Attended(record)
                                     ? 'bg-emerald-500 text-slate-950 font-black'
                                     : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
                                 }`}
@@ -1355,7 +1504,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
                                 onClick={() => handleQuickMarkAttendance(member.id, 'ATTENDED', slot2.id)}
                                 title={`Mark ${isBearTrap ? 'attended' : 'joined'}: ${slot2.slotName}`}
                                 className={`px-1.5 py-0.5 rounded text-[10px] font-mono cursor-pointer transition-colors ${
-                                  record.attendanceStatus === 'ATTENDED' && record.attendanceSlotId === slot2.id
+                                  isRecordSlot2Attended(record)
                                     ? 'bg-emerald-500 text-slate-950 font-black'
                                     : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
                                 }`}

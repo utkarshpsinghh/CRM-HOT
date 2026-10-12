@@ -101,7 +101,7 @@ export const storageService = {
       const rawAtt = localStorage.getItem(STORAGE_KEYS.ATTENDANCE);
       if (rawAtt) {
         const att: AttendanceRecord[] = JSON.parse(rawAtt);
-        const filtered = att.filter(a => !/^att-evt-\d+/.test(a.id) && !/^att-\d+/.test(a.id));
+        const filtered = att.filter(a => !/^att-mock-\d+/.test(a.id) && !/^att-\d{1,4}$/.test(a.id));
         if (filtered.length !== att.length) {
           localStorage.setItem(STORAGE_KEYS.ATTENDANCE, JSON.stringify(filtered));
         }
@@ -278,6 +278,13 @@ export const storageService = {
     localStorage.setItem(STORAGE_KEYS.DELETED_EVENT_IDS, JSON.stringify(updated));
   },
 
+  removeDeletedEventId(id: string) {
+    if (!id) return;
+    const current = this.getDeletedEventIds();
+    const updated = current.filter(x => x !== id);
+    localStorage.setItem(STORAGE_KEYS.DELETED_EVENT_IDS, JSON.stringify(updated));
+  },
+
   isEventDeleted(id: string): boolean {
     const list = this.getDeletedEventIds();
     return list.includes(id);
@@ -324,7 +331,7 @@ export const storageService = {
       'evt-1791223308841-6mkk': 'evt-4eee1101',
     };
     return list
-      .filter(a => !deletedIds.has(a.eventId))
+      .filter(a => !deletedIds.has(a.eventId) && !a.eventId.startsWith('slot-'))
       .map(a => {
         const mapped = EVENT_ID_ALIASES[a.eventId] || a.eventId;
         return mapped !== a.eventId ? { ...a, eventId: mapped } : a;
@@ -342,7 +349,7 @@ export const storageService = {
       'evt-1791223308841-6mkk': 'evt-4eee1101',
     };
     const normalized = (records || [])
-      .filter(a => !deletedIds.has(a.eventId))
+      .filter(a => !deletedIds.has(a.eventId) && !a.eventId.startsWith('slot-'))
       .map(a => {
         const mapped = EVENT_ID_ALIASES[a.eventId] || a.eventId;
         return mapped !== a.eventId ? { ...a, eventId: mapped } : a;
@@ -374,7 +381,7 @@ export const storageService = {
     const deletedIds = new Set(this.getDeletedEventIds());
     try {
       const parsed: EventParticipation[] = JSON.parse(raw);
-      return Array.isArray(parsed) ? parsed.filter(p => !deletedIds.has(p.eventId)) : [];
+      return Array.isArray(parsed) ? parsed.filter(p => !deletedIds.has(p.eventId) && !p.eventId.startsWith('slot-')) : [];
     } catch {
       return [];
     }
@@ -382,7 +389,7 @@ export const storageService = {
 
   setEventParticipations(participations: EventParticipation[]) {
     const deletedIds = new Set(this.getDeletedEventIds());
-    const filtered = (participations || []).filter(p => !deletedIds.has(p.eventId));
+    const filtered = (participations || []).filter(p => !deletedIds.has(p.eventId) && !p.eventId.startsWith('slot-'));
     localStorage.setItem(STORAGE_KEYS.EVENT_PARTICIPATIONS, JSON.stringify(filtered));
   },
 

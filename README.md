@@ -1,98 +1,110 @@
-# 🏰 HOT — Kingshot Alliance CRM (Command Center)
+# ❄️ FROSTREALM: STRATEGY & SURVIVAL (Kingdom #1)
 
-[![React](https://img.shields.io/badge/Frontend-React%2019%20%2B%20TypeScript-61dafb.svg)](https://react.dev/)
-[![Vite](https://img.shields.io/badge/Build-Vite%208-646cff.svg)](https://vite.dev/)
-[![Tailwind CSS](https://img.shields.io/badge/Styles-Tailwind%20CSS%20v4-38bdf8.svg)](https://tailwindcss.com/)
-[![Database](https://img.shields.io/badge/Database-Google%20Sheets-34a853.svg)](https://sheets.google.com/)
+A playable online mobile-first 2D isometric kingdom strategy survival game inspired by the core gameplay systems of *Kingshot* and *Whiteout Survival*.
 
-A web-based **Alliance Management CRM for the Kingshot alliance "HOT"** designed like a **Kingshot fantasy alliance war room**, not a sterile corporate spreadsheet.
+Built with **TypeScript, React 19, HTML5 Canvas 2D Isometric Engine, Tailwind CSS, Supabase / PostgreSQL, and Capacitor Android**.
 
 ---
 
-## ⚔️ Key Features & Product Highlights
+## 🏰 Game Overview
 
-### 1. 🏰 Alliance Command Center (Dashboard)
-- **Alliance Telemetry**: Live cards for Total Members (92), Active Combatants, Inactive Absentees, Infraction Strikes, and Needs Attention watchlist.
-- **Event Overview Telemetry**: Real-time visual progress bars and attendance percentage gauges for **BT1, BT2, Swordland L1, Swordland L2, Tri Alliance L1, and Tri Alliance L2**.
-- **Actionable War Alerts**: Interactive alerts (e.g. *"X members haven't voted recently"*, *"Y members have 2+ strikes"*, *"Z members silent for 7+ days"*) that immediately open filtered roster views.
-- **Chronological Event Log**: Quick click into any event's attendance ledger.
+In the freezing wilderness of **Kingdom #1 (Frostrealm Alpha)**, players establish and fortify their Citadel. Lord Commanders manage four primary resources (**Food, Wood, Stone, Gold**) and premium **Gems**, construct 12 specialized survival buildings, train 3 troop classes, recruit legendary champions, and march across a shared 100x100 kingdom world map to harvest resource caches and purge rogue marauder outposts.
 
-### 2. 👥 Alliance Roster (Members)
-- **Heraldic Rank Badges**: Custom rank insignia for **R5 (Leader)**, **R4 (Officers)**, **R3 (Elites)**, **R2 (Warriors)**, and **R1 (Recruits)**.
-- **Member Dossier**: Complete historical profile tracking former ranks, disciplinary strikes, communication status, notes, and full event participation logs (✓ Joined, ✗ Flaked, — No Vote).
-- **Search & Multi-Filter**: Filter by rank, communication (Good / Warning / Poor / Unknown), strikes, and active/inactive status.
-- **Soft-Delete / Archiving**: Preserves all historical battle data when members depart or are demoted.
-
-### 3. ⚔️ War Events
-- **Supported Event Types**: Default support for **BT1, BT2, Swordland L1, Swordland L2, Tri Alliance L1, Tri Alliance L2**, and custom event types.
-- **Automatic Roster Provisioning**: Summoning a new war event automatically enrolls all active alliance members into the attendance ledger with zero manual typing.
-
-### 4. 📊 Attendance Command
-- **4 Distinct Combatant Categories**:
-  1. 🟢 **Joined**: Voted and participated in the battle.
-  2. 🟡 **Voted but Didn't Join**: Flaked after voting YES (includes 1-click **⚠️ Strike** action).
-  3. 🔴 **Didn't Vote**: Never submitted a vote response.
-  4. ⚪ **Absent / Not Applicable**: Voted NO or excused.
-- **Fast Attendance Controls**: Single-click toggle buttons `[YES] [NO] [NO VOTE]` and `[JOINED] [DIDN'T JOIN]`.
-- **Bulk Actions**: 1-click operations (*"Mark All YES as JOINED"*, *"Mark All as NO VOTE"*, *"Mark Everyone JOINED"*) with stylized confirmation modals.
-
-### 5. ⚠️ Inactivity & Warning Radar
-- **Automated Calculation**: Evaluates the latest timestamp across votes, attendance, and alliance records.
-- **Tiered Risk Classification**:
-  - ⚠️ **Warning Watchlist**: 3–6 days silent.
-  - 🔴 **Inactive**: 7–13 days silent.
-  - 💀 **Critical**: 14+ days silent.
-- Configurable thresholds directly in Settings.
-
-### 6. 🛡️ Disciplinary Strike System
-- Permanent historical strike logs with dates, reasons, and issuer attribution.
-- Pardon strike capability without destroying historical audit logs.
-
-### 7. 🔊 Kingshot Game Audio Experience
-- Integrated Web Audio API synthesizer generating medieval fanfares, sword clashes, and battle horn alert chimes without external audio dependencies.
+### Core Systems Implemented:
+1. **Interactive 2D Isometric City View**:
+   - Smooth mobile touch pan and pinch/wheel zoom controls.
+   - 12 canonical buildings with isometric depth, levels, and badges.
+   - Procedural winter blizzard snow particles and procedural Web Audio SFX.
+   - Floating resource harvest bubbles with 1-tap collection.
+   - Single construction queue with countdown timers and instant gem completion.
+2. **12 Canonical Buildings**:
+   - `Main Hall` (Progression gate & building limits)
+   - `Barracks` (Infantry training)
+   - `Archery Range` (Ranged troop training)
+   - `Stable` (Cavalry breeding)
+   - `Farmstead` (Food production)
+   - `Lumber Mill` (Wood timber production)
+   - `Stone Quarry` (Stone production)
+   - `Gold Workshop` (Gold refining)
+   - `Research Academy` (Technology tree)
+   - `Field Hospital` (Treats wounded troops)
+   - `Warehouse` (Protects stockpiled resources)
+   - `Alliance Embassy` (Diplomacy & reinforcements)
+3. **Resource Economy**:
+   - Server-authoritative timestamps for production calculation.
+   - Atomic resource deduction with checks preventing negative balances.
+4. **Troop System**:
+   - 3 troop classes: **Infantry** (Frost Axemen), **Ranged** (Snow Archers), **Cavalry** (Scout Riders).
+   - Training queue, training times, and hospital casualty triage.
+5. **Starter Heroes**:
+   - 5 Original Champions: Valeria Frostguard (Epic), Kaelen Nightbow (Rare), Bjoern Ironhoof (Epic), Elira Sunfire (Legendary), Torin Stonecrag (Common).
+6. **100x100 Shared Kingdom Map & Expeditions**:
+   - City placement with collision protection.
+   - Resource nodes (Food, Wood, Stone, Gold).
+   - Neutral enemy camps (Frost Wolves, Snow Marauders, Glacier Golems).
+   - Server-authoritative marches with travel countdowns, combat resolution, and return trips.
+7. **Deterministic Combat Resolver**:
+   - Round-based combat simulation factoring in unit stats, hero skills, and technology buffs.
+   - Casualties and hospital wounded triage.
+   - Comprehensive Battle Reports.
+8. **Research Academy Tech Tree**:
+   - Economy branch (+Food, +Wood, +Stone).
+   - Military branch (+Infantry, +Ranged, +Cavalry).
+9. **Alliance & Social Systems**:
+   - Create and join alliances.
+   - Live War Room alliance chat.
+   - Kingdom Power & Citadel level leaderboards.
+10. **Quests & Progression**:
+    - Chapter 1 quest milestones with reward claiming and confetti celebration.
+11. **QA & Admin Support Tooling**:
+    - Built-in audit log and testing panel for instant queue completion, resource granting, and system reset.
 
 ---
 
-## ⚡ Quickstart
+## 🛠️ Local Development & Setup
 
-### 1. Install & Run Locally
+### Prerequisites
+- Node.js (v18+)
+- npm
+
+### 1. Install Dependencies
 ```bash
 npm install
+```
+
+### 2. Run Automated Test Suite
+```bash
+npm run test
+```
+
+### 3. Launch Development Server
+```bash
 npm run dev
 ```
-Open [http://localhost:5173](http://localhost:5173) in your browser.
+Open [http://localhost:5173](http://localhost:5173) in your browser. Mobile device simulation mode (F12 -> Responsive) is recommended.
 
-### 2. Build for Production
+### 4. Build for Production
 ```bash
 npm run build
-npm run preview
+```
+
+### 5. Build Android APK (Capacitor)
+```bash
+npm run android:sync
+npm run android:build
 ```
 
 ---
 
-## 🔑 Officer Authentication Gate
+## 🗄️ Database & Supabase Migration
 
-Log in with default officer credentials:
-- **Username**: `admin` (or `hot_leader`)
-- **Password**: `kingshot_hot`
+The game includes a normalized PostgreSQL schema designed for Kingdom #1 with multi-kingdom (`kingdom_id`) expansion readiness.
 
-*(Credentials can be verified against your own Google Sheets `Admins` table via SHA-256).*
-
----
-
-## 📄 Google Sheets Database & Google Apps Script Setup
-
-This project uses **Google Sheets as the database** with **Google Apps Script** as the secure backend API.
-
-Follow the step-by-step instructions in [`google-apps-script/README.md`](file:///c:/Users/Utkarsh/Documents/CRM-HOT/google-apps-script/README.md):
-1. Create a blank Google Spreadsheet named **"HOT Alliance CRM Database"**.
-2. Click **Extensions > Apps Script** and paste the code from [`google-apps-script/Code.gs`](file:///c:/Users/Utkarsh/Documents/CRM-HOT/google-apps-script/Code.gs).
-3. Run `setupDatabase()` once to format all 7 sheets (`Members`, `Events`, `Attendance`, `Strike History`, `Communication`, `Admins`, `Settings`).
-4. Click **Deploy > New deployment > Web app** (Execute as: *Me*, Who has access: *Anyone*).
-5. Paste the generated Web App URL into the **⚙️ Settings** tab of the CRM.
-
----
-
-## 📱 Mobile Responsiveness
-
-The application is fully responsive on smartphones and tablets, offering thumb-friendly touch targets, mobile card views, and quick filter controls.
+To apply the schema to your Supabase project:
+1. Open your **Supabase Dashboard** -> **SQL Editor**.
+2. Open the file [`supabase/game_schema.sql`](./supabase/game_schema.sql).
+3. Copy the entire contents and click **Run**.
+4. The script provisions:
+   - 25+ normalized tables (`kingdoms`, `players`, `player_profiles`, `cities`, `buildings`, `player_resources`, `player_heroes`, `player_troops`, `marches`, `battle_reports`, `alliances`, `quests`, `mail`, etc.).
+   - Row Level Security (RLS) policies.
+   - Server-authoritative stored procedures (RPCs): `rpc_init_player_profile`, `rpc_collect_building_resource`, `rpc_start_building_upgrade`, `rpc_complete_building_upgrade`.

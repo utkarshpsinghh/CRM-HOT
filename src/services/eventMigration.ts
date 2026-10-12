@@ -108,7 +108,9 @@ export function getAllEventRelatedIds(
   slots: EventSlot[] = []
 ): string[] {
   const ids = new Set<string>();
-  ids.add(eventId);
+  if (eventId && !eventId.startsWith('slot-')) {
+    ids.add(eventId);
+  }
 
   // 1. Check against HISTORICAL_PAIRS
   HISTORICAL_PAIRS.forEach((pair, idx) => {
@@ -131,35 +133,36 @@ export function getAllEventRelatedIds(
       ids.add(altBtParentId);
       ids.add(legacy1);
       ids.add(legacy2);
-      ids.add(slot1Id);
-      ids.add(slot2Id);
     }
   });
 
-  // 2. Check slots from eventSlots
+  // 2. Check slots from eventSlots (if caller passed a slot ID, resolve to its event ID)
   slots.forEach(s => {
-    if (s.eventId === eventId || ids.has(s.eventId)) {
-      ids.add(s.eventId);
-      ids.add(s.id);
-    }
     if (s.id === eventId) {
       ids.add(s.eventId);
-      ids.add(s.id);
     }
   });
 
-  // 3. Check events that might share the same date/type or slot name
+  // 3. Check events that might share the same date/type or slot name (including 24h proximity for cycle alignment)
   const targetEvt = events.find(e => ids.has(e.id));
   if (targetEvt && targetEvt.date) {
     const datePrefix = targetEvt.date.slice(0, 10);
+    const targetMs = new Date(targetEvt.date).getTime();
     events.forEach(e => {
-      if (e.date && e.date.slice(0, 10) === datePrefix && (e.eventType === targetEvt.eventType || e.eventName === targetEvt.eventName)) {
-        ids.add(e.id);
+      if (e.eventType === targetEvt.eventType || e.eventName === targetEvt.eventName) {
+        if (e.date && e.date.slice(0, 10) === datePrefix) {
+          ids.add(e.id);
+        } else if (!isNaN(targetMs) && e.date) {
+          const eMs = new Date(e.date).getTime();
+          if (!isNaN(eMs) && Math.abs(targetMs - eMs) <= 24 * 60 * 60 * 1000) {
+            ids.add(e.id);
+          }
+        }
       }
     });
   }
 
-  return Array.from(ids);
+  return Array.from(ids).filter(id => Boolean(id) && !id.startsWith('slot-'));
 }
 
 /**
@@ -325,8 +328,18 @@ export function migrateHistoricalEvents(
       return;
     }
 
-    // If it's already a new parent event, keep it
+    // If it's already a new parent event, keep it (deduplicating same-day events)
     if (oldEvt.id.startsWith('evt-parent-') || oldEvt.eventType === 'Bear Trap' || oldEvt.eventType === 'Swordsland' || oldEvt.eventType === 'Tri Alliance') {
+      const existingSameDay = newEvents.find(
+        e => e.eventType === oldEvt.eventType && (e.date || '').slice(0, 10) === evtDateStr
+      );
+      if (existingSameDay) {
+        if (oldEvt.id.startsWith('evt-parent-') && !existingSameDay.id.startsWith('evt-parent-')) {
+          const idx = newEvents.indexOf(existingSameDay);
+          if (idx !== -1) newEvents[idx] = oldEvt;
+        }
+        return;
+      }
       newEvents.push(oldEvt);
       return;
     }
