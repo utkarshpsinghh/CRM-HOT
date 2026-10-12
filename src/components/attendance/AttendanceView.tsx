@@ -542,11 +542,26 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ onOpenAddStrike 
                   const tB = parseDateAsUtc(b.date)?.getTime() || new Date(b.date).getTime() || 0;
                   return tB - tA;
                 })
-                .map(e => (
-                  <option key={e.id} value={e.id}>
-                    {e.eventType} — {safeFormatDate(e.date, { month: 'short', day: 'numeric', year: 'numeric' })}
-                  </option>
-                ))}
+                .map(e => {
+                  const relIds = new Set(getAllEventRelatedIds(e.id, events, eventSlots));
+                  const partCount = eventParticipations.filter(
+                    p => (p.eventId === e.id || relIds.has(p.eventId)) && p.attendanceStatus !== 'NOT_MARKED'
+                  ).length;
+                  const attCount = attendance.filter(
+                    a => {
+                      const aEvt = a.eventId || (a as any).event_id;
+                      const aSt = String(a.attendanceStatus || (a as any).attendance_status || '').trim().toUpperCase();
+                      return (aEvt === e.id || relIds.has(aEvt)) && ['BT1', 'BT2', 'JOINED', 'DIDNT_JOIN', 'ATTENDED', 'ABSENT'].includes(aSt);
+                    }
+                  ).length;
+                  const count = Math.max(partCount, attCount);
+                  const labelSuffix = count > 0 ? ` (${count} marked)` : '';
+                  return (
+                    <option key={e.id} value={e.id}>
+                      {e.eventType} — {safeFormatDate(e.date, { month: 'short', day: 'numeric', year: 'numeric' })}{labelSuffix}
+                    </option>
+                  );
+                })}
             </select>
           </div>
 

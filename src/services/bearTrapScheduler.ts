@@ -74,9 +74,14 @@ export function syncAndAutoScheduleBearTraps(
       const eventTime = parseDateAsUtc(evt.date)?.getTime() ?? new Date(evt.date).getTime();
       // If duplicates historical date or start time is more than 24 hours in the future
       if (isHistoricalDuplicate || (eventTime - nowMs > TWENTY_FOUR_HOURS_MS)) {
-        toRemoveIds.add(evt.id);
-        prunedEventIds.push(evt.id);
-        updatedCount++;
+        const hasAttendance = updatedParticipations.some(
+          p => p.eventId === evt.id && (p.attendanceStatus !== 'NOT_MARKED' || p.voteStatus !== 'NO_VOTE')
+        );
+        if (!hasAttendance) {
+          toRemoveIds.add(evt.id);
+          prunedEventIds.push(evt.id);
+          updatedCount++;
+        }
       }
     }
   });

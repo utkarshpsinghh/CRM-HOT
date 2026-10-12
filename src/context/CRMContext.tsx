@@ -660,12 +660,14 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             // 7. Background sync auto-scheduled events & shadow cache to Supabase
             if (apiService.isSupabase(currentSettings)) {
               (async () => {
-                const client = (supabaseService as any).getClient?.(currentSettings);
+                const client = supabaseService.getClient(currentSettings);
                 if (client) {
                   const remoteEventIds = new Set(remoteEvents.map((e: AllianceEvent) => e.id));
                   const newEventsToSync = processedEvents.filter(e => !remoteEventIds.has(e.id));
                   for (const ev of newEventsToSync) {
-                    await client.from('events').upsert((supabaseService as any).mapEventToRow(ev), { onConflict: 'id' }).catch(() => {});
+                    try {
+                      await client.from('events').upsert(supabaseService.mapEventToRow(ev), { onConflict: 'id' });
+                    } catch {}
                   }
                   await supabaseService.saveParticipationsCache(client, processedParticipations).catch(() => {});
                 }
@@ -691,7 +693,28 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             setEvents(processedEvents);
             setEventSlots(processedSlots);
             setEventParticipations(processedParticipations);
-            if (Array.isArray(allData.attendance)) setAttendance(allData.attendance);
+
+            const mergedAttendanceMap = new Map<string, AttendanceRecord>();
+            if (Array.isArray(allData.attendance)) {
+              allData.attendance.forEach((a: AttendanceRecord) => mergedAttendanceMap.set(a.id, a));
+            }
+            storageService.getAttendance().forEach(loc => {
+              const rem = mergedAttendanceMap.get(loc.id);
+              if (!rem) {
+                mergedAttendanceMap.set(loc.id, loc);
+              } else {
+                const locMarked = ['BT1', 'BT2', 'JOINED', 'DIDNT_JOIN', 'ATTENDED', 'ABSENT'].includes(String(loc.attendanceStatus));
+                const remMarked = ['BT1', 'BT2', 'JOINED', 'DIDNT_JOIN', 'ATTENDED', 'ABSENT'].includes(String(rem.attendanceStatus));
+                if (locMarked && !remMarked) {
+                  mergedAttendanceMap.set(loc.id, loc);
+                } else if (new Date(loc.updatedAt).getTime() > new Date(rem.updatedAt).getTime()) {
+                  mergedAttendanceMap.set(loc.id, loc);
+                }
+              }
+            });
+            const mergedAtt = Array.from(mergedAttendanceMap.values());
+            setAttendance(mergedAtt);
+            storageService.setAttendance(mergedAtt);
             if (Array.isArray(allData.strikes)) setStrikes(allData.strikes);
             if (Array.isArray(allData.communications)) setCommunications(allData.communications);
             if (Array.isArray(allData.admins)) {

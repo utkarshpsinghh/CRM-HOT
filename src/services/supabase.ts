@@ -23,6 +23,8 @@ import { getComputedEventStatus } from '../utils/date';
 import { deduplicateMembers, storageService } from './storage';
 import { mapParticipationToLegacyAttendanceRows, getAllEventRelatedIds } from './eventMigration';
 
+import { DEFAULT_SUPABASE_URL, DEFAULT_SUPABASE_ANON_KEY } from '../config';
+
 // Helper to strip any trailing slashes or /rest/v1 paths from Supabase Project URL
 export function normalizeSupabaseUrl(url: string): string {
   let clean = (url || '').trim();
@@ -38,15 +40,15 @@ let cachedConfigKey = '';
 export const supabaseService = {
   // Check if Supabase credentials are configured in settings or environment
   isConfigured(settings?: AllianceSettings): boolean {
-    const url = normalizeSupabaseUrl(settings?.supabaseUrl || import.meta.env.VITE_SUPABASE_URL || '');
-    const key = (settings?.supabaseAnonKey || import.meta.env.VITE_SUPABASE_ANON_KEY || '').trim();
+    const url = normalizeSupabaseUrl(settings?.supabaseUrl || import.meta.env.VITE_SUPABASE_URL || DEFAULT_SUPABASE_URL);
+    const key = (settings?.supabaseAnonKey || import.meta.env.VITE_SUPABASE_ANON_KEY || DEFAULT_SUPABASE_ANON_KEY).trim();
     return Boolean(url && key && url.startsWith('http'));
   },
 
   // Get or initialize Supabase client instance
   getClient(settings?: AllianceSettings): SupabaseClient | null {
-    const url = normalizeSupabaseUrl(settings?.supabaseUrl || import.meta.env.VITE_SUPABASE_URL || '');
-    const key = (settings?.supabaseAnonKey || import.meta.env.VITE_SUPABASE_ANON_KEY || '').trim();
+    const url = normalizeSupabaseUrl(settings?.supabaseUrl || import.meta.env.VITE_SUPABASE_URL || DEFAULT_SUPABASE_URL);
+    const key = (settings?.supabaseAnonKey || import.meta.env.VITE_SUPABASE_ANON_KEY || DEFAULT_SUPABASE_ANON_KEY).trim();
 
     if (!url || !key || !url.startsWith('http')) {
       return null;
@@ -904,8 +906,8 @@ export const supabaseService = {
     if (!client) return false;
     let anySuccess = false;
 
-    const allEvents = storageService.getEvents();
-    const allSlots = storageService.getEventSlots();
+    const allEvents = [...storageService.getEvents(), ...storageService.getMigratedOrStoredEvents().events];
+    const allSlots = [...storageService.getEventSlots(), ...storageService.getMigratedOrStoredEvents().slots];
     const relatedIds = getAllEventRelatedIds(participation.eventId, allEvents, allSlots);
     const targetEventIds = Array.from(new Set([participation.eventId, ...relatedIds])).filter(id => Boolean(id) && !id.startsWith('slot-'));
 
@@ -917,12 +919,14 @@ export const supabaseService = {
           await client.from('events').upsert(this.mapEventToRow(parentEvent), { onConflict: 'id' });
         } catch {}
       } else {
+        const dateMatch = relId.match(/(\d{4}-\d{2}-\d{2})/);
+        const eventDate = dateMatch ? `${dateMatch[1]}T16:00:00.000Z` : new Date().toISOString();
         try {
           await client.from('events').upsert({
             id: relId,
             event_type: relId.includes('bt') || relId.includes('bear-trap') ? 'Bear Trap' : 'Event',
             event_name: relId.includes('bt') || relId.includes('bear-trap') ? 'Bear Trap' : 'Event',
-            date: new Date().toISOString(),
+            date: eventDate,
             status: 'Scheduled',
             created_at: new Date().toISOString(),
           }, { onConflict: 'id' });
@@ -1013,8 +1017,8 @@ export const supabaseService = {
     if (!client) return false;
     let anySuccess = false;
 
-    const allEvents = storageService.getEvents();
-    const allSlots = storageService.getEventSlots();
+    const allEvents = [...storageService.getEvents(), ...storageService.getMigratedOrStoredEvents().events];
+    const allSlots = [...storageService.getEventSlots(), ...storageService.getMigratedOrStoredEvents().slots];
     const relatedIds = getAllEventRelatedIds(eventId, allEvents, allSlots);
     const targetEventIds = Array.from(new Set([eventId, ...relatedIds])).filter(id => Boolean(id) && !id.startsWith('slot-'));
 
@@ -1026,12 +1030,14 @@ export const supabaseService = {
           await client.from('events').upsert(this.mapEventToRow(parentEvent), { onConflict: 'id' });
         } catch {}
       } else {
+        const dateMatch = relId.match(/(\d{4}-\d{2}-\d{2})/);
+        const eventDate = dateMatch ? `${dateMatch[1]}T16:00:00.000Z` : new Date().toISOString();
         try {
           await client.from('events').upsert({
             id: relId,
             event_type: relId.includes('bt') || relId.includes('bear-trap') ? 'Bear Trap' : 'Event',
             event_name: relId.includes('bt') || relId.includes('bear-trap') ? 'Bear Trap' : 'Event',
-            date: new Date().toISOString(),
+            date: eventDate,
             status: 'Scheduled',
             created_at: new Date().toISOString(),
           }, { onConflict: 'id' });
